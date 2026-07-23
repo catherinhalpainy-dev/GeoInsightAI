@@ -1,30 +1,35 @@
+// 页面内容
+
 import "./App.css";
 
 function App() {
   return (
     <div className="app">
       <header className="header">
+
         <div className="brand">
-          <h1>GeoInsight AI</h1>
+          <div className="logo">Logo</div>
+          <h1>GeoInsightAI</h1>
           <p>智能空间数据可视化与分析平台</p>
         </div>
-
         <nav className="header-actions">
           <button type="button">导入数据</button>
           <button type="button">保存项目</button>
         </nav>
       </header>
 
+
       <main className="workspace">
+        {/* 左侧区域 */}
         <aside className="sidebar">
           <section className="panel-section">
             <h2>数据集</h2>
+
             <div className="empty-state">
               <p>暂未导入空间数据</p>
               <button type="button">选择文件</button>
             </div>
           </section>
-
           <section className="panel-section">
             <h2>图层列表</h2>
             <p className="muted-text">暂无图层</p>
@@ -59,10 +64,9 @@ function App() {
               </article>
             </div>
           </section>
-
           <section className="panel-section">
             <h2>AI 空间分析助手</h2>
-
+            
             <label htmlFor="analysis-request">
               描述你的空间分析需求
             </label>

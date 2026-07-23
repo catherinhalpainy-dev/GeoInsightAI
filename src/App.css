@@ -1,87 +1,56 @@
+/* 当前页面具体样式 */
 .app {
-  min-width: 960px;
+  
   min-height: 100vh;
-  background: #f4f6f8;
 }
 
 .header {
   display: flex;
-  height: 72px;
   align-items: center;
   justify-content: space-between;
+  min-height: 72px;
   padding: 0 24px;
-  border-bottom: 1px solid #dfe3e8;
-  background: #ffffff;
+
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 22px;
 }
 
 .brand p {
+  /* 上\左右\下 */
   margin: 4px 0 0;
-  color: #667085;
-  font-size: 13px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-button {
-  padding: 9px 14px;
-  border: 1px solid #cfd5dc;
-  border-radius: 6px;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #f2f4f7;
 }
 
 .workspace {
   display: grid;
   min-height: calc(100vh - 72px);
+  /* 左栏：固定 260px
+     中栏：最小 400px，有剩余空间时自动扩展
+     右栏：固定 300px */
   grid-template-columns: 260px minmax(400px, 1fr) 300px;
-}
-
-.sidebar,
-.analysis-panel {
-  padding: 18px;
-  background: #ffffff;
+  background: #e8edf2;
 }
 
 .sidebar {
-  border-right: 1px solid #dfe3e8;
+  padding: 18px;
+  background: white;
+  /* 右边界 */
+  border: 1px solid #dfe3e8;
 }
-
-.analysis-panel {
-  border-left: 1px solid #dfe3e8;
-}
-
 .panel-section {
   margin-bottom: 28px;
 }
 
-.panel-section h2 {
-  margin: 0 0 14px;
-  font-size: 16px;
-}
-
 .empty-state {
   padding: 18px;
+  /* dash:虚线 */
   border: 1px dashed #cfd5dc;
   border-radius: 8px;
   text-align: center;
 }
-
-.empty-state p,
-.muted-text {
-  color: #98a2b3;
-  font-size: 14px;
+.panel-section h2{
+  margin: 0 0 12px;
 }
 
 .map-area {
@@ -90,32 +59,13 @@ button:hover {
 }
 
 .map-placeholder {
+  /* Grid 更适合二维或整体区域布局，Flex 更适合单行、单列和局部对齐 */
   display: flex;
-  height: 100%;
   min-height: 500px;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  border: 1px dashed #98a2b3;
-  border-radius: 8px;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
-    repeating-linear-gradient(
-      45deg,
-      #dce5ec 0,
-      #dce5ec 10px,
-      #edf2f5 10px,
-      #edf2f5 20px
-    );
-}
-
-.map-placeholder span {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.map-placeholder p {
-  color: #667085;
+  outline: 2px solid red;
 }
 
 .statistics {
@@ -128,37 +78,4 @@ button:hover {
   padding: 12px;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
-}
-
-.stat-card span {
-  display: block;
-  color: #667085;
-  font-size: 12px;
-}
-
-.stat-card strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 24px;
-}
-
-.analysis-panel label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.analysis-panel textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #cfd5dc;
-  border-radius: 6px;
-  resize: vertical;
-}
-
-.primary-button {
-  width: 100%;
-  margin-top: 12px;
-  background: #1d2939;
-  color: #ffffff;
 }
