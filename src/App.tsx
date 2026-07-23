@@ -1,8 +1,32 @@
 // 页面内容
 
 import "./App.css";
+import { useState } from "react";
+
 
 function App() {
+  const [datasetCount, setDatasetCount] = useState(0);
+  const [layerCount, setLayerCount] = useState(0);
+
+  function handleMockImport() {
+    setDatasetCount(128);
+    setLayerCount(1);
+  }
+
+  const [analysisText, setAnalysisText] = useState("");
+  const [resultMessage, setResultMessage] = useState("暂无分析方案");
+
+  function handleGeneratePlan() {
+    const request = analysisText.trim();
+
+    if (!request) {
+      setResultMessage("请先输入分析需求");
+      return;
+    }
+
+    setResultMessage(`已生成模拟方案：${request}`);
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -27,7 +51,9 @@ function App() {
 
             <div className="empty-state">
               <p>暂未导入空间数据</p>
-              <button type="button">选择文件</button>
+              <button type="button" onClick={handleMockImport}>
+                选择文件
+              </button>
             </div>
           </section>
           <section className="panel-section">
@@ -55,18 +81,18 @@ function App() {
             <div className="statistics">
               <article className="stat-card">
                 <span>数据量</span>
-                <strong>0</strong>
+                <strong>{datasetCount}</strong>
               </article>
 
               <article className="stat-card">
                 <span>图层数</span>
-                <strong>0</strong>
+                <strong>{layerCount}</strong>
               </article>
             </div>
           </section>
           <section className="panel-section">
             <h2>AI 空间分析助手</h2>
-            
+
             <label htmlFor="analysis-request">
               描述你的空间分析需求
             </label>
@@ -74,12 +100,20 @@ function App() {
             <textarea
               id="analysis-request"
               rows={6}
+              value={analysisText}
+              onChange={(event) => setAnalysisText(event.target.value)}
               placeholder="例如：筛选人口超过 100 万的城市"
             />
 
-            <button className="primary-button" type="button">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleGeneratePlan}
+            >
               生成分析方案
             </button>
+<p className="analysis-result">{resultMessage}</p>
+            
           </section>
         </aside>
       </main>
