@@ -1,0 +1,33 @@
+/* 
+修改一次主色，全项目统一变化 
+color: var(--color-primary);
+*/
+:root {
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-primary-soft: #e8f7f5;
+
+  --color-background: #f5f7f8;
+  --color-panel: #ffffff;
+  --color-border: #e5e7eb;
+
+  --color-text: #1f2937;
+  --color-text-secondary: #6b7280;
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  --radius-small: 6px;
+  --radius-medium: 10px;
+  --radius-large: 14px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --topbar-height: 60px;
+  --statusbar-height: 28px;
+}
