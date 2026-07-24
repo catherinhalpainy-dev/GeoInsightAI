@@ -162,3 +162,6 @@ button:hover {
   background: #1d2939;
   color: #ffffff;
 }
+.primary-button:hover {
+  background: #7e8895;
+}
