@@ -1,14 +1,24 @@
 // 页面内容
 
 import "./App.css";
+// useState 用来保存组件中的状态
+// 状态：页面中会变化，且变化后要重新显示的数据
 import { useState } from "react";
 
 
+// 大写是自定义组件；
+// 小写是 HTML 标签
 function App() {
+  // useState(0):状态初值为0
+  // datasetCount：当前的数据量
+  // setDatasetCount：修改数据量的函数
   const [datasetCount, setDatasetCount] = useState(0);
   const [layerCount, setLayerCount] = useState(0);
 
+  // 模拟导入数据
   function handleMockImport() {
+    // 不能写 datasetCount = 128;
+    // datasetCount是通过const声明的常量，不能直接修改
     setDatasetCount(128);
     setLayerCount(1);
   }
@@ -17,13 +27,14 @@ function App() {
   const [resultMessage, setResultMessage] = useState("暂无分析方案");
 
   function handleGeneratePlan() {
+    // trim() 删除字符串前后的空格
     const request = analysisText.trim();
 
     if (!request) {
       setResultMessage("请先输入分析需求");
       return;
     }
-
+    // 模板字符串使用反引号
     setResultMessage(`已生成模拟方案：${request}`);
   }
 

@@ -1,6 +1,7 @@
 /* 当前页面具体样式 */
 .app {
-  
+  display: flex;
+  flex-direction:column;
   min-height: 100vh;
 }
 
@@ -24,7 +25,10 @@
 
 .workspace {
   display: grid;
-  min-height: calc(100vh - 72px);
+  /* min-height: calc(100vh - 72px); */
+  
+  /* 占满剩余空间 */
+  flex:1;
   /* 左栏：固定 260px
      中栏：最小 400px，有剩余空间时自动扩展
      右栏：固定 300px */
