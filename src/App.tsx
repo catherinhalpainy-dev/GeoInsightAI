@@ -4,6 +4,8 @@ import "./App.css";
 // useState 用来保存组件中的状态
 // 状态：页面中会变化，且变化后要重新显示的数据
 import { useState } from "react";
+import type { City } from "./types/city";
+import { mockCities } from "./data/cities";
 
 
 // 大写是自定义组件；
@@ -12,19 +14,25 @@ function App() {
   // useState(0):状态初值为0
   // datasetCount：当前的数据量
   // setDatasetCount：修改数据量的函数
-  const [datasetCount, setDatasetCount] = useState(0);
+  // const [datasetCount, setDatasetCount] = useState(0);
   const [layerCount, setLayerCount] = useState(0);
+
+  const [cities, setCities] = useState<City[]>([]);
+  const [searchText, setSearchText] = useState("");
 
   // 模拟导入数据
   function handleMockImport() {
+    setCities(mockCities);
     // 不能写 datasetCount = 128;
     // datasetCount是通过const声明的常量，不能直接修改
-    setDatasetCount(128);
+    // setDatasetCount(mockCities.length);
     setLayerCount(1);
   }
 
   const [analysisText, setAnalysisText] = useState("");
   const [resultMessage, setResultMessage] = useState("暂无分析方案");
+
+
 
   function handleGeneratePlan() {
     // trim() 删除字符串前后的空格
@@ -37,6 +45,44 @@ function App() {
     // 模板字符串使用反引号
     setResultMessage(`已生成模拟方案：${request}`);
   }
+
+
+  // trim():删除字符串前后的空格
+  // toLowerCase():将字符串转换为小写
+  const keyword = searchText.trim().toLowerCase();
+  // filter:数组方法,逐个检查数组中的每一项
+  const filteredCities = cities.filter(
+    // city:当前正在检查的对象
+    (city) => {
+
+      // return决定当前城市是否保留
+      return (
+        city.name.toLowerCase().includes(keyword) ||
+        city.province.toLowerCase().includes(keyword)
+      )
+
+    }
+  );
+
+// cities.reduce((累计值, 当前城市) => {
+//   return 新的累计值;
+// }, 初始值);
+  const totalPopulation =cities.reduce((total,city)=>{
+    return total+city.population;
+  },0)
+
+  const averagePopulation =cities.length<=0 ? 0:Math.round(totalPopulation/cities.length);  
+
+  // reduce:将数组中多个元素,逐个计算成一个最终结果
+  // <City | null>:明确计算结果是City或者null
+  const largestCity =cities.reduce<City | null>(
+    (largest,city) => {
+      if (!largest ||city.population >largest.population){
+        return city;
+      }
+      return largest;
+
+    },null);
 
   return (
     <div className="app">
@@ -59,13 +105,42 @@ function App() {
         <aside className="sidebar">
           <section className="panel-section">
             <h2>数据集</h2>
-
-            <div className="empty-state">
+            {/* type决定输入框类型:text\number\password\checkbox\search */}
+            <input
+              className="search-input"
+              type="search"
+              // value:输入框的当前值,由searchText状态控制
+              value={searchText}
+              // onChange:负责更新
+              onChange={
+                // event:该事件
+                // event.target:触发事件的元素
+                // event.target.value:输入框的当前值
+                (event) => setSearchText(event.target.value)
+                // 相当于:
+                // function handleSearchChange(event){ setSearcText(event.target.value) }
+                // onChange={handleSearchChange}
+              }
+              // 输入框为空显示的提示文字
+              placeholder="搜索城市"
+            />
+            {cities.length === 0 ? (<div className="empty-state">
               <p>暂未导入空间数据</p>
+
               <button type="button" onClick={handleMockImport}>
-                选择文件
+                加载示例数据
               </button>
-            </div>
+            </div>) : (
+              <ul className="city-list">
+                {/* map:将每个city对象转换为一个<li>元素 */}
+                {filteredCities.map((city) => (
+                  // key: React用来追踪每个元素的唯一标识
+                  <li className="city-item" key={city.id}>
+                    <strong>{city.name}</strong>
+                    <span>{city.province}</span>
+                  </li>))}
+              </ul>
+            )}
           </section>
           <section className="panel-section">
             <h2>图层列表</h2>
@@ -91,15 +166,29 @@ function App() {
 
             <div className="statistics">
               <article className="stat-card">
-                <span>数据量</span>
-                <strong>{datasetCount}</strong>
+                <span>城市数量</span>
+                <strong>{cities.length}</strong>
               </article>
 
               <article className="stat-card">
                 <span>图层数</span>
                 <strong>{layerCount}</strong>
               </article>
+
+              <article className="stat-card">
+                <span>总人口</span>
+                <strong>{totalPopulation}</strong>
+              </article>
+              <article className="stat-card">
+                <span>平均人口</span>
+                <strong>{averagePopulation}</strong>
+              </article>
+
             </div>
+            <p className="summary-text">
+              人口最多:
+              {largestCity ? largestCity.name +"("+largestCity.population+"万)" : "暂无数据"}
+            </p>
           </section>
           <section className="panel-section">
             <h2>AI 空间分析助手</h2>
@@ -123,8 +212,8 @@ function App() {
             >
               生成分析方案
             </button>
-<p className="analysis-result">{resultMessage}</p>
-            
+            <p className="analysis-result">{resultMessage}</p>
+
           </section>
         </aside>
       </main>

@@ -154,3 +154,49 @@ button:focus-visible {
 .primary-button:hover {
   background: #1d2939;
 }
+
+.city-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.city-item {
+  display: flex;
+  padding: 10px 12px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e4e7ec;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.city-item:hover {
+  border-color: #98a2b3;
+  background: #f9fafb;
+}
+
+.city-item strong {
+  font-size: 14px;
+}
+
+.city-item span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.search-input {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border: 1px solid #cfd5dc;
+  border-radius: 6px;
+  font: inherit;
+}
+.search-input:focus {
+  border-color: #667085;
+  outline: 2px solid rgba(102, 112, 133, 0.15);
+}
