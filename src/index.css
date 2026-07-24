@@ -1,24 +1,62 @@
+/* 全局基础样式 */
+/* 1.全局字体
+   2.全局文字与背景颜色
+   3.清除浏览器默认外边距
+   ***（最重要）4.将所有元素设置为border-box：widtn=content+padding+border
+   5.保证页面至少占满视口高度 */
+
+
+/* :代表伪类
+    不直接写在html属性,用来表示元素特定状态(如:hover)
+    #代表ID选择器
+    .代表类选择器
+    ::伪元素选择器
+    *通配选择器 */
+/* :root 等价于 html 标签选择器 
+  1.权重更高
+   :root权重是(0,0,1,0)
+   普通标签选择器html是(0,0,0,1)
+  2.是文档树的绝对顶点
+  */
 :root {
+  /* 现代 CSS 字体栈——后备机制 
+  开源无衬线字体、默认系统、苹果设备、Blink（Chrome 的渲染引擎）和 Mac 系统、微软默认、“无衬线字体”的通用大类*/
   font-family:
     Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #1d2939;
+  color: #070707;
   background: #f4f6f8;
+  /* 避免浏览器强行用算法自动合成粗体或斜体 */
   font-synthesis: none;
+  /* 文本渲染：优化易读性与清晰度——开启字距调整与连字 */
   text-rendering: optimizeLegibility;
 }
 
+/* 作用于所有元素
+   怪异盒子：解决百分比布局撑爆容器问题；在无flex时代允许两个元素并列 */
+/* 测试了去除这个设定后，界面撑爆了浏览器 */
 * {
   box-sizing: border-box;
 }
 
+
+/* #是ID选择器 */
+
 html,
 body,
 #root {
+  /* 最小高度为父元素高度,让页面占满可用高度 */
   min-height: 100%;
+  /* 去除浏览器默认外边距,避免四周空白 */
   margin: 0;
 }
 
 body {
   min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
 }
