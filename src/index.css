@@ -24,7 +24,7 @@
   font-family:
     Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #e02252;
+  color: #070707;
   background: #f4f6f8;
   /* 避免浏览器强行用算法自动合成粗体或斜体 */
   font-synthesis: none;
@@ -53,4 +53,10 @@ body,
 
 body {
   min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
 }
