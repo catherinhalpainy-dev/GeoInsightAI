@@ -97,12 +97,13 @@
 }
 
 .app-main {
+  display: flex;
   flex: 1;
   padding: var(--space-4);
 }
 
 .page-content {
-  min-height: 500px;
+  flex:1;
   padding: var(--space-6);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
