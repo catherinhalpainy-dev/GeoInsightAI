@@ -1,5 +1,6 @@
 // 公共顶部导航
 import { NavLink } from "react-router-dom"
+import { useAppContext } from "../../app/AppProvider";
 
 const navigationItems = [
     { path: "/import", label: "数据导入" },
@@ -10,20 +11,24 @@ const navigationItems = [
 ]
 
 export function TopBar() {
+    const {state}=useAppContext();
+    
+    const datasetName=state.dataset?.name??"尚未加载数据";
+
     return (
         <header className="topbar">
             <div className="brand">
                 <span className="brand-mark">◎</span>
                 <span>GeoInsight AI</span>
             </div>
-{/* aria-label 可以帮助用户区分 */}
+            {/* aria-label 可以帮助用户区分 */}
             <nav className="main-nav" aria-label="主导航">
                 {/* map:依次处理原数组中的每一个元素，并把每次返回的结果组成一个新数组 */}
                 {/* 箭头函数使用圆括号时，可以直接返回 JSX，不需要写 return */}
                 {navigationItems.map(
                     (item) => (
                         <NavLink
-                        // key唯一标识路径,path不可以重复
+                            // key唯一标识路径,path不可以重复
                             key={item.path}
                             // to 表示点击该链接后要跳转到哪个地址
                             to={item.path}
@@ -36,7 +41,7 @@ export function TopBar() {
                     ))}
             </nav>
             <div className="topbar-actions">
-                <span className="dataset-chip">尚未加载数据</span>
+                <span className="dataset-chip">{datasetName}</span>
 
                 <button type="button" className="agent-button">
                     唤起 Agent
