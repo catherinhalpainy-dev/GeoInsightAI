@@ -139,3 +139,130 @@
   border-radius: 50%;
   background: var(--color-success);
 }
+
+.page-header h1,
+.inspection-section h2,
+.preview-section h2 {
+  margin-top: 0;
+}
+
+.import-actions {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.import-actions button,
+.preview-footer button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-medium);
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
+}
+
+.import-actions button:disabled {
+  border-color: var(--color-border);
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.import-empty-state {
+  padding: 48px 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-large);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.dataset-summary {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.dataset-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dataset-summary span,
+.inspection-card span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.inspection-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.inspection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-panel);
+}
+
+.inspection-card strong {
+  font-size: 24px;
+}
+
+.preview-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  overflow: hidden;
+}
+
+.preview-heading,
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.preview-heading {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.preview-heading p {
+  margin-bottom: 0;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.preview-table th {
+  background: var(--color-background);
+  font-size: 13px;
+}
+
+.preview-footer {
+  border-top: 1px solid var(--color-border);
+}
