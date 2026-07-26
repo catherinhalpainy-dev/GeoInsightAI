@@ -15,7 +15,7 @@ export function AppShell() {
 → Outlet 显示 WorkspacePage*/}
                 <Outlet />
             </main>
-            <StatusBar statusText="就绪" />
+            <StatusBar  />
         </div>
     );
 }
