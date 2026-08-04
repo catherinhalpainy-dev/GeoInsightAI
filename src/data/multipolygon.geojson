@@ -1,0 +1,80 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            117.6521,
+                            39.0213
+                        ],
+                        [
+                            117.6689,
+                            39.0213
+                        ],
+                        [
+                            117.6689,
+                            39.0156
+                        ],
+                        [
+                            117.6521,
+                            39.0156
+                        ],
+                        [
+                            117.6521,
+                            39.0213
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "id": "LU-001",
+                "landUseType": "residential",
+                "areaM2": 45000,
+                "districtCode": "110105",
+                "builtYear": 2005
+            }
+        },
+        {
+            "type": "Feature",
+            
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            117.4012,
+                            40.0125
+                        ],
+                        [
+                            117.4066,
+                            40.0125
+                        ],
+                        [
+                            117.4066,
+                            40.0088
+                        ],
+                        [
+                            117.4012,
+                            40.0088
+                        ],
+                        [
+                            117.4012,
+                            40.0125
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "id": "LU-002",
+                "landUseType": "commercial",
+                "areaM2": 12000,
+                "districtCode": "110105",
+                "builtYear": 2012
+            }
+        }
+    ]
+}
