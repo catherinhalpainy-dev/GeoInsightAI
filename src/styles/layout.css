@@ -132,14 +132,24 @@
 }
 
 .status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--color-success);
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
 }
 
+.status-dot-success {
+    background: var(--color-success);
+}
+
+.status-dot-working {
+    background: var(--color-warning);
+}
+
+.status-dot-error {
+    background: var(--color-danger);
+}
 .page-header h1,
 .inspection-section h2,
 .preview-section h2 {
@@ -265,4 +275,59 @@
 
 .preview-footer {
   border-top: 1px solid var(--color-border);
+}
+.preview-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.file-import-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-large);
+}
+
+.file-import-section > div {
+  flex: 1;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.file-select-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: var(--radius-medium);
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
+}
+
+.import-error,
+.import-warning {
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: var(--radius-medium);
+}
+
+.import-error {
+  border: 1px solid var(--color-danger);
+  background: #fef2f2;
+  color: var(--color-danger);
+}
+
+.import-warning {
+  border: 1px solid var(--color-warning);
+  background: #fffbeb;
 }

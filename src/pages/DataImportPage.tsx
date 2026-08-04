@@ -5,8 +5,15 @@ import { useAppContext } from "../app/AppProvider";
 import { inspectLandUseDataset } from "../app/inspectLandUseDataset";
 import { MockLandUseDataset } from "../data/mockLandUse";
 import { LAND_USE_LABELS } from "../constants/landUse";
+import type { ChangeEvent } from "react";
+import { parseLandUseGeoJson } from "../utils/parseLandUseGeoJson";
+
+
+const MAX_FILE_SIZE_BYTES =
+    10 * 1024 * 1024;
 
 export function DataImportPage() {
+
     const navigate = useNavigate();
     const { state, dispatch } = useAppContext();
 
@@ -16,14 +23,130 @@ export function DataImportPage() {
         ? inspectLandUseDataset(dataset)
         : null;
 
+    const isImporting =
+        state.importStatus === "reading" ||
+        state.importStatus === "validating";
+    async function handleFileChange(
+        event: ChangeEvent<HTMLInputElement>,
+    ) {
+        const inputElement = event.currentTarget;
+        const file = inputElement.files?.[0];
+
+        if (!file) {
+            return;
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            dispatch({
+                type: "IMPORT_ERROR",
+                payload:
+                    "当前版本仅支持 10 MB 以内的 GeoJSON 文件",
+            });
+
+            inputElement.value = "";
+            return;
+        }
+        const lowerCaseFileName =
+            file.name.toLowerCase();
+
+        const isSupportedExtension =
+            lowerCaseFileName.endsWith(".geojson") ||
+            lowerCaseFileName.endsWith(".json");
+
+        if (!isSupportedExtension) {
+            dispatch({
+                type: "IMPORT_ERROR",
+                payload:
+                    "文件扩展名必须是 .geojson 或 .json",
+            });
+
+            inputElement.value = "";
+            return;
+        }
+
+        dispatch({
+            type: "START_FILE_IMPORT",
+        });
+
+        try {
+
+            const text = await file.text();
+
+            if (text.trim() === "") {
+                dispatch({
+                    type: "IMPORT_ERROR",
+                    payload: "文件内容为空",
+                });
+
+                return;
+            }
+
+            dispatch({
+                type: "VALIDATE_FILE",
+            });
+
+            let parsedValue: unknown;
+
+            try {
+                parsedValue = JSON.parse(text);
+            } catch {
+                dispatch({
+                    type: "IMPORT_ERROR",
+                    payload:
+                        "文件不是合法 JSON，请检查括号、逗号和引号",
+                });
+
+                return;
+            }
+
+            const result = parseLandUseGeoJson(
+                parsedValue,
+                file.name,
+            );
+
+            if (!result.ok) {
+                dispatch({
+                    type: "IMPORT_ERROR",
+                    payload: result.errors.join("；"),
+                });
+
+                return;
+            }
+
+            dispatch({
+                type: "PREVIEW_DATASET",
+                payload: {
+                    dataset: result.dataset,
+                    warnings: result.warnings,
+                },
+            });
+        } catch (error: unknown) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "读取文件时发生未知错误";
+
+            dispatch({
+                type: "IMPORT_ERROR",
+                payload: errorMessage,
+            });
+        } finally {
+            // 允许用户再次选择同一个文件
+            inputElement.value = "";
+        }
+    }
     function handleLoadExample() {
         dispatch({
             type: "PREVIEW_DATASET",
-            payload: MockLandUseDataset,
+            payload: {
+                dataset: MockLandUseDataset,
+                warnings: [],
+            },
         });
     }
+
+    const canLoadToMap = dataset !== null && state.importStatus === "preview";
     function handleLoadToMap() {
-        if (!dataset) {
+        if (!canLoadToMap) {
             return;
         }
 
@@ -49,24 +172,84 @@ export function DataImportPage() {
             <header className="page-header">
                 <h1>数据导入</h1>
                 <p>
-                    当前阶段先加载内置城市用地 GeoJSON，
-                    完成数据检查、属性预览和跨页面共享。
-                </p>
+    导入城市用地 Polygon GeoJSON，
+    系统将检查数据结构、属性字段和基础数据质量，
+    通过后可预览并加载到地图工作台。
+</p>
             </header>
+            <section className="file-import-section">
+                <div>
+                    <h2>选择本地 GeoJSON</h2>
+                    <p>
+                        当前仅支持 EPSG:4326、
+                        Polygon FeatureCollection。
+                    </p>
+                </div>
+
+                <label
+                    className="file-select-button"
+                    htmlFor="land-use-file"
+                >
+                    {isImporting
+                        ? "正在处理..."
+                        : "选择 GeoJSON 文件"}
+                </label>
+
+                <input
+                    id="land-use-file"
+                    className="file-input"
+                    type="file"
+                    accept=".geojson,.json,application/geo+json,application/json"
+                    onChange={handleFileChange}
+                    disabled={isImporting}
+                />
+            </section>
+            {state.importStatus === "reading" && (
+                <p role="status">
+                    正在读取文件内容……
+                </p>
+            )}
+
+            {state.importStatus === "validating" && (
+                <p role="status">
+                    正在校验 GeoJSON 结构和属性……
+                </p>
+            )}
+
+
+
+            {state.importWarnings.length > 0 && (
+                <section className="import-warning">
+                    <h2>数据警告</h2>
+
+                    <p>
+                        有效要素已经保留，以下无效要素已跳过：
+                    </p>
+
+                    <ul>
+                        {state.importWarnings.map(
+                            (warning, index) => (
+                                <li key={`${index}-${warning}`}>
+                                    {warning}
+                                </li>
+                            ),
+                        )}
+                    </ul>
+                </section>
+            )}
             <section className="import-actions">
                 <button type="button" onClick={handleLoadExample}>加载示例数据</button>
-                <button type="button" onClick={handleLoadToMap} disabled={!dataset}>加载到地图</button>
+                <button type="button" onClick={handleLoadToMap} disabled={!canLoadToMap}>加载到地图</button>
             </section>
-            {!dataset && (
+            {state.importStatus === "idle" && !dataset && (
                 <section className="import-empty-state">
                     <h2>尚未选择数据</h2>
                     <p>
-                        点击“加载示例数据”，预览城市用地 Polygon
-                        GeoJSON。
+                        请选择本地 GeoJSON，
+                        或加载内置城市用地示例数据。
                     </p>
                 </section>
-            )
-            }
+            )}
             {dataset && inspection && (
                 <>
                     <section className="dataset-summary">
@@ -175,25 +358,28 @@ export function DataImportPage() {
                         </div>
 
                         <footer className="preview-footer">
-                            <span>
-                                {inspection.invalidAreaCount === 0
-                                    ? "已通过基础面积校验"
-                                    : `发现 ${inspection.invalidAreaCount} 条无效面积`}
-                            </span>
+    <span>
+        当前有效要素：
+        {dataset.collection.features.length} 条
+    </span>
 
-                            <button
-                                type="button"
-                                onClick={handleLoadToMap}
-                            >
-                                加载到地图
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleClearDataset}
-                            >
-                                清除数据
-                            </button>
-                        </footer>
+    <div className="preview-actions">
+        <button
+            type="button"
+            onClick={handleClearDataset}
+        >
+            清除数据
+        </button>
+
+        <button
+            type="button"
+            onClick={handleLoadToMap}
+            disabled={!canLoadToMap}
+        >
+            加载到地图
+        </button>
+    </div>
+</footer>
                     </section>
                 </>
             )}
