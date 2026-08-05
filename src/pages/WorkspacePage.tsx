@@ -6,16 +6,33 @@
 import { Link } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
+import { useMemo, useState } from "react";
+import type { LandUseFeatureCollection } from "../types/landUse";
+import { FilterPanel } from "../components/filter/FilterPanel";
+import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
+import "../styles/workspace.css";
 
 // section 表示一个独立的页面功能区域
 export function WorkspacePage() {
-    const { state } = useAppContext();
+    const { state, filteredFeatures, } = useAppContext();
 
-    const isDatasetLoaded =
-        state.dataset !== null &&
-        state.importStatus === "loaded";
+    const [filterOpen, setFilterOpen] = useState(false);
 
-    if (!isDatasetLoaded) {
+    
+    const dataset = state.dataset;
+    const filteredCollection =
+        useMemo<LandUseFeatureCollection>(
+            () => {
+                return {
+                    type: "FeatureCollection",
+                    features: filteredFeatures,
+                };
+            },
+            [filteredFeatures],
+        );
+
+    if (!dataset ||
+        state.importStatus !== "loaded") {
         return (
             <section className="page-content">
                 <h1>地图工作台</h1>
@@ -27,23 +44,65 @@ export function WorkspacePage() {
         );
     }
 
+    const totalFeaturesCount =
+        state.dataset?.collection.features.length;
+
+
     // const features = state.dataset?.collection.features;
     return (
-        <section className="page-content">
-            <header>
-                <h1>地图工作台</h1>
-                <p>
-                    {state.dataset?.name}
-                    {"."}
-                    {state.dataset?.collection.features.length}
-                    条要素
-                </p>
-            </header>
-            <div className="workspace-map">
-                <MapView 
-                collection={state.dataset?.collection}
-                />
-            </div>
+        <section className={
+            filterOpen
+                ? "workspace-page filter-open"
+                : "workspace-page"
+        }>
+            <WorkspaceToolbar
+                filterOpen={filterOpen}
+                onToggleFilter={() => {
+                    setFilterOpen((previous) => {
+                        return !previous;
+                    });
+                }}
+            />
+
+            <main className="workspace-map-area">
+                <header className="workspace-map-header">
+                    <div>
+                        <h1>地图工作台</h1>
+
+                        <p>
+                            {dataset.name}
+                            {" · "}
+                            当前 {filteredFeatures.length}
+                            {" / "}
+                            {totalFeaturesCount} 条要素
+                        </p>
+                    </div>
+                </header>
+
+                <div className="workspace-map-wrapper">
+                    <MapView
+                        collection={
+                            filteredCollection
+                        }
+                    />
+
+                    {filteredFeatures.length === 0 && (
+                        <div className="map-empty-overlay">
+                            <strong>
+                                当前筛选无匹配结果
+                            </strong>
+
+                            <span>
+                                请调整或清除筛选条件
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </main>
+
+            {filterOpen && (
+                <FilterPanel />
+            )}
         </section>
     );
 }
