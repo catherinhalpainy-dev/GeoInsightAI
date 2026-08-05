@@ -26,6 +26,9 @@ export function MapView({ collection }: MapViewProps) {
     const mapRef =
         useRef<maplibregl.Map | null>(null);
 
+    const latestCollectionRef =
+        useRef(collection);
+
     // 1.创建地图
     useEffect(() => {
         if (!containerRef.current) {
@@ -80,7 +83,7 @@ export function MapView({ collection }: MapViewProps) {
             // );
             map.addSource("land-use-source", {
                 type: "geojson",
-                data: collection,
+                data: latestCollectionRef.current,
             });
 
             map.addLayer({
@@ -165,6 +168,30 @@ export function MapView({ collection }: MapViewProps) {
 
     }, [collection]);
 
+
+    useEffect(() => {
+        latestCollectionRef.current =
+            collection;
+
+        const map = mapRef.current;
+
+        if (!map) {
+            return;
+        }
+
+        const source =
+            map.getSource(
+                "land-use",
+            ) as
+            | maplibregl.GeoJSONSource
+            | undefined;
+
+        if (!source) {
+            return;
+        }
+
+        source.setData(collection);
+    }, [collection]);
 
     return (
         // 该div就是地图容器
