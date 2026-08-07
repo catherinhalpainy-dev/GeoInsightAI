@@ -1,20 +1,54 @@
 // 为什么maplibre初始化要放在 useEffect里？
 // 因为创建 MapLibre 实例属于副作用，它需要在 DOM 已挂载之后访问容器节点，并且组件卸载时需要清理地图实例，因此适合使用 useEffect 管理生命周期。
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 // 两个hook
 // useEffect：处理副作用（创建地图实例、操作DOM、注册maplibre内部事件、销毁地图）
 // useRef：保存可以跨多次渲染存在的引用（地图实例、容器节点）
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LandUseFeatureCollection } from "../../types/landUse";
-import { LAND_USE_COLORS } from "../../constants/landUse";
+import { LAND_USE_COLORS, LAND_USE_FILL_LAYER_ID, LAND_USE_OUTLINE_LAYER_ID } from "../../constants/landUse";
 import { calculateLandUseBounds } from "../../utils/calculateLandUseBounds";
+import type { WorkspaceTool } from "../../types/workspace";
 
 
 interface MapViewProps {
     collection?: LandUseFeatureCollection;
+    layerVisible: boolean;
+    interactionMode: WorkspaceTool;
 }
-export function MapView({ collection }: MapViewProps) {
+
+interface MapRuntimeInfo {
+    longitude: number | null;
+    latitude: number | null;
+    zoom: number;
+}
+
+// 图层显示隐藏
+function updateLayerVisible(map: maplibregl.Map, visible: boolean) {
+    const visibility =
+        visible ?
+            "visible"
+            : "none";
+    const layerIDs = [
+        LAND_USE_FILL_LAYER_ID,
+        LAND_USE_OUTLINE_LAYER_ID,
+    ];
+    // map:返回新数组
+    // foreach:不返回新数组，只执行动作
+    layerIDs.forEach((layerID) => {
+        if (!map.getLayer(layerID)) {
+            return;
+        }
+        map.setLayoutProperty(
+            layerID,
+            "visiblity",
+            visibility
+        )
+    })
+
+}
+export function MapView({ collection, layerVisible, interactionMode }: MapViewProps) {
     // 为什么这里不用useState？
     // 因为这里只是为了保存对象引用，不是为了控制页面JSX显示
     // useState：数据改变，会触发组件重新渲染
@@ -29,9 +63,18 @@ export function MapView({ collection }: MapViewProps) {
     const latestCollectionRef =
         useRef(collection);
 
+
+    const [runtimeInfo, setRuntimeInfo,] = useState<MapRuntimeInfo>({
+        longitude: null,
+        latitude: null,
+        zoom: 0
+    });
+
     // 1.创建地图
+    // 监听鼠标经纬度与zoom
     useEffect(() => {
-        if (!containerRef.current) {
+        const container=containerRef.current;
+        if (!container) {
             return;
         }
         // 为什么不直接写在组件函数内？
@@ -40,7 +83,7 @@ export function MapView({ collection }: MapViewProps) {
         // 创建地图实例
         const map = new maplibregl.Map({
             // 把地图渲染到这个<div>DOM中
-            container: containerRef.current,
+            container: container,
             style:
                 "https://demotiles.maplibre.org/style.json",
             center: [116.38, 39.92],
@@ -52,8 +95,57 @@ export function MapView({ collection }: MapViewProps) {
         // mapRef.current：跨多次渲染都可使用
         mapRef.current = map;
 
+        const resizeObserver=
+            new ResizeObserver(()=>{
+                map.resize();
+            });
+        
+        resizeObserver.observe(container,);
+
+        // 保存鼠标移动
+        const handleMouseMove = (event: maplibregl.MapMouseEvent,) => {
+            setRuntimeInfo((previous) => {
+                return {
+                    ...previous,
+                    longitude:
+                        event.lngLat.lng,
+                    latitude:
+                        event.lngLat.lat,
+                };
+            });
+        };
+
+        const handleZoomEnd = () => {
+            setRuntimeInfo((previous) => {
+                return {
+                    ...previous,
+                    zoom: map.getZoom(),
+                };
+            });
+        };
+
+
+        map.on(
+            "mousemove",
+            handleMouseMove,
+        );
+
+        map.on(
+            "zoomend",
+            handleZoomEnd,
+        );
         // useEffect中返回的函数——清理函数，组件卸载时执行
         return () => {
+            map.off(
+                "mousemove",
+                handleMouseMove,
+            );
+
+            map.off(
+                "zoomend",
+                handleZoomEnd,
+            );
+            resizeObserver.disconnect();
             map.remove();
             mapRef.current = null;
         };
@@ -63,10 +155,12 @@ export function MapView({ collection }: MapViewProps) {
 
     // 2.collection变化时，更新地图数据
     useEffect(() => {
+
         const map = mapRef.current;
         if (!map || !collection) {
             return;
         }
+
         const updateSource = () => {
             const existingSource =
                 map.getSource("land-use-source");
@@ -87,7 +181,7 @@ export function MapView({ collection }: MapViewProps) {
             });
 
             map.addLayer({
-                id: "land-use-fill",
+                id: LAND_USE_FILL_LAYER_ID,
                 type: "fill",
                 source: "land-use-source",
                 paint: {
@@ -119,7 +213,7 @@ export function MapView({ collection }: MapViewProps) {
                 },
             });
             map.addLayer({
-                id: "land-use-outline",
+                id: LAND_USE_OUTLINE_LAYER_ID,
                 type: "line",
                 source: "land-use-source",
                 paint: {
@@ -168,7 +262,7 @@ export function MapView({ collection }: MapViewProps) {
 
     }, [collection]);
 
-
+    // 3.
     useEffect(() => {
         latestCollectionRef.current =
             collection;
@@ -193,11 +287,85 @@ export function MapView({ collection }: MapViewProps) {
         source.setData(collection);
     }, [collection]);
 
+    // 4.显示隐藏
+    // 防止旧闭包
+    const latestLayerVisibleRef =
+        useRef(layerVisible);
+    useEffect(() => {
+        latestLayerVisibleRef.current = layerVisible;
+        const map = mapRef.current;
+        if (!map) {
+            return;
+        }
+
+        updateLayerVisible(
+            map,
+            layerVisible,
+        );
+    }, [layerVisible]);
+
+    // 5.选择平移工具
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) {
+            return;
+        }
+
+        const canvas =
+            map.getCanvas();
+
+        if (interactionMode == "pan") {
+            map.dragPan.enable();
+            canvas.style.cursor = "grab";
+            return;
+        }
+        map.dragPan.disable();
+        canvas.style.cursor =
+            "crosshair";
+    }, [interactionMode]);
+
+
     return (
         // 该div就是地图容器
-        <div
-            ref={containerRef}
-            className="map-container"
-        />
+        <div className="map-view-shell">
+            <div
+                ref={containerRef}
+                className="map-container"
+            />
+
+            <div className="map-runtime-info">
+                <span>
+                    {/* toFixed(n)保留n位小数，返回string */}
+                    {runtimeInfo.longitude !== null &&
+                        runtimeInfo.latitude !== null
+                        ? `${runtimeInfo.longitude.toFixed(
+                            5,
+                        )}度,
+                    ${runtimeInfo.latitude.toFixed(5,)}度`
+                        : "移动鼠标查看坐标"
+                    }
+                </span>
+
+                <span>
+                    zoom:
+                    {runtimeInfo.zoom.toFixed(1)}
+                </span>
+
+                <span>
+                    当前要素：
+                    {collection?.features.length}
+                </span>
+
+                <span>
+                    图层：
+                    {
+                        layerVisible
+                        ?"显示"
+                        :"隐藏"
+                    }
+                </span>
+
+            </div>
+        </div>
     );
 }
