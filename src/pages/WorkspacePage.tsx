@@ -11,14 +11,47 @@ import type { LandUseFeatureCollection } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
 import "../styles/workspace.css";
+import type { WorkspacePanel, WorkspaceTool } from "../types/workspace";
+import { LayerPanel } from "../components/layers/LayerPanel";
 
 // section 表示一个独立的页面功能区域
 export function WorkspacePage() {
     const { state, filteredFeatures, } = useAppContext();
 
-    const [filterOpen, setFilterOpen] = useState(false);
+    const [
+        activeTool,
+        setActiveTool,
+    ] = useState<WorkspaceTool>(
+        "select",
+    );
 
-    
+    const [
+        activePanel,
+        setActivePanel,
+    ] = useState<WorkspacePanel>(
+        null,
+    );
+
+    const [
+        layerVisible,
+        setLayerVisible,
+    ] = useState(true);
+
+    function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
+        setActivePanel(
+            // 新值依赖于旧值
+            (previousPanel) => {
+                return previousPanel === panel
+                    ? null
+                    : panel;
+            },
+        );
+    }
+    const siderPanelOpen =
+        activePanel !== null;
+
+
+
     const dataset = state.dataset;
     const filteredCollection =
         useMemo<LandUseFeatureCollection>(
@@ -51,17 +84,15 @@ export function WorkspacePage() {
     // const features = state.dataset?.collection.features;
     return (
         <section className={
-            filterOpen
-                ? "workspace-page filter-open"
+            siderPanelOpen
+                ? "workspace-page panel-open"
                 : "workspace-page"
         }>
             <WorkspaceToolbar
-                filterOpen={filterOpen}
-                onToggleFilter={() => {
-                    setFilterOpen((previous) => {
-                        return !previous;
-                    });
-                }}
+                activeTool={activeTool}
+                activePanel={activePanel}
+                onToolChange={setActiveTool}
+                onPanelToggle={handlePanelToggle}
             />
 
             <main className="workspace-map-area">
@@ -84,6 +115,8 @@ export function WorkspacePage() {
                         collection={
                             filteredCollection
                         }
+                        layerVisible={layerVisible}
+                        interactionMode={activeTool}
                     />
 
                     {filteredFeatures.length === 0 && (
@@ -100,9 +133,17 @@ export function WorkspacePage() {
                 </div>
             </main>
 
-            {filterOpen && (
+            {activePanel==="filter" && (
                 <FilterPanel />
             )}
+            {activePanel==="layers"&&(
+                <LayerPanel
+                layerVisible={layerVisible}
+                onLayerVisibleChange={setLayerVisible}
+/>
+            )
+
+            }
         </section>
     );
 }

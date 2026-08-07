@@ -1,18 +1,41 @@
+import type { WorkspacePanel, WorkspaceTool } from "../../types/workspace";
+
 interface WorkspaceToolbarProps {
-  filterOpen: boolean;
-  onToggleFilter: () => void;
+  activeTool: WorkspaceTool;
+  activePanel: WorkspacePanel;
+
+  onToolChange: (
+    tool: WorkspaceTool,
+  ) => void;
+
+  // Exclude<A,B>
+  // 从联合类型中删除某些成员
+  onPanelToggle: (
+    panel: Exclude<
+      WorkspacePanel,
+      null
+    >,
+  ) => void;
 }
 
 export function WorkspaceToolbar({
-  filterOpen,
-  onToggleFilter,
+  activeTool,
+  activePanel,
+  onToolChange,
+  onPanelToggle,
 }: WorkspaceToolbarProps) {
   return (
     <aside className="workspace-toolbar">
       <button
         type="button"
-        className="workspace-tool active"
-        title="选择"
+        className={
+          activeTool === "select"
+            ? "workspace-tool active"
+            : "workspace-tool"
+        }
+        onClick={() => {
+          onToolChange("select");
+        }}
       >
         ↖
         <span>选择</span>
@@ -20,8 +43,14 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
-        className="workspace-tool"
-        title="平移"
+        className={
+          activeTool === "pan"
+            ? "workspace-tool active"
+            : "workspace-tool"
+        }
+        onClick={() => {
+          onToolChange("pan");
+        }}
       >
         ✋
         <span>平移</span>
@@ -31,9 +60,14 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
-        className="workspace-tool"
-        disabled
-        title="图层面板将在下一阶段完善"
+        className={
+          activePanel==="layers"
+          ? "workspace-tool active"
+          : "workspace-tool"
+        }
+        onClick={()=>{
+          onPanelToggle("layers");
+        }}
       >
         ◫
         <span>图层</span>
@@ -42,12 +76,12 @@ export function WorkspaceToolbar({
       <button
         type="button"
         className={
-          filterOpen
+          activePanel==="filter"
             ? "workspace-tool active"
             : "workspace-tool"
         }
-        onClick={onToggleFilter}
-        title="属性筛选"
+        onClick={()=>{onPanelToggle("filter")}}
+        
       >
         ▽
         <span>筛选</span>
@@ -67,7 +101,6 @@ export function WorkspaceToolbar({
         type="button"
         className="workspace-tool"
         disabled
-        title="设置将在后续实现"
       >
         ⚙
         <span>设置</span>
