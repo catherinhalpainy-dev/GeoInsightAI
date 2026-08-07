@@ -19,6 +19,7 @@ export function FilterPanel() {
         filteredFeatures,
     } = useAppContext();
 
+    // useMemo：缓存计算结果，避免重复计算
     const districtCodes =
         useMemo(() => {
             const features =
