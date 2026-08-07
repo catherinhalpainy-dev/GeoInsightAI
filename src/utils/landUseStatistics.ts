@@ -98,7 +98,7 @@ export function sortFeaturesByAreaDescending(
 // map和forEach区别：map() 返回一个新数组。
 // forEach() 主要用于遍历执行操作，返回值是 undefined
 
-export function getUniqueDistrictCode(features:readonly LandUseFeature[]):string[]{
+export function getUniqueDistrictCodes(features:readonly LandUseFeature[]):string[]{
     const districtCodes=features.map((feature)=>{
         return feature.properties.districtCode;
     });

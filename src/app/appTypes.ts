@@ -1,4 +1,4 @@
-import type { LandUseDataset } from "../types/landUse";
+import type { LandUseDataset, LandUseType } from "../types/landUse";
 
 // 联合类型:限制状态取值
 // idle：空闲
@@ -15,6 +15,8 @@ export interface AppState {
     importStatus: ImportStatus;
     importError: string | null;
     importWarnings: string[];
+
+    filters: LandUseFilters;
 }
 
 // 可辨识联合：多个联合类型成员共享一个字面量字段，通过该字段进行类型收窄
@@ -42,6 +44,27 @@ export type AppAction =
     }
     | {
         type: "CLEAR_DATASET";
+    }
+    | {
+        type: "TOGGLE_LAND_USE_TYPE";
+        payload: LandUseType;
+    }
+    | {
+        type: "SET_MINIMUM_BUILT_YEAR";
+        payload: number | null;
+    }
+    | {
+        type: "SET_DISTRICT_CODE";
+        payload: string;
+    }
+    | {
+        type: "CLEAR_FILTERS";
     };
 
 
+
+export interface LandUseFilters {
+    landUseTypes: LandUseType[];
+    minimumBuiltYear: number | null;
+    districtCode: string;
+}

@@ -34,3 +34,12 @@ export const LAND_USE_COLORS: Record<LandUseType, string> = {
     transportation: "#ef4444",
     other: "#94a3b8",
 };
+
+export const LAND_USE_SOURCE_ID =
+    "land-use";
+
+export const LAND_USE_FILL_LAYER_ID =
+    "land_use_fill";
+
+export const LAND_USE_OUTLINE_LAYER_ID =
+    "land_use_outline";

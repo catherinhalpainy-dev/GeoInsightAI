@@ -1,4 +1,10 @@
-import type { AppAction, AppState } from "./appTypes";
+import type { AppAction, AppState, LandUseFilters } from "./appTypes";
+
+export const initialFilters: LandUseFilters = {
+  landUseTypes: [],
+  minimumBuiltYear: null,
+  districtCode: "",
+};
 
 export function createInitialAppState(): AppState {
   return {
@@ -6,6 +12,8 @@ export function createInitialAppState(): AppState {
     importStatus: "idle",
     importError: null,
     importWarnings: [],
+    // 保证react不改变状态更新
+    filters: { ...initialFilters },
   };
 };
 
@@ -41,6 +49,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         importStatus: "preview",
         importError: null,
         importWarnings: action.payload.warnings,
+        filters:{
+          ...initialFilters,
+        }
       };
 
     case "LOAD_DATASET":
@@ -62,6 +73,53 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "CLEAR_DATASET":
       return createInitialAppState();
+
+    case "TOGGLE_LAND_USE_TYPE":
+      const selectedTypes =
+        state.filters.landUseTypes;
+      const alreadySelected =
+        selectedTypes.includes(action.payload);
+
+      const nextTypes = alreadySelected
+        ? selectedTypes.filter((type) => {
+          return type !== action.payload;
+        })
+        : [
+          ...selectedTypes,
+          action.payload,
+        ];
+
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          landUseTypes: nextTypes,
+        },
+      };
+
+    case "SET_MINIMUM_BUILT_YEAR":
+      return{
+        ...state,
+        filters: {
+          ...state.filters,
+          minimumBuiltYear: action.payload,
+        },  
+      };
+    
+    case "SET_DISTRICT_CODE":
+      return{
+        ...state,
+        filters: {
+          ...state.filters,
+          districtCode: action.payload,
+        },  
+      };
+    
+    case "CLEAR_FILTERS":
+      return {
+        ...state,
+        filters: { ...initialFilters },
+      };
 
     default:
       return state;

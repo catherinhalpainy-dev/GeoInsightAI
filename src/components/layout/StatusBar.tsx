@@ -15,10 +15,13 @@ const STATUS_TEXTS: Record<
 };
 
 export function StatusBar() {
-    const { state } = useAppContext();
+    const { state,filteredFeatures, } = useAppContext();
 
     const sourceCrs =
         state.dataset?.sourceCrs ?? "未加载";
+
+    const totalFeatureCount=
+        state.dataset?.collection.features.length??0;
 
     const statusText = STATUS_TEXTS[state.importStatus];
     const statusClassName =
@@ -37,6 +40,15 @@ export function StatusBar() {
             </span>
             <span>源数据坐标系:{sourceCrs}</span>
             <span>地图显示坐标系:{displayCrs}</span>
+            {state.dataset&&(
+                <span>
+                    当前要素：
+                    {filteredFeatures.length}
+                    {"/"}
+                    {totalFeatureCount}
+                </span>
+            )
+            }
         </footer>
     );
 }
