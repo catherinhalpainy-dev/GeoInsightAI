@@ -1,390 +1,1071 @@
-// 数据导入界面
+import {
+  useState,
+  type DragEvent,
+} from "react";
 
-import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../app/AppProvider";
-import { inspectLandUseDataset } from "../app/inspectLandUseDataset";
-import { MockLandUseDataset } from "../data/mockLandUse";
-import { LAND_USE_LABELS } from "../constants/landUse";
-import type { ChangeEvent } from "react";
-import { parseLandUseGeoJson } from "../utils/parseLandUseGeoJson";
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  useAppContext,
+} from "../app/AppProvider";
+
+import {
+  inspectLandUseDataset,
+} from "../app/inspectLandUseDataset";
+
+import {
+  MockLandUseDataset,
+} from "../data/mockLandUse";
+
+import {
+  LAND_USE_LABELS,
+} from "../constants/landUse";
+
+import {
+  parseLandUseGeoJson,
+} from "../utils/parseLandUseGeoJson";
+
+import {
+  MapView,
+} from "../components/map/MapView";
+
+import {
+  DEFAULT_LAYER_STYLE,
+} from "../types/layerStyle";
+
+import "../styles/importWorkbench.css";
 
 
 const MAX_FILE_SIZE_BYTES =
-    10 * 1024 * 1024;
+  10 * 1024 * 1024;
+
+type ImportPreviewTab =
+  | "data"
+  | "fields"
+  | "spatial";
+
+const FIELD_SCHEMA = [
+  {
+    name: "id",
+    type: "string",
+    required: true,
+    description: "唯一要素编号",
+  },
+  {
+    name: "landUseType",
+    type: "enum",
+    required: true,
+    description: "用地分类",
+  },
+  {
+    name: "areaM2",
+    type: "number",
+    required: true,
+    description: "面积（平方米）",
+  },
+  {
+    name: "districtCode",
+    type: "string",
+    required: true,
+    description: "行政区编码",
+  },
+  {
+    name: "builtYear",
+    type: "number | null",
+    required: false,
+    description: "建成年份",
+  },
+] as const;
 
 export function DataImportPage() {
+  const navigate =
+    useNavigate();
 
-    const navigate = useNavigate();
-    const { state, dispatch } = useAppContext();
+  const {
+    state,
+    dispatch,
+  } = useAppContext();
 
-    const dataset = state.dataset;
+  const [
+    selectedFile,
+    setSelectedFile,
+  ] = useState<File | null>(
+    null,
+  );
 
-    const inspection = dataset
-        ? inspectLandUseDataset(dataset)
-        : null;
+  const [
+    activeTab,
+    setActiveTab,
+  ] =
+    useState<ImportPreviewTab>(
+      "data",
+    );
 
-    const isImporting =
-        state.importStatus === "reading" ||
-        state.importStatus === "validating";
-    async function handleFileChange(
-        event: ChangeEvent<HTMLInputElement>,
+  const [
+    dragActive,
+    setDragActive,
+  ] = useState(false);
+
+  const dataset =
+    state.dataset;
+
+  const inspection =
+    dataset
+      ? inspectLandUseDataset(
+          dataset,
+        )
+      : null;
+
+  const isImporting =
+    state.importStatus ===
+      "reading" ||
+    state.importStatus ===
+      "validating";
+
+  const canLoadToMap =
+    dataset !== null &&
+    state.importStatus ===
+      "preview";
+
+  const previewFeatures =
+    dataset?.collection.features
+      .slice(0, 8) ?? [];
+
+  async function processFile(
+    file: File,
+  ) {
+    setSelectedFile(file);
+
+    if (
+      file.size >
+      MAX_FILE_SIZE_BYTES
     ) {
-        const inputElement = event.currentTarget;
-        const file = inputElement.files?.[0];
+      dispatch({
+        type: "IMPORT_ERROR",
+        payload:
+          "当前版本仅支持 10 MB 以内的 GeoJSON 文件",
+      });
 
-        if (!file) {
-            return;
-        }
-        if (file.size > MAX_FILE_SIZE_BYTES) {
-            dispatch({
-                type: "IMPORT_ERROR",
-                payload:
-                    "当前版本仅支持 10 MB 以内的 GeoJSON 文件",
-            });
+      return;
+    }
 
-            inputElement.value = "";
-            return;
-        }
-        const lowerCaseFileName =
-            file.name.toLowerCase();
+    const lowerCaseFileName =
+      file.name.toLowerCase();
 
-        const isSupportedExtension =
-            lowerCaseFileName.endsWith(".geojson") ||
-            lowerCaseFileName.endsWith(".json");
+    const isSupportedExtension =
+      lowerCaseFileName.endsWith(
+        ".geojson",
+      ) ||
+      lowerCaseFileName.endsWith(
+        ".json",
+      );
 
-        if (!isSupportedExtension) {
-            dispatch({
-                type: "IMPORT_ERROR",
-                payload:
-                    "文件扩展名必须是 .geojson 或 .json",
-            });
+    if (!isSupportedExtension) {
+      dispatch({
+        type: "IMPORT_ERROR",
+        payload:
+          "文件扩展名必须是 .geojson 或 .json",
+      });
 
-            inputElement.value = "";
-            return;
-        }
+      return;
+    }
 
+    dispatch({
+      type: "START_FILE_IMPORT",
+    });
+
+    try {
+      const text =
+        await file.text();
+
+      if (
+        text.trim() === ""
+      ) {
         dispatch({
-            type: "START_FILE_IMPORT",
+          type: "IMPORT_ERROR",
+          payload:
+            "文件内容为空",
         });
 
-        try {
+        return;
+      }
 
-            const text = await file.text();
+      dispatch({
+        type: "VALIDATE_FILE",
+      });
 
-            if (text.trim() === "") {
-                dispatch({
-                    type: "IMPORT_ERROR",
-                    payload: "文件内容为空",
-                });
+      let parsedValue:
+        unknown;
 
-                return;
+      try {
+        parsedValue =
+          JSON.parse(text);
+      } catch {
+        dispatch({
+          type: "IMPORT_ERROR",
+          payload:
+            "文件不是合法 JSON，请检查括号、逗号和引号",
+        });
+
+        return;
+      }
+
+      const result =
+        parseLandUseGeoJson(
+          parsedValue,
+          file.name,
+        );
+
+      if (!result.ok) {
+        dispatch({
+          type: "IMPORT_ERROR",
+          payload:
+            result.errors.join(
+              "；",
+            ),
+        });
+
+        return;
+      }
+
+      dispatch({
+        type: "PREVIEW_DATASET",
+        payload: {
+          dataset:
+            result.dataset,
+
+          warnings:
+            result.warnings,
+        },
+      });
+
+      setActiveTab("data");
+    } catch (
+      error: unknown
+    ) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "读取文件时发生未知错误";
+
+      dispatch({
+        type: "IMPORT_ERROR",
+        payload:
+          errorMessage,
+      });
+    }
+  }
+
+  function handleLoadExample() {
+    setSelectedFile(null);
+
+    dispatch({
+      type: "PREVIEW_DATASET",
+      payload: {
+        dataset:
+          MockLandUseDataset,
+        warnings: [],
+      },
+    });
+
+    setActiveTab("data");
+  }
+
+  function handleLoadToMap() {
+    if (!canLoadToMap) {
+      return;
+    }
+
+    dispatch({
+      type: "LOAD_DATASET",
+    });
+
+    navigate("/workspace");
+  }
+
+  function handleClearDataset() {
+    dispatch({
+      type: "CLEAR_DATASET",
+    });
+
+    setSelectedFile(null);
+    setActiveTab("data");
+  }
+
+  function handleDrop(
+    event:
+      DragEvent<HTMLElement>,
+  ) {
+    event.preventDefault();
+
+    setDragActive(false);
+
+    if (isImporting) {
+      return;
+    }
+
+    const file =
+      event.dataTransfer
+        .files[0];
+
+    if (!file) {
+      return;
+    }
+
+    void processFile(file);
+  }
+
+  const selectedFileSize =
+    selectedFile
+      ? selectedFile.size /
+        1024
+      : 0;
+
+  return (
+    <section className="import-workbench">
+      <header className="import-workbench-header">
+        <div>
+          <h1>数据导入</h1>
+
+          <p>
+            导入城市用地
+            Polygon GeoJSON，
+            完成结构校验、属性检查和空间预览后加载到地图工作台。
+          </p>
+        </div>
+
+        <div className="import-supported-types">
+          <span>
+            GeoJSON · 已支持
+          </span>
+
+          <span>
+            CSV / Shapefile ·
+            后续支持
+          </span>
+        </div>
+      </header>
+
+      <div className="import-workbench-layout">
+        <aside className="import-source-panel">
+          <div className="import-source-tabs">
+            <button
+              type="button"
+              className="active"
+            >
+              本地文件
+            </button>
+
+            <button
+              type="button"
+              disabled
+            >
+              URL
+            </button>
+          </div>
+
+          <section
+            className={
+              dragActive
+                ? "import-dropzone drag-active"
+                : "import-dropzone"
             }
+            onDragEnter={(
+              event,
+            ) => {
+              event.preventDefault();
 
-            dispatch({
-                type: "VALIDATE_FILE",
-            });
+              if (
+                !isImporting
+              ) {
+                setDragActive(
+                  true,
+                );
+              }
+            }}
+            onDragOver={(
+              event,
+            ) => {
+              event.preventDefault();
+            }}
+            onDragLeave={(
+              event,
+            ) => {
+              event.preventDefault();
 
-            let parsedValue: unknown;
-
-            try {
-                parsedValue = JSON.parse(text);
-            } catch {
-                dispatch({
-                    type: "IMPORT_ERROR",
-                    payload:
-                        "文件不是合法 JSON，请检查括号、逗号和引号",
-                });
-
-                return;
+              setDragActive(
+                false,
+              );
+            }}
+            onDrop={
+              handleDrop
             }
+          >
+            <div className="import-dropzone-icon">
+              ↑
+            </div>
 
-            const result = parseLandUseGeoJson(
-                parsedValue,
-                file.name,
-            );
+            <h2>
+              拖拽空间数据到这里
+            </h2>
 
-            if (!result.ok) {
-                dispatch({
-                    type: "IMPORT_ERROR",
-                    payload: result.errors.join("；"),
-                });
+            <p>
+              支持 .geojson /
+              .json，最大 10 MB
+              <br />
+              当前要求
+              EPSG:4326 Polygon
+              FeatureCollection
+            </p>
 
-                return;
+            <label
+              htmlFor="land-use-file"
+              className={
+                isImporting
+                  ? "import-select-button disabled"
+                  : "import-select-button"
+              }
+            >
+              {isImporting
+                ? "正在处理..."
+                : "选择 GeoJSON"}
+            </label>
+
+            <input
+              id="land-use-file"
+              className="import-file-input"
+              type="file"
+              accept=".geojson,.json,application/geo+json,application/json"
+              disabled={
+                isImporting
+              }
+              onChange={(
+                event,
+              ) => {
+                const file =
+                  event
+                    .currentTarget
+                    .files?.[0];
+
+                if (file) {
+                  void processFile(
+                    file,
+                  );
+                }
+
+                event.currentTarget
+                  .value = "";
+              }}
+            />
+          </section>
+
+          <button
+            type="button"
+            className="import-example-button"
+            onClick={
+              handleLoadExample
             }
+            disabled={
+              isImporting
+            }
+          >
+            加载示例数据
+          </button>
 
-            dispatch({
-                type: "PREVIEW_DATASET",
-                payload: {
-                    dataset: result.dataset,
-                    warnings: result.warnings,
-                },
-            });
-        } catch (error: unknown) {
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "读取文件时发生未知错误";
+          {selectedFile && (
+            <article className="import-file-card">
+              <div className="import-file-icon">
+                GEO
+              </div>
 
-            dispatch({
-                type: "IMPORT_ERROR",
-                payload: errorMessage,
-            });
-        } finally {
-            // 允许用户再次选择同一个文件
-            inputElement.value = "";
-        }
-    }
-    function handleLoadExample() {
-        dispatch({
-            type: "PREVIEW_DATASET",
-            payload: {
-                dataset: MockLandUseDataset,
-                warnings: [],
-            },
-        });
-    }
+              <div className="import-file-info">
+                <strong>
+                  {
+                    selectedFile.name
+                  }
+                </strong>
 
-    const canLoadToMap = dataset !== null && state.importStatus === "preview";
-    function handleLoadToMap() {
-        if (!canLoadToMap) {
-            return;
-        }
+                <span>
+                  {selectedFileSize <
+                  1024
+                    ? `${selectedFileSize.toFixed(
+                        1,
+                      )} KB`
+                    : `${(
+                        selectedFileSize /
+                        1024
+                      ).toFixed(
+                        2,
+                      )} MB`}
+                </span>
+              </div>
 
-        dispatch({
-            type: "LOAD_DATASET",
-        });
+              <span className="import-file-status">
+                已选择
+              </span>
+            </article>
+          )}
 
-        navigate("/workspace");
-    }
+          <div className="import-format-note">
+            <strong>
+              当前格式支持
+            </strong>
 
-    function handleClearDataset() {
-        dispatch({
-            type: "CLEAR_DATASET",
-        });
-    }
+            <div>
+              <span>
+                GeoJSON
+              </span>
 
-    // value ?? []  只有左侧为null或undefined时才使用右侧默认值
-    const previewFeatures =
-        dataset?.collection.features.slice(0, 5) ?? [];
+              <b className="supported">
+                已支持
+              </b>
+            </div>
 
-    return (
-        <section className="page-content">
-            <header className="page-header">
-                <h1>数据导入</h1>
-                <p>
-    导入城市用地 Polygon GeoJSON，
-    系统将检查数据结构、属性字段和基础数据质量，
-    通过后可预览并加载到地图工作台。
-</p>
-            </header>
-            <section className="file-import-section">
+            <div>
+              <span>
+                CSV
+              </span>
+
+              <b>
+                暂未支持
+              </b>
+            </div>
+
+            <div>
+              <span>
+                Shapefile
+              </span>
+
+              <b>
+                暂未支持
+              </b>
+            </div>
+          </div>
+        </aside>
+
+        <main className="import-main-panel">
+          {state.importStatus ===
+            "reading" && (
+            <div
+              className="import-progress"
+              role="status"
+            >
+              正在读取文件内容……
+            </div>
+          )}
+
+          {state.importStatus ===
+            "validating" && (
+            <div
+              className="import-progress"
+              role="status"
+            >
+              正在校验 GeoJSON
+              结构和属性……
+            </div>
+          )}
+
+          {state.importError && (
+            <div
+              className="import-error"
+              role="alert"
+            >
+              <strong>
+                导入失败
+              </strong>
+
+              <p>
+                {
+                  state.importError
+                }
+              </p>
+            </div>
+          )}
+
+          {state.importWarnings
+            .length > 0 && (
+            <section className="import-warning">
+              <h2>
+                数据警告
+              </h2>
+
+              <p>
+                有效要素已保留，
+                以下问题需要注意：
+              </p>
+
+              <ul>
+                {state.importWarnings.map(
+                  (
+                    warning,
+                    index,
+                  ) => (
+                    <li
+                      key={`${index}-${warning}`}
+                    >
+                      {warning}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </section>
+          )}
+
+          {dataset &&
+          inspection ? (
+            <>
+              <section className="import-dataset-heading">
                 <div>
-                    <h2>选择本地 GeoJSON</h2>
-                    <p>
-                        当前仅支持 EPSG:4326、
-                        Polygon FeatureCollection。
-                    </p>
+                  <span>
+                    当前数据集
+                  </span>
+
+                  <h2>
+                    {
+                      dataset.name
+                    }
+                  </h2>
                 </div>
 
-                <label
-                    className="file-select-button"
-                    htmlFor="land-use-file"
+                <button
+                  type="button"
+                  onClick={
+                    handleClearDataset
+                  }
                 >
-                    {isImporting
-                        ? "正在处理..."
-                        : "选择 GeoJSON 文件"}
-                </label>
+                  清除数据
+                </button>
+              </section>
 
-                <input
-                    id="land-use-file"
-                    className="file-input"
-                    type="file"
-                    accept=".geojson,.json,application/geo+json,application/json"
-                    onChange={handleFileChange}
-                    disabled={isImporting}
-                />
-            </section>
-            {state.importStatus === "reading" && (
-                <p role="status">
-                    正在读取文件内容……
-                </p>
-            )}
-
-            {state.importStatus === "validating" && (
-                <p role="status">
-                    正在校验 GeoJSON 结构和属性……
-                </p>
-            )}
-
-
-
-            {state.importWarnings.length > 0 && (
-                <section className="import-warning">
-                    <h2>数据警告</h2>
+              <section className="import-overview-section">
+                <div className="import-section-heading">
+                  <div>
+                    <h2>
+                      数据概览
+                    </h2>
 
                     <p>
-                        有效要素已经保留，以下无效要素已跳过：
+                      已完成基础结构与属性校验
                     </p>
+                  </div>
+                </div>
 
-                    <ul>
-                        {state.importWarnings.map(
-                            (warning, index) => (
-                                <li key={`${index}-${warning}`}>
-                                    {warning}
-                                </li>
+                <div className="import-overview-grid">
+                  <article>
+                    <span>
+                      要素数量
+                    </span>
+
+                    <strong>
+                      {
+                        inspection
+                          .featureCount
+                      }
+                    </strong>
+
+                    <small>
+                      Polygon
+                    </small>
+                  </article>
+
+                  <article>
+                    <span>
+                      坐标系统
+                    </span>
+
+                    <strong>
+                      {
+                        dataset.sourceCrs
+                      }
+                    </strong>
+
+                    <small>
+                      WGS 84
+                    </small>
+                  </article>
+
+                  <article>
+                    <span>
+                      属性字段
+                    </span>
+
+                    <strong>
+                      {
+                        inspection
+                          .fieldCount
+                      }
+                    </strong>
+
+                    <small>
+                      标准用地字段
+                    </small>
+                  </article>
+
+                  <article>
+                    <span>
+                      行政区划
+                    </span>
+
+                    <strong>
+                      {
+                        inspection
+                          .districtCount
+                      }
+                    </strong>
+
+                    <small>
+                      districtCode
+                    </small>
+                  </article>
+
+                  <article>
+                    <span>
+                      用地类型
+                    </span>
+
+                    <strong>
+                      {
+                        inspection
+                          .landUseTypeCount
+                      }
+                    </strong>
+
+                    <small>
+                      分类数量
+                    </small>
+                  </article>
+
+                  <article>
+                    <span>
+                      缺失年份
+                    </span>
+
+                    <strong>
+                      {
+                        inspection
+                          .missingBuiltYearCount
+                      }
+                    </strong>
+
+                    <small>
+                      builtYear
+                    </small>
+                  </article>
+                </div>
+              </section>
+
+              <section className="import-preview-card">
+                <div className="import-preview-tabs">
+                  <button
+                    type="button"
+                    className={
+                      activeTab ===
+                      "data"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() => {
+                      setActiveTab(
+                        "data",
+                      );
+                    }}
+                  >
+                    属性预览
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      activeTab ===
+                      "fields"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() => {
+                      setActiveTab(
+                        "fields",
+                      );
+                    }}
+                  >
+                    字段结构
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      activeTab ===
+                      "spatial"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() => {
+                      setActiveTab(
+                        "spatial",
+                      );
+                    }}
+                  >
+                    空间预览
+                  </button>
+                </div>
+
+                <div className="import-preview-content">
+                  {activeTab ===
+                    "data" && (
+                    <div className="import-preview-table-wrapper">
+                      <table className="import-preview-table">
+                        <thead>
+                          <tr>
+                            <th>
+                              要素编号
+                            </th>
+
+                            <th>
+                              用地类型
+                            </th>
+
+                            <th>
+                              面积（m²）
+                            </th>
+
+                            <th>
+                              区划代码
+                            </th>
+
+                            <th>
+                              建成年份
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {previewFeatures.map(
+                            (
+                              feature,
+                            ) => (
+                              <tr
+                                key={
+                                  feature
+                                    .properties
+                                    .id
+                                }
+                              >
+                                <td>
+                                  {
+                                    feature
+                                      .properties
+                                      .id
+                                  }
+                                </td>
+
+                                <td>
+                                  {
+                                    LAND_USE_LABELS[
+                                      feature
+                                        .properties
+                                        .landUseType
+                                    ]
+                                  }
+                                </td>
+
+                                <td>
+                                  {feature.properties.areaM2.toLocaleString()}
+                                </td>
+
+                                <td>
+                                  {
+                                    feature
+                                      .properties
+                                      .districtCode
+                                  }
+                                </td>
+
+                                <td>
+                                  {feature
+                                    .properties
+                                    .builtYear ??
+                                    "缺失"}
+                                </td>
+                              </tr>
                             ),
-                        )}
-                    </ul>
-                </section>
-            )}
-            <section className="import-actions">
-                <button type="button" onClick={handleLoadExample}>加载示例数据</button>
-                <button type="button" onClick={handleLoadToMap} disabled={!canLoadToMap}>加载到地图</button>
-            </section>
-            {state.importStatus === "idle" && !dataset && (
-                <section className="import-empty-state">
-                    <h2>尚未选择数据</h2>
-                    <p>
-                        请选择本地 GeoJSON，
-                        或加载内置城市用地示例数据。
-                    </p>
-                </section>
-            )}
-            {dataset && inspection && (
-                <>
-                    <section className="dataset-summary">
-                        <div>
-                            <span>数据集名称</span>
-                            <strong>{dataset.name}</strong>
-                        </div>
+                          )}
+                        </tbody>
+                      </table>
 
-                        <div>
-                            <span>源数据坐标系</span>
-                            <strong>{dataset.sourceCrs}</strong>
-                        </div>
-                    </section>
+                      <p className="import-preview-hint">
+                        当前显示前{" "}
+                        {
+                          previewFeatures.length
+                        }{" "}
+                        条，共{" "}
+                        {
+                          dataset
+                            .collection
+                            .features
+                            .length
+                        }{" "}
+                        条有效要素
+                      </p>
+                    </div>
+                  )}
 
-                    <section className="inspection-section">
-                        <h2>数据质量摘要</h2>
-
-                        <div className="inspection-grid">
-                            <article className="inspection-card">
-                                <span>要素数量</span>
-                                <strong>{inspection.featureCount}</strong>
-                            </article>
-
-                            <article className="inspection-card">
-                                <span>字段数量</span>
-                                <strong>{inspection.fieldCount}</strong>
-                            </article>
-
-                            <article className="inspection-card">
-                                <span>用地类型</span>
-                                <strong>{inspection.landUseTypeCount}</strong>
-                            </article>
-
-                            <article className="inspection-card">
-                                <span>行政区划</span>
-                                <strong>{inspection.districtCount}</strong>
-                            </article>
-
-                            <article className="inspection-card">
-                                <span>缺失建成年份</span>
-                                <strong>
-                                    {inspection.missingBuiltYearCount}
-                                </strong>
-                            </article>
-
-                            <article className="inspection-card">
-                                <span>无效面积</span>
-                                <strong>{inspection.invalidAreaCount}</strong>
-                            </article>
-                        </div>
-                    </section>
-
-                    <section className="preview-section">
-                        <div className="preview-heading">
+                  {activeTab ===
+                    "fields" && (
+                    <div className="field-schema-list">
+                      {FIELD_SCHEMA.map(
+                        (
+                          field,
+                        ) => (
+                          <article
+                            key={
+                              field.name
+                            }
+                            className="field-schema-row"
+                          >
                             <div>
-                                <h2>属性预览</h2>
-                                <p>最多显示前 5 条记录。</p>
+                              <strong>
+                                {
+                                  field.name
+                                }
+                              </strong>
+
+                              <span>
+                                {
+                                  field.description
+                                }
+                              </span>
                             </div>
 
-                            <span>
-                                共 {dataset.collection.features.length} 条
+                            <code>
+                              {
+                                field.type
+                              }
+                            </code>
+
+                            <span
+                              className={
+                                field.required
+                                  ? "field-required"
+                                  : "field-optional"
+                              }
+                            >
+                              {field.required
+                                ? "必填"
+                                : "可空"}
                             </span>
-                        </div>
+                          </article>
+                        ),
+                      )}
+                    </div>
+                  )}
 
-                        <div className="table-wrapper">
-                            <table className="preview-table">
-                                <thead>
-                                    <tr>
-                                        <th>要素编号</th>
-                                        <th>用地类型</th>
-                                        <th>面积（m²）</th>
-                                        <th>区划代码</th>
-                                        <th>建成年份</th>
-                                    </tr>
-                                </thead>
+                  {activeTab ===
+                    "spatial" && (
+                    <div className="import-spatial-preview">
+                      <MapView
+                        collection={
+                          dataset
+                            .collection
+                        }
+                        interactionMode="pan"
+                        layerStyle={
+                          DEFAULT_LAYER_STYLE
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
-                                <tbody>
-                                    {previewFeatures.map((feature) => (
-                                        <tr key={feature.properties.id}>
-                                            <td>{feature.properties.id}</td>
+              <section className="import-quality-strip">
+                <div>
+                  <span>
+                    无效面积
+                  </span>
 
-                                            <td>
-                                                {
-                                                    LAND_USE_LABELS[
-                                                    feature.properties.landUseType
-                                                    ]
-                                                }
-                                            </td>
+                  <strong>
+                    {
+                      inspection
+                        .invalidAreaCount
+                    }
+                  </strong>
+                </div>
 
-                                            <td>
-                                                {feature.properties.areaM2.toLocaleString()}
-                                            </td>
+                <div>
+                  <span>
+                    导入警告
+                  </span>
 
-                                            <td>
-                                                {feature.properties.districtCode}
-                                            </td>
+                  <strong>
+                    {
+                      state
+                        .importWarnings
+                        .length
+                    }
+                  </strong>
+                </div>
 
-                                            <td>
-                                                {feature.properties.builtYear ??
-                                                    "缺失"}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                <div>
+                  <span>
+                    当前状态
+                  </span>
 
-                        <footer className="preview-footer">
-    <span>
-        当前有效要素：
-        {dataset.collection.features.length} 条
-    </span>
+                  <strong>
+                    {canLoadToMap
+                      ? "可加载"
+                      : "已加载"}
+                  </strong>
+                </div>
+              </section>
 
-    <div className="preview-actions">
-        <button
-            type="button"
-            onClick={handleClearDataset}
-        >
-            清除数据
-        </button>
+              <footer className="import-workbench-actions">
+                <div>
+                  <strong>
+                    {canLoadToMap
+                      ? "数据已准备完成"
+                      : "数据当前不可再次加载"}
+                  </strong>
 
-        <button
-            type="button"
-            onClick={handleLoadToMap}
-            disabled={!canLoadToMap}
-        >
-            加载到地图
-        </button>
-    </div>
-</footer>
-                    </section>
-                </>
-            )}
+                  <span>
+                    {canLoadToMap
+                      ? "确认后进入地图工作台继续分析"
+                      : "重新导入或清除数据后可重新预览"}
+                  </span>
+                </div>
 
+                <button
+                  type="button"
+                  onClick={
+                    handleLoadToMap
+                  }
+                  disabled={
+                    !canLoadToMap
+                  }
+                >
+                  加载到地图
+                </button>
+              </footer>
+            </>
+          ) : (
+            <section className="import-empty-workbench">
+              <div className="import-empty-icon">
+                ◇
+              </div>
 
-        </section>
-    );
+              <strong>
+                尚未选择数据
+              </strong>
+
+              <span>
+                从左侧选择 GeoJSON
+                文件，或加载示例数据后，
+                这里会显示质量检查、属性和空间预览。
+              </span>
+            </section>
+          )}
+        </main>
+      </div>
+    </section>
+  );
 }
