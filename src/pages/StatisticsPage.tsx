@@ -7,74 +7,124 @@
 // 不能在普通文件顶层、条件语句、循环或嵌套普通函数中调用
 // 依赖state的计算也要一起移入（Context更新后，React会重新执行组件函数）
 // 若把计算放在组件外部，它们只会在模块首次加载时运行，无法正常跟随 React 状态更新
-
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useAppContext } from "../app/AppProvider";
-import { LAND_USE_LABELS } from "../constants/landUse";
 
-import { filterByLandUseType, filterByMinimumBuiltYear } from "../utils/landUseFilters";
-import { calculateLandUseStatistics, sortFeaturesByAreaDescending } from "../utils/landUseStatistics";
+import {
+  useAppContext,
+} from "../app/AppProvider";
 
+import {
+  StatisticsKpiCards,
+} from "../components/statistics/StatisticsKpiCards";
 
+import {
+  LandUseDonutChart,
+} from "../components/statistics/LandUseDonutChart";
+
+import {
+  AverageAreaChart,
+} from "../components/statistics/AverageAreaChart";
+
+import {
+  FeatureTable,
+} from "../components/statistics/FeatureTable";
+
+import {
+  calculateDashboardSummary,
+  calculateTypeStatistics,
+} from "../utils/statisticsDashboard";
+
+import "../styles/statistics.css";
 
 export function StatisticsPage() {
-    const { state } = useAppContext();
-   
-    if (!state.dataset) {
-        return (
-            <section className="page-content">
-                <h1>统计分析</h1>
-                <p>尚未加载空间数据</p>
-                <Link to="/import">前往数据导入</Link>
-            </section>
-        );
-    };
-    
-    const features = state.dataset?.collection.features;
-    const statistics =
-        calculateLandUseStatistics(features);
+  const {
+    state,
+    filteredFeatures,
+  } = useAppContext();
 
-    const recentCommercialFeatures =
-        filterByLandUseType(filterByMinimumBuiltYear(features, 2010), "commercial");
-    // const recentCommercialFeatures=
-    //     filterByLandUseType(features.filter((feature)=>{
-    //         return(! feature.properties.builtYear? false:feature.properties.builtYear>2010);
-    //     }),"commercial");
+  const dataset =
+    state.dataset;
 
-    const sortedFeatures =
-        sortFeaturesByAreaDescending(features);
+  const summary =
+    useMemo(() => {
+      return calculateDashboardSummary(
+        filteredFeatures,
+      );
+    }, [filteredFeatures]);
+
+  const typeStatistics =
+    useMemo(() => {
+      return calculateTypeStatistics(
+        filteredFeatures,
+      );
+    }, [filteredFeatures]);
+
+  if (
+    !dataset ||
+    state.importStatus !== "loaded"
+  ) {
     return (
+      <section className="page-content">
+        <h1>统计分析</h1>
 
-        <section className="page-content">
-            <h1>统计分析</h1>
-            <ul>
-                <li>总要素数：{statistics.featureCount}</li>
-                <li>用地类型数：{statistics.typeCount}</li>
-                {/* 打出m²：按住alt,打小键盘0178 */}
-                <li>总面积：
-                    {statistics.totalAreaM2}m²
-                </li>
-                {/* toFixed：保留小数位数 */}
-                <li>平均面积：
-                    {statistics.averageAreaM2.toFixed(2)}m²
-                </li>
-                <li>最大面积类型：
-                    {statistics.largestFeature
-                        ? LAND_USE_LABELS[
-                        statistics.largestFeature.properties.landUseType
-                        ] : "暂无"}
-                </li>
-                <li>
-                    2010年以后商业用地：
-                    {recentCommercialFeatures.length}条
-                </li>
-                <li>原始第一条：
-                    {features[0].properties.id}
-                </li>
-                <li>面积排序第一：
-                    {sortedFeatures[0].properties.id}
-                </li>
-            </ul>
-        </section>
+        <p>
+          尚未加载可统计的数据。
+        </p>
+
+        <Link to="/import">
+          前往数据导入
+        </Link>
+      </section>
     );
+  }
+
+  const originalFeatureCount =
+    dataset.collection.features
+      .length;
+
+  return (
+    <section className="statistics-page">
+      <header className="statistics-page-header">
+        <div>
+          <h1>统计分析</h1>
+
+          <p>
+            {dataset.name}
+            {" · "}
+            当前 {
+              filteredFeatures.length
+            }
+            {" / "}
+            {originalFeatureCount}
+            {" 条要素"}
+          </p>
+        </div>
+      </header>
+
+      <StatisticsKpiCards
+        summary={summary}
+      />
+
+      <div className="statistics-chart-grid">
+        <LandUseDonutChart
+          statistics={
+            typeStatistics
+          }
+        />
+
+        <AverageAreaChart
+          statistics={
+            typeStatistics
+          }
+        />
+      </div>
+
+      <FeatureTable
+        features={
+          filteredFeatures
+        }
+      />
+    </section>
+  );
 }
