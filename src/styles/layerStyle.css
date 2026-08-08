@@ -1,7 +1,12 @@
+/* ==============================
+   Layer Style Panel
+   ============================== */
+
 .layer-style-panel {
   display: flex;
-  width: 340px;
-  min-width: 340px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   flex-direction: column;
 
   overflow-y: auto;
@@ -11,28 +16,71 @@
 
   background:
     var(--color-panel);
+
+  color:
+    var(--color-text);
 }
+
+
+/* ==============================
+   Header
+   ============================== */
 
 .layer-style-header {
   padding: 18px 20px;
 
   border-bottom:
     1px solid var(--color-border);
+
+  background:
+    var(--color-panel);
 }
 
+.layer-style-header h2 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  color:
+    var(--color-text);
+}
+
+.layer-style-header p {
+  margin: 6px 0 0;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 13px;
+}
+
+
+/* ==============================
+   Section
+   ============================== */
+
 .style-section {
-  padding: 20px;
+  padding: 18px 20px;
 
   border-bottom:
     1px solid var(--color-border);
 }
 
 .style-section h3 {
-  margin:
-    0 0 16px;
+  margin: 0 0 16px;
+
+  color:
+    var(--color-text);
 
   font-size: 14px;
+  font-weight: 700;
 }
+
+
+/* ==============================
+   Common Row
+   ============================== */
 
 .style-row {
   display: grid;
@@ -48,36 +96,203 @@
   margin-bottom: 16px;
 }
 
-.style-range {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.style-row:last-child {
+  margin-bottom: 0;
 }
 
-.style-range input {
+.style-row > label {
+  color:
+    var(--color-text);
+
+  font-size: 13px;
+  font-weight: 500;
+}
+
+
+/* ==============================
+   Checkbox
+   ============================== */
+
+.style-row
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+
+  margin: 0;
+
+  justify-self: end;
+
+  accent-color:
+    var(--color-primary);
+
+  cursor: pointer;
+}
+
+
+/* ==============================
+   Color Picker
+   ============================== */
+
+.style-row
+input[type="color"] {
+  width: 46px;
+  height: 32px;
+
+  justify-self: end;
+
+  padding: 2px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-small);
+
+  background:
+    var(--color-panel);
+
+  cursor: pointer;
+}
+
+.style-row
+input[type="color"]:hover {
+  border-color:
+    var(--color-primary);
+}
+
+
+/* Chrome / Edge color input 内部 */
+
+.style-row
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.style-row
+input[type="color"]::-webkit-color-swatch {
+  border: 0;
+
+  border-radius: 4px;
+}
+
+
+/* ==============================
+   Range Slider
+   ============================== */
+
+.style-range {
+  display: flex;
+
+  min-width: 0;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+.style-range
+input[type="range"] {
+  min-width: 0;
   flex: 1;
+
+  margin: 0;
+
+  accent-color:
+    var(--color-primary);
+
+  cursor: pointer;
 }
 
 .style-number {
-  width: 60px;
-
-  text-align: right;
+  min-width: 48px;
 
   color:
     var(--color-text-secondary);
+
+  font-size: 12px;
+
+  text-align: right;
+
+  white-space: nowrap;
 }
+
+
+/* ==============================
+   Select
+   ============================== */
+
+.style-row select {
+  width: 100%;
+  min-height: 36px;
+
+  padding: 0 10px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-small);
+
+  outline: none;
+
+  background:
+    var(--color-panel);
+
+  color:
+    var(--color-text);
+
+  font-size: 13px;
+
+  cursor: pointer;
+}
+
+.style-row select:hover {
+  border-color:
+    #cbd5e1;
+}
+
+.style-row select:focus {
+  border-color:
+    var(--color-primary);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(13, 148, 136, 0.12);
+}
+
+
+/* ==============================
+   Focus
+   ============================== */
+
+.style-row input:focus-visible,
+.style-preset:focus-visible,
+.layer-style-actions button:focus-visible {
+  outline:
+    2px solid var(--color-primary);
+
+  outline-offset: 2px;
+}
+
+
+/* ==============================
+   Style Presets
+   ============================== */
 
 .style-presets {
   display: grid;
 
   grid-template-columns:
-    repeat(3, 1fr);
+    repeat(3, minmax(0, 1fr));
 
-  gap: 10px;
+  gap: 8px;
 }
 
 .style-preset {
-  min-height: 72px;
+  min-width: 0;
+  min-height: 64px;
+
+  padding: 10px 6px;
 
   border:
     1px solid var(--color-border);
@@ -88,23 +303,162 @@
   background:
     var(--color-panel);
 
+  color:
+    var(--color-text-secondary);
+
+  font-size: 12px;
+
   cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .style-preset:hover {
   border-color:
     var(--color-primary);
+
+  background:
+    var(--color-primary-soft);
+
+  color:
+    var(--color-primary);
 }
 
+.style-preset:active {
+  transform:
+    translateY(1px);
+}
+
+
+/* ==============================
+   Footer actions
+   ============================== */
+
 .layer-style-actions {
+  position: sticky;
+
+  bottom: 0;
+
   display: flex;
 
-  gap: 12px;
+  gap: 10px;
 
-  padding: 16px 20px;
+  padding: 14px 20px;
 
   margin-top: auto;
 
   border-top:
     1px solid var(--color-border);
+
+  background:
+    rgba(255, 255, 255, 0.96);
+
+  backdrop-filter:
+    blur(8px);
+}
+
+.layer-style-actions button {
+  min-height: 38px;
+  flex: 1;
+
+  padding: 0 14px;
+
+  border-radius:
+    var(--radius-medium);
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+/* 第一个按钮：重置 */
+
+.layer-style-actions
+button:first-child {
+  border:
+    1px solid var(--color-border);
+
+  background:
+    var(--color-panel);
+
+  color:
+    var(--color-text);
+}
+
+.layer-style-actions
+button:first-child:hover {
+  border-color:
+    var(--color-primary);
+
+  color:
+    var(--color-primary);
+}
+
+
+/* 第二个按钮：保存 */
+
+.layer-style-actions
+button:last-child {
+  border:
+    1px solid var(--color-primary);
+
+  background:
+    var(--color-primary);
+
+  color: white;
+}
+
+.layer-style-actions
+button:last-child:hover:not(:disabled) {
+  border-color:
+    var(--color-primary-hover);
+
+  background:
+    var(--color-primary-hover);
+}
+
+.layer-style-actions
+button:disabled {
+  border-color:
+    var(--color-border);
+
+  background:
+    var(--color-background);
+
+  color:
+    var(--color-text-secondary);
+
+  cursor:
+    not-allowed;
+
+  opacity: 0.65;
+}
+
+
+/* ==============================
+   Small Screen Protection
+   ============================== */
+
+@media (max-width: 900px) {
+  .style-row {
+    grid-template-columns:
+      minmax(0, 1fr);
+  }
+
+  .style-row
+  input[type="checkbox"],
+  .style-row
+  input[type="color"] {
+    justify-self: start;
+  }
+
+  .style-presets {
+    grid-template-columns: 1fr;
+  }
 }

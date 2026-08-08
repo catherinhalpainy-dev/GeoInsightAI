@@ -73,6 +73,16 @@ export function WorkspacePage() {
         });
     }
 
+    // 应用预设
+    function handleApplyPreset(presetStyle:Partial<LayerStyle>){
+        setLayerStyle((previous)=>{
+            return{
+                ...previous,
+                ...presetStyle,
+            };
+        });
+    }
+
     // 保存样式修改
     const [savedLayerStyle, setSavedLayerStyle,] =
         useState<LayerStyle>({
@@ -206,6 +216,7 @@ export function WorkspacePage() {
                     style={layerStyle}
                     onChange={updateLayerStyle}
                     onReset={handleResetStyle}
+                    onApplyReset={handleApplyPreset}
                     onSave={handleSaveStyle}
                     hasUnsavedChanges={
                         hasUnsavedChanges

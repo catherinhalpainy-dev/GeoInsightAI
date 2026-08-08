@@ -1,4 +1,6 @@
+import { LAYER_STYLE_PRESETS } from "../../constants/layerStylePresets";
 import type { LayerStyle } from "../../types/layerStyle";
+import "../../styles/layerStyle.css";
 
 interface LayerStylePanelProps {
     style: LayerStyle;
@@ -11,10 +13,15 @@ interface LayerStylePanelProps {
     onReset: () => void;
     onSave: () => void;
     hasUnsavedChanges: boolean;
+
+    onApplyReset:(
+        presetStyle:Partial<LayerStyle>,
+    )=>void;
+
 }
 //  onSave, hasUnsavedChanges
 
-export function LayerStylePanel({ style, onChange, onReset, }: LayerStylePanelProps) {
+export function LayerStylePanel({ style, onChange, onReset,onApplyReset,onSave,hasUnsavedChanges }: LayerStylePanelProps) {
     return (
         <aside className="layer-style-panel">
             <header className="layer-style-header">
@@ -95,6 +102,30 @@ export function LayerStylePanel({ style, onChange, onReset, }: LayerStylePanelPr
                             %
                         </span>
                     </div>
+                </div>
+            </section>
+
+            {/* 默认样式 */}
+            <section className="style-section">
+                <h3>快速预设</h3>
+
+                <div className="style-presets">
+                    {LAYER_STYLE_PRESETS.map(
+                        (preset)=>{
+                            return(
+                                <button
+                                key={preset.id}
+                                type="button"
+                                className="style-preset"
+                                onClick={()=>{
+                                    onApplyReset(
+                                        preset.style,
+                                    );
+                                }}
+                                >{preset.name}</button>
+                            );
+                        },
+                    )}
                 </div>
             </section>
 
@@ -247,6 +278,12 @@ export function LayerStylePanel({ style, onChange, onReset, }: LayerStylePanelPr
                 >
                     重置
                 </button>
+
+                <button 
+                type="button"
+                onClick={onSave}
+                disabled={hasUnsavedChanges}
+                >保存更改</button>
             </footer>
         </aside>
     );
