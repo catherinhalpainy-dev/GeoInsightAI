@@ -1,0 +1,110 @@
+.layer-style-panel {
+  display: flex;
+  width: 340px;
+  min-width: 340px;
+  flex-direction: column;
+
+  overflow-y: auto;
+
+  border-left:
+    1px solid var(--color-border);
+
+  background:
+    var(--color-panel);
+}
+
+.layer-style-header {
+  padding: 18px 20px;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+.style-section {
+  padding: 20px;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+.style-section h3 {
+  margin:
+    0 0 16px;
+
+  font-size: 14px;
+}
+
+.style-row {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(120px, 1fr);
+
+  align-items: center;
+
+  gap: 16px;
+
+  margin-bottom: 16px;
+}
+
+.style-range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.style-range input {
+  flex: 1;
+}
+
+.style-number {
+  width: 60px;
+
+  text-align: right;
+
+  color:
+    var(--color-text-secondary);
+}
+
+.style-presets {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 10px;
+}
+
+.style-preset {
+  min-height: 72px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-medium);
+
+  background:
+    var(--color-panel);
+
+  cursor: pointer;
+}
+
+.style-preset:hover {
+  border-color:
+    var(--color-primary);
+}
+
+.layer-style-actions {
+  display: flex;
+
+  gap: 12px;
+
+  padding: 16px 20px;
+
+  margin-top: auto;
+
+  border-top:
+    1px solid var(--color-border);
+}

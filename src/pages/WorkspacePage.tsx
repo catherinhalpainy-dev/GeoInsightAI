@@ -2,7 +2,6 @@
 // 组件名称首字母大写
 // section             HTML 元素
 // DataImportPage      React 组件
-
 import { Link } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
@@ -13,8 +12,11 @@ import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
 import "../styles/workspace.css";
 import type { WorkspacePanel, WorkspaceTool } from "../types/workspace";
 import { LayerPanel } from "../components/layers/LayerPanel";
-
+import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
+import { LayerStylePanel } from "../components/layers/LayerStylePanel";
 // section 表示一个独立的页面功能区域
+
+
 export function WorkspacePage() {
     const { state, filteredFeatures, } = useAppContext();
 
@@ -32,10 +34,7 @@ export function WorkspacePage() {
         null,
     );
 
-    const [
-        layerVisible,
-        setLayerVisible,
-    ] = useState(true);
+  
 
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
         setActivePanel(
@@ -47,9 +46,49 @@ export function WorkspacePage() {
             },
         );
     }
-    const siderPanelOpen =
+    const sidePanelOpen =
         activePanel !== null;
 
+    // 图层样式
+    const [layerStyle, setLayerStyle] =
+        useState<LayerStyle>({
+            ...DEFAULT_LAYER_STYLE,
+        });
+
+    // 泛型 ：Key extends keyof LayerStyle表示：Key必须是其中一个合法属性名
+    // 泛型实际价值：让key和value的类型保持关联
+    function updateLayerStyle<Key extends keyof LayerStyle>(key: Key, value: LayerStyle[Key],) {
+        setLayerStyle((previous) => {
+            return {
+                ...previous,
+                [key]: value,
+            };
+        });
+    }
+
+    // 重置风格
+    function handleResetStyle() {
+        setLayerStyle({
+            ...DEFAULT_LAYER_STYLE,
+        });
+    }
+
+    // 保存样式修改
+    const [savedLayerStyle, setSavedLayerStyle,] =
+        useState<LayerStyle>({
+            ...DEFAULT_LAYER_STYLE,
+        });
+    // 展开运算符算深拷贝吗？
+    // 不是，只复制第一层，嵌套引用仍然共享
+    function handleSaveStyle() {
+        setSavedLayerStyle({
+            ...layerStyle,
+        });
+    }
+
+    const hasUnsavedChanges =
+        JSON.stringify(layerStyle) !==
+        JSON.stringify(savedLayerStyle);
 
 
     const dataset = state.dataset;
@@ -77,14 +116,14 @@ export function WorkspacePage() {
         );
     }
 
-    const totalFeaturesCount =
-        state.dataset?.collection.features.length;
+    const totalFeatureCount =
+        dataset.collection.features.length;
 
 
     // const features = state.dataset?.collection.features;
     return (
         <section className={
-            siderPanelOpen
+            sidePanelOpen
                 ? "workspace-page panel-open"
                 : "workspace-page"
         }>
@@ -105,7 +144,7 @@ export function WorkspacePage() {
                             {" · "}
                             当前 {filteredFeatures.length}
                             {" / "}
-                            {totalFeaturesCount} 条要素
+                            {totalFeatureCount} 条要素
                         </p>
                     </div>
                 </header>
@@ -115,8 +154,8 @@ export function WorkspacePage() {
                         collection={
                             filteredCollection
                         }
-                        layerVisible={layerVisible}
                         interactionMode={activeTool}
+                        layerStyle={layerStyle}
                     />
 
                     {filteredFeatures.length === 0 && (
@@ -132,18 +171,49 @@ export function WorkspacePage() {
                     )}
                 </div>
             </main>
+            {/* workspacepage持有唯一的activePanel
+            子组件通过callback请求修改 */}
 
-            {activePanel==="filter" && (
+            {activePanel === "filter" && (
                 <FilterPanel />
             )}
-            {activePanel==="layers"&&(
+            {activePanel === "layers" && (
                 <LayerPanel
-                layerVisible={layerVisible}
-                onLayerVisibleChange={setLayerVisible}
-/>
-            )
+                    layerVisible={layerStyle.layerVisible}
+                    onLayerVisibleChange={(visible)=>{
+                        updateLayerStyle(
+                            "layerVisible",
+                            visible,
+                        );
+                    }}
+                    onOpenStyle={() => {
+                        setActivePanel("style")
+                    }}
+                    // 实际是在创建一个对象 相当于
+                    // const props={
+                    // onOpenStyle:()=>{
+                    //  setActivePanel("style");}}
 
+                    // react将该对象传给
+                    // function LayerPanel(props){}
+
+                />
+
+            )
             }
+            {activePanel === "style" && (
+                <LayerStylePanel
+                    style={layerStyle}
+                    onChange={updateLayerStyle}
+                    onReset={handleResetStyle}
+                    onSave={handleSaveStyle}
+                    hasUnsavedChanges={
+                        hasUnsavedChanges
+                    }
+                />
+            )}
+
+
         </section>
     );
 }
