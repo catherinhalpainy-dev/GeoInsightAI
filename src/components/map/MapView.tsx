@@ -26,38 +26,144 @@ interface MapRuntimeInfo {
     zoom: number;
 }
 
-// 图层显示隐藏
-function updateLayerVisible(map: maplibregl.Map, layerStyle:LayerStyle) {
-    
-    const layerIDs = [
-        LAND_USE_FILL_LAYER_ID,
-        LAND_USE_OUTLINE_LAYER_ID,
-    ];
-    // map:返回新数组
-    // foreach:不返回新数组，只执行动作
-    layerIDs.forEach((layerID) => {
-        if (!map.getLayer(layerID)) {
-            return;
-        }
+function applyLayerStyle(
+    map: maplibregl.Map,
+    style: LayerStyle,
+) {
+    const fillLayer =
+        map.getLayer(
+            LAND_USE_FILL_LAYER_ID,
+        );
+
+    const outlineLayer =
+        map.getLayer(
+            LAND_USE_OUTLINE_LAYER_ID,
+        );
+
+    if (fillLayer) {
+        const fillVisible =
+            style.layerVisible &&
+            style.fillVisible;
+
         map.setLayoutProperty(
             LAND_USE_FILL_LAYER_ID,
             "visibility",
-            layerStyle.fillVisible
-            ?"visible"
-            :"none",
+            fillVisible
+                ? "visible"
+                : "none",
         );
+
+        const fillColor =
+            style.colorMode === "classified"
+                ? createClassifiedFillColor()
+                : style.fillColor;
+
+        map.setPaintProperty(
+            LAND_USE_FILL_LAYER_ID,
+            "fill-color",
+            fillColor,
+        );
+
+        map.setPaintProperty(
+            LAND_USE_FILL_LAYER_ID,
+            "fill-opacity",
+            style.fillOpacity,
+        );
+    }
+
+    if (outlineLayer) {
+        const outlineVisible =
+            style.layerVisible &&
+            style.outlineVisible;
+
         map.setLayoutProperty(
             LAND_USE_OUTLINE_LAYER_ID,
             "visibility",
-            layerStyle.outlineVisible
-            ?"visible"
-            :"none",
+            outlineVisible
+                ? "visible"
+                : "none",
         );
 
-    })
+        map.setPaintProperty(
+            LAND_USE_OUTLINE_LAYER_ID,
+            "line-color",
+            style.outlineColor,
+        );
 
+        map.setPaintProperty(
+            LAND_USE_OUTLINE_LAYER_ID,
+            "line-width",
+            style.outlineWidth,
+        );
+
+        map.setPaintProperty(
+            LAND_USE_OUTLINE_LAYER_ID,
+            "line-opacity",
+            style.outlineOpacity,
+        );
+    }
 }
-export function MapView({ collection,  interactionMode, layerStyle }: MapViewProps) {
+// // 图层显示隐藏
+// function updateLayerVisible(map: maplibregl.Map, layerStyle: LayerStyle) {
+
+//     const layerIDs = [
+//         LAND_USE_FILL_LAYER_ID,
+//         LAND_USE_OUTLINE_LAYER_ID,
+//     ];
+
+
+//     // map:返回新数组
+//     // foreach:不返回新数组，只执行动作
+//     layerIDs.forEach((layerID) => {
+//         if (!map.getLayer(layerID)) {
+//             return;
+//         }
+//         map.setLayoutProperty(
+//             LAND_USE_FILL_LAYER_ID,
+//             "visibility",
+//             layerStyle.fillVisible
+//                 ? "visible"
+//                 : "none",
+//         );
+//         map.setLayoutProperty(
+//             LAND_USE_OUTLINE_LAYER_ID,
+//             "visibility",
+//             layerStyle.outlineVisible
+//                 ? "visible"
+//                 : "none",
+//         );
+
+//     })
+
+// }
+
+function createClassifiedFillColor() {
+    return [
+        "match",
+        // 从当前GEOJSON Feature 的properties中读取landuseType
+        ["get", "landUseType"],
+        "residential",
+        LAND_USE_COLORS.residential,
+
+        "commercial",
+        LAND_USE_COLORS.commercial,
+
+        "industrial",
+        LAND_USE_COLORS.industrial,
+
+        "green",
+        LAND_USE_COLORS.green,
+
+        "public",
+        LAND_USE_COLORS.public,
+
+        "transportation",
+        LAND_USE_COLORS.transportation,
+
+        LAND_USE_COLORS.other,
+    ];
+}
+export function MapView({ collection, interactionMode, layerStyle }: MapViewProps) {
     // 为什么这里不用useState？
     // 因为这里只是为了保存对象引用，不是为了控制页面JSX显示
     // useState：数据改变，会触发组件重新渲染
@@ -72,6 +178,8 @@ export function MapView({ collection,  interactionMode, layerStyle }: MapViewPro
     const latestCollectionRef =
         useRef(collection);
 
+    const latestLayerStyleRef =
+        useRef(layerStyle);
 
     const [runtimeInfo, setRuntimeInfo,] = useState<MapRuntimeInfo>({
         longitude: null,
@@ -197,6 +305,7 @@ export function MapView({ collection,  interactionMode, layerStyle }: MapViewPro
                     // 数据驱动样式
                     "fill-color": [
                         "match",
+                        // 从当前GEOJSON Feature 的properties中读取landuseType
                         ["get", "landUseType"],
                         "residential",
                         LAND_USE_COLORS.residential,
@@ -230,6 +339,7 @@ export function MapView({ collection,  interactionMode, layerStyle }: MapViewPro
                     "line-width": 1,
                 },
             });
+            applyLayerStyle(map, latestLayerStyleRef.current);
             map.addControl(
                 new maplibregl.NavigationControl(),
                 "top-right",
@@ -317,16 +427,18 @@ export function MapView({ collection,  interactionMode, layerStyle }: MapViewPro
         canvas.style.cursor =
             "crosshair";
     }, [interactionMode]);
-    
-    
-   
+
+
+
     // 6.样式同步 合并 4.显示隐藏
     useEffect(() => {
         const map = mapRef.current;
         if (!map) {
             return;
         }
-        updateLayerVisible(map,layerStyle);
+
+        latestLayerStyleRef.current = layerStyle;
+        applyLayerStyle(map, layerStyle,);
         if (
             map.getLayer(
                 LAND_USE_FILL_LAYER_ID,
@@ -375,6 +487,7 @@ export function MapView({ collection,  interactionMode, layerStyle }: MapViewPro
             map.setPaintProperty(LAND_USE_OUTLINE_LAYER_ID, "line-opacity", layerStyle.outlineOpacity);
         }
     }, [layerStyle]);
+
 
     return (
         // 该div就是地图容器

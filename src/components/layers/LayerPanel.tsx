@@ -13,6 +13,8 @@ import {
   calculateLandUseStatistics,
 } from "../../utils/landUseStatistics";
 
+import "../../styles/layerpanel.css"
+
 interface LayerPanelProps {
   layerVisible: boolean;
 

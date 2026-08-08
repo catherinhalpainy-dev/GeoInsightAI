@@ -14,19 +14,25 @@ interface LayerStylePanelProps {
     onSave: () => void;
     hasUnsavedChanges: boolean;
 
-    onApplyReset:(
-        presetStyle:Partial<LayerStyle>,
-    )=>void;
+    onApplyReset: (
+        presetStyle: Partial<LayerStyle>,
+    ) => void;
 
 }
 //  onSave, hasUnsavedChanges
 
-export function LayerStylePanel({ style, onChange, onReset,onApplyReset,onSave,hasUnsavedChanges }: LayerStylePanelProps) {
+export function LayerStylePanel({ style, onChange, onReset, onApplyReset, onSave, hasUnsavedChanges }: LayerStylePanelProps) {
     return (
         <aside className="layer-style-panel">
             <header className="layer-style-header">
                 <h2>图层样式</h2>
-                <p>城市用地分类面</p>
+                <p>城市用地分类面
+                    {"."}
+                    {style.colorMode ===
+                        "classified"
+                        ? "分类色"
+                        : "单色"}
+                </p>
             </header>
 
             {/* 填充样式 */}
@@ -111,17 +117,21 @@ export function LayerStylePanel({ style, onChange, onReset,onApplyReset,onSave,h
 
                 <div className="style-presets">
                     {LAYER_STYLE_PRESETS.map(
-                        (preset)=>{
-                            return(
+                        (preset) => {
+                            return (
                                 <button
-                                key={preset.id}
-                                type="button"
-                                className="style-preset"
-                                onClick={()=>{
-                                    onApplyReset(
-                                        preset.style,
-                                    );
-                                }}
+                                    key={preset.id}
+                                    type="button"
+                                    className="style-preset"
+                                    onClick={() => {
+                                        if (preset.id === "default") {
+                                            onReset();
+                                            return;
+                                        }
+                                        onApplyReset(
+                                            preset.style,
+                                        );
+                                    }}
                                 >{preset.name}</button>
                             );
                         },
@@ -279,10 +289,10 @@ export function LayerStylePanel({ style, onChange, onReset,onApplyReset,onSave,h
                     重置
                 </button>
 
-                <button 
-                type="button"
-                onClick={onSave}
-                disabled={hasUnsavedChanges}
+                <button
+                    type="button"
+                    onClick={onSave}
+                    disabled={hasUnsavedChanges}
                 >保存更改</button>
             </footer>
         </aside>

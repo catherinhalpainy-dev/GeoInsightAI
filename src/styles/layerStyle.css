@@ -183,6 +183,8 @@ input[type="color"]::-webkit-color-swatch {
 .style-range {
   display: flex;
 
+  /* 可以收缩到grid给的空间
+  如果是auto 则会保证不能比内容窄 */
   min-width: 0;
 
   align-items: center;
