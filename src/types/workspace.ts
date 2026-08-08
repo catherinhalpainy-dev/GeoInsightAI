@@ -1,9 +1,10 @@
 // 联合类型
-export type WorkspaceTool=
-    |"select"
-    |"pan";
+export type WorkspaceTool =
+    | "select"
+    | "pan";
 
-export type WorkspacePanel=
-    |"layers"
-    |"filter"
-    |null;
+export type WorkspacePanel =
+    | "layers"
+    | "filter"
+    | "style"
+    | null;

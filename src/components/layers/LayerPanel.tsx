@@ -13,17 +13,23 @@ import {
   calculateLandUseStatistics,
 } from "../../utils/landUseStatistics";
 
+import "../../styles/layerpanel.css"
+
 interface LayerPanelProps {
   layerVisible: boolean;
 
   onLayerVisibleChange: (
     visible: boolean,
   ) => void;
+
+  // onOpenStyle必须是一个函数，不接收参数，也不需要返回业务值
+  onOpenStyle:()=>void;
 }
 
 export function LayerPanel({
   layerVisible,
   onLayerVisibleChange,
+  onOpenStyle,
 }: LayerPanelProps) {
   const {
     state,
@@ -52,6 +58,11 @@ export function LayerPanel({
             {" / "}
             {totalFeatureCount} 条要素
           </p>
+
+          <button
+          type="button"
+            onClick={onOpenStyle}>编辑样式</button>
+
         </div>
       </header>
 
