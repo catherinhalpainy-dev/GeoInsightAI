@@ -242,6 +242,7 @@ export function MapView({ collection, interactionMode, layerStyle }: MapViewProp
         };
 
 
+        // maplibre的事件绑定
         map.on(
             "mousemove",
             handleMouseMove,
