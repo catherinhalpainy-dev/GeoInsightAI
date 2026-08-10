@@ -353,7 +353,8 @@ export function FeatureTable({
                     <td>{id}</td>
 
                     <td>
-                      <span className="land-use-badge">
+                      <span 
+                      className={`land-use-badge land-use-badge-${landUseType}`}>
                         {
                           LAND_USE_LABELS[
                             landUseType

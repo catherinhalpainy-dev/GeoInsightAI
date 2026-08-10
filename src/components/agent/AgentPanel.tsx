@@ -425,11 +425,11 @@ export function AgentPanel({
         }
     }
 
-    function getExecutionSummary(plan:AgentPlan){
-        if(plan.commands.length===0){
+    function getExecutionSummary(plan: AgentPlan) {
+        if (plan.commands.length === 0) {
             return "本次未执行应用操作";
         }
-        return`已完成${plan.commands.length}个GIS操作`;
+        return `已完成${plan.commands.length}个GIS操作`;
     }
     return (
         <aside className="agent-panel">
@@ -445,7 +445,7 @@ export function AgentPanel({
                         </h2>
 
                         <p>
-                            结构化设计模式
+                            结构化计划模式
                         </p>
                     </div>
                 </div>
@@ -551,16 +551,18 @@ export function AgentPanel({
 
                             <span
                                 className={
-                                    plan
-                                        .requiresConfirmation
-                                        ? "agent-risk mutation"
-                                        : "agent-risk safe"
+                                    status === "completed"
+                                        ? "agent-risk completed"
+                                        : plan.requiresConfirmation
+                                            ? "agent-risk mutation"
+                                            : "agent-risk safe"
                                 }
                             >
-                                {plan
-                                    .requiresConfirmation
-                                    ? "需要确认"
-                                    : "安全操作"}
+                                {status === "completed"
+                                    ? "已执行"
+                                    : plan.requiresConfirmation
+                                        ? "需要确认"
+                                        : "安全操作"}
                             </span>
                         </header>
 
@@ -639,25 +641,34 @@ export function AgentPanel({
                             )}
 
 
-                        {status ===
-                            "completed" && (
-                                <div className="agent-result-actions">
-                                    <p className="agent-success">
-                                        ✓ 操作已通过审批并交给应用执行
-                                    </p>
-                                    <p className="agent-sucess">
-                                         ✓{getExecutionSummary(plan)}
-                                    </p>
-                                    <button
-                                    type="button"
-                                    disabled={!canUndo}
-                                    onClick={onUndo}
-                                    >
-                                        撤销本次操作
-                                    </button>
+                        {status === "completed" && (
+                            <div className="agent-result-card">
+                                <div className="agent-result-main">
+                                    <span className="agent-result-icon">
+                                        ✓
+                                    </span>
+
+                                    <div>
+                                        <strong>
+                                            操作已执行
+                                        </strong>
+
+                                        <p>
+                                            {getExecutionSummary(plan)}
+                                        </p>
+                                    </div>
                                 </div>
 
-                            )}
+                                <button
+                                    type="button"
+                                    className="agent-undo-button"
+                                    disabled={!canUndo}
+                                    onClick={onUndo}
+                                >
+                                    ↶ 撤销本次操作
+                                </button>
+                            </div>
+                        )}
 
 
                         {status ===

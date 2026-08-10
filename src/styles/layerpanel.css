@@ -122,3 +122,76 @@
   font-size: 13px;
 }
 
+/* ==============================
+   UI Polish
+   ============================== */
+
+.layer-panel {
+  min-width: 0;
+
+  padding: 0;
+
+  border-left:
+    1px solid
+    var(--color-border);
+
+  background:
+    var(--color-panel);
+
+  box-shadow:
+    var(--shadow-panel);
+}
+
+.layer-panel-header {
+  padding:
+    18px;
+
+  margin: 0;
+
+  border-bottom:
+    1px solid
+    var(--color-border);
+}
+
+.layer-panel-header h2 {
+  font-size: 15px;
+}
+
+.layer-panel-header p {
+  font-size: 10px;
+}
+
+.layer-section {
+  padding:
+    18px;
+
+  border-top: 0;
+
+  border-bottom:
+    1px solid
+    var(--color-border);
+}
+
+.layer-section h3 {
+  font-size: 12px;
+}
+
+.layer-row {
+  min-height: 38px;
+}
+
+.layer-status {
+  padding:
+    4px 8px;
+
+  font-size: 10px;
+}
+
+.layer-legend li {
+  min-height: 30px;
+}
+
+.layer-legend-name,
+.layer-legend strong {
+  font-size: 11px;
+}
