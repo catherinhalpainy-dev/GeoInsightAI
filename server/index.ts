@@ -367,8 +367,8 @@ app.listen(
     PORT,
     // 回调函数，当服务器开始监听后，执行该函数
     () => {
-        console.log(
-            `Agent server running on http://localhost:${PORT}`,
-        );
+        // console.log(
+        //     `Agent server running on http://localhost:${PORT}`,
+        // );
     }
 )
