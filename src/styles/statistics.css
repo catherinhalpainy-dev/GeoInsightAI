@@ -1,144 +1,350 @@
 .statistics-page {
+  display: grid;
+
+  grid-template-columns:
+    minmax(420px, 0.95fr) minmax(0px, 1.25fr);
+
+  grid-template-rows:
+    104 minmax(0, 1fr);
+
+  gap: 12px;
+
   width: 100%;
+  height: 100%;
   min-width: 0;
-  padding: 24px;
-  overflow-y: auto;
+  min-height: 0;
+
+  padding: 12px;
+
+  overflow: hidden;
+
+  background:
+    var(--color-background);
 }
 
+
+/* reference UI already expresses page through nav */
 .statistics-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.statistics-page-header h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
-.statistics-page-header p {
-  margin: 6px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  display: none;
 }
 
 
-/* KPI */
+/* ==============================
+   KPI
+   ============================== */
 
 .statistics-kpi-grid {
+  grid-column:
+    1 / -1;
+
   display: grid;
+
   grid-template-columns:
     repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
+
+  gap: 12px;
+
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
 }
 
 .statistics-kpi-card {
+  position: relative;
+
   display: flex;
+
   min-width: 0;
+  min-height: 0;
+
   flex-direction: column;
-  gap: 6px;
-  padding: 18px 20px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-panel);
+
+  justify-content: center;
+
+  gap: 4px;
+
+  padding:
+    13px 18px 13px 64px;
+
+  overflow: hidden;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-large);
+
+  background:
+    white;
+
+  box-shadow:
+    var(--shadow-card);
+}
+
+.statistics-kpi-card::before {
+  position: absolute;
+
+  left: 18px;
+
+  display: grid;
+
+  width: 36px;
+  height: 36px;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  background:
+    var(--color-primary-soft);
+
+  color:
+    var(--color-primary);
+
+  content: "◇";
+
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.statistics-kpi-card:nth-child(2)::before {
+  background: #eef4ff;
+  color: #3b82f6;
+}
+
+.statistics-kpi-card:nth-child(3)::before {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.statistics-kpi-card:nth-child(4)::before {
+  background: #fff7ed;
+  color: #f59e0b;
 }
 
 .statistics-kpi-card span {
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  color:
+    var(--color-text-secondary);
+
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .statistics-kpi-card strong {
-  font-size: 28px;
-  line-height: 1.2;
+  color:
+    #111827;
+
+  font-size: 25px;
+  line-height: 1.1;
+
+  letter-spacing:
+    -0.4px;
 }
 
 .statistics-kpi-card small {
-  color: var(--color-text-secondary);
+  color:
+    var(--color-text-tertiary);
+
+  font-size: 10px;
 }
 
 
-/* Charts */
+/* ==============================
+   Charts - left column
+   ============================== */
 
 .statistics-chart-grid {
   display: grid;
+
   grid-template-columns:
+    1fr;
+
+  grid-template-rows:
     repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
+
+  
+
+  gap: 12px;
+
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  overflow: hidden;
 }
 
 .statistics-chart-card {
+  display: flex;
+
   min-width: 0;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-panel);
+  min-height: 0;
+
+  flex-direction: column;
+
+  overflow: hidden;
+
+  padding: 12px 14px;
+
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius:
+    var(--radius-large);
+
+  background:
+    white;
+
+  box-shadow:
+    var(--shadow-card);
+}
+
+.statistics-chart-card header {
+  flex:
+    0 0 auto;
+
+  padding-bottom: 7px;
+
+  border-bottom:
+    1px solid
+    var(--color-border);
 }
 
 .statistics-chart-card header h2 {
   margin: 0;
-  font-size: 16px;
+
+  font-size: 13px;
 }
 
 .statistics-chart-card header p {
-  margin: 4px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+  margin:
+    2px 0 0;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 9px;
 }
 
 .statistics-chart {
   width: 100%;
-  height: 320px;
-  margin-top: 10px;
+
+  height: auto;
+
+  min-width: 0;
+  min-height: 0;
+
+  flex: 1 1 auto;
+
+  margin-top: 4px;
 }
-
-
-/* Table */
+/* ==============================
+   Table - right column
+   ============================== */
 
 .statistics-table-card {
+  display: flex;
+
+  min-width: 0;
+  min-height: 0;
+
+  flex-direction: column;
+
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-panel);
+
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius:
+    var(--radius-large);
+
+  background:
+    white;
+
+  box-shadow:
+    var(--shadow-card);
+}
+.statistics-table-header {
+   flex:0 0 auto;
 }
 
-.statistics-table-header {
+.statistics-table-wraper {
+   flex:1 1 auto;
+   min-width: 0;
+   min-height: 0;
+
+   overflow: auto;
+}
+
+.statistics-pagination {
+  flex:
+    0 0 auto;
+
   display: flex;
+
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--color-border);
-}
 
+  padding:
+    10px 14px;
+
+  border-top:
+    1px solid
+    var(--color-border);
+
+  background: white;
+}
 .statistics-table-header h2 {
   margin: 0;
-  font-size: 16px;
+
+  font-size: 14px;
 }
 
 .statistics-table-header p {
-  margin: 4px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+  margin:
+    3px 0 0;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 10px;
 }
 
 .statistics-table-header input {
-  width: min(320px, 100%);
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-medium);
-  outline: none;
+  width:
+    min(280px, 100%);
+
+  min-height: 36px;
+
+  padding:
+    0 12px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-medium);
+
+  outline: 0;
+
+  background:
+    var(--color-panel-muted);
+
+  color:
+    var(--color-text);
+
+  font-size: 11px;
 }
 
 .statistics-table-header input:focus {
-  border-color: var(--color-primary);
+  border-color:
+    var(--color-primary);
+
+  background: white;
+
   box-shadow:
-    0 0 0 3px
-    rgba(13, 148, 136, 0.1);
+    var(--shadow-focus);
 }
 
 .statistics-table-wrapper {
@@ -147,116 +353,233 @@
 
 .statistics-table {
   width: 100%;
+
   border-collapse: collapse;
 }
 
 .statistics-table th,
 .statistics-table td {
-  padding: 13px 18px;
-  border-bottom: 1px solid var(--color-border);
+  padding:
+    12px 16px;
+
+  border-bottom:
+    1px solid var(--color-border);
+
   text-align: left;
+
   white-space: nowrap;
 }
 
 .statistics-table th {
-  background: var(--color-background);
-  font-size: 12px;
+  background:
+    var(--color-panel-muted);
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 10px;
 }
 
 .statistics-table th button {
   padding: 0;
+
   border: 0;
-  background: transparent;
-  color: var(--color-text-secondary);
+
+  background:
+    transparent;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 10px;
   font-weight: 700;
+
   cursor: pointer;
 }
 
-.statistics-table tbody tr:hover {
-  background: #f8fafc;
+.statistics-table td {
+  color:
+    #475467;
+
+  font-size: 11px;
 }
 
-.statistics-table td {
-  font-size: 13px;
+.statistics-table tbody tr {
+  transition:
+    background 0.12s ease;
+}
+
+.statistics-table tbody tr:hover {
+  background:
+    #f8fbfb;
 }
 
 .statistics-table-empty {
-  padding: 40px !important;
-  color: var(--color-text-secondary);
-  text-align: center !important;
+  padding:
+    40px !important;
+
+  color:
+    var(--color-text-secondary);
+
+  text-align:
+    center !important;
 }
+
+
+/* ==============================
+   Badge
+   ============================== */
 
 .land-use-badge {
   display: inline-flex;
+
+  min-height: 24px;
+
   align-items: center;
-  min-height: 26px;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 12px;
+
+  padding:
+    0 8px;
+
+  border-radius: 6px;
+
+  background:
+    var(--color-primary-soft);
+
+  color:
+    var(--color-primary);
+
+  font-size: 10px;
+  font-weight: 700;
 }
 
 
-/* Pagination */
+/* ==============================
+   Pagination
+   ============================== */
 
 .statistics-pagination {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+
+  padding:
+    13px 16px;
+
+  border-top:
+    1px solid var(--color-border);
 }
 
-.statistics-pagination span {
-  color: var(--color-text-secondary);
-  font-size: 12px;
+.statistics-pagination>span {
+  color:
+    var(--color-text-secondary);
+
+  font-size: 10px;
 }
 
-.statistics-pagination div {
+.statistics-pagination>div {
   display: flex;
-  gap: 8px;
+
+  gap: 6px;
 }
 
 .statistics-pagination button {
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-small);
-  background: var(--color-panel);
+  min-height: 32px;
+
+  padding:
+    0 11px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius:
+    var(--radius-small);
+
+  background:
+    white;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 10px;
+
   cursor: pointer;
 }
 
 .statistics-pagination button:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color:
+    var(--color-primary);
+
+  color:
+    var(--color-primary);
 }
 
 .statistics-pagination button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 
-/* Responsive */
+.land-use-badge-residential {
+  background: #e8f7f5;
+  color: #0d9488;
+}
 
-@media (max-width: 1000px) {
+.land-use-badge-commercial {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.land-use-badge-industrial {
+  background: #fff7ed;
+  color: #f59e0b;
+}
+
+.land-use-badge-green {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.land-use-badge-public {
+  background: #f5f3ff;
+  color: #8b5cf6;
+}
+
+.land-use-badge-transportation {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.land-use-badge-other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* ==============================
+   Responsive
+   ============================== */
+
+@media (max-width: 1180px) {
+  .statistics-page {
+    grid-template-columns: 1fr;
+  }
+
+  .statistics-kpi-grid {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 850px) {
   .statistics-kpi-grid {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
   }
-
-  .statistics-chart-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
-@media (max-width: 640px) {
-  .statistics-page {
-    padding: 14px;
-  }
-
+@media (max-width: 560px) {
   .statistics-kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .statistics-table-header {
@@ -267,4 +590,87 @@
   .statistics-table-header input {
     width: 100%;
   }
+}
+
+.statistics-table-header {
+  display: flex;
+
+  flex-direction: row;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  min-height: 62px;
+
+  padding:
+    12px 14px;
+}
+
+.statistics-table-header > div {
+  min-width: 0;
+}
+
+.statistics-table-header input {
+  width: 250px;
+
+  flex:
+    0 0 250px;
+}
+
+/* ==============================
+   Statistics final polish
+   ============================== */
+
+.statistics-page {
+  grid-template-columns:
+    minmax(420px, 0.95fr)
+    minmax(0, 1.25fr);
+
+  grid-template-rows:
+    104px
+    minmax(0, 1fr);
+}
+
+
+.statistics-chart-grid {
+  grid-template-rows:
+    minmax(0, 1.08fr)
+    minmax(0, 0.92fr);
+}
+
+
+.statistics-table-header {
+  display: flex;
+
+  flex-direction: row;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  min-height: 62px;
+
+  padding:
+    12px 14px;
+}
+
+
+.statistics-table-header > div {
+  min-width: 0;
+}
+
+
+.statistics-table-header input {
+  width: 250px;
+
+  flex:
+    0 0 250px;
+}
+
+
+.statistics-kpi-card strong {
+  font-size: 25px;
 }

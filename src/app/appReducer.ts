@@ -1,4 +1,4 @@
-import { act } from "react";
+// import { act } from "react";
 import type { AppAction, AppState, LandUseFilters } from "./appTypes";
 
 export const initialFilters: LandUseFilters = {
