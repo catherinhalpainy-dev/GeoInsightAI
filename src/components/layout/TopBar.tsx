@@ -1,6 +1,7 @@
 // 公共顶部导航
-import { NavLink } from "react-router-dom"
+import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { useAppContext } from "../../app/AppProvider";
+
 
 const navigationItems = [
     { path: "/import", label: "数据导入" },
@@ -11,9 +12,19 @@ const navigationItems = [
 ]
 
 export function TopBar() {
-    const {state}=useAppContext();
-    
-    const datasetName=state.dataset?.name??"尚未加载数据";
+    const { state } = useAppContext();
+
+    const datasetName = state.dataset?.name ?? "尚未加载数据";
+
+    const navigate = useNavigate();
+    const location = useLocation();
+    const searchParams =
+        new URLSearchParams(location.search);
+    const agentOpen =
+        location.pathname ===
+        "/workspace" &&
+        searchParams.get("panel") ===
+        "agent";
 
     return (
         <header className="topbar">
@@ -43,8 +54,24 @@ export function TopBar() {
             <div className="topbar-actions">
                 <span className="dataset-chip">{datasetName}</span>
 
-                <button type="button" className="agent-button">
-                    唤起 Agent
+                <button type="button"
+                    className={
+                        agentOpen
+                            ? "agent-button active"
+                            : "agent-button"
+                    }
+                    aria-pressed={
+                        agentOpen
+                    }
+                    onClick={() => {
+                        if (agentOpen) {
+                            navigate("/workspace",);
+                            return;
+                        }
+                        navigate("/workspace?panel=agent",);
+                    }}
+                >
+                     ✦ Agent 分析
                 </button>
             </div>
         </header>
