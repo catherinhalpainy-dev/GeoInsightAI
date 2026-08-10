@@ -1,3 +1,4 @@
+import { act } from "react";
 import type { AppAction, AppState, LandUseFilters } from "./appTypes";
 
 export const initialFilters: LandUseFilters = {
@@ -49,7 +50,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         importStatus: "preview",
         importError: null,
         importWarnings: action.payload.warnings,
-        filters:{
+        filters: {
           ...initialFilters,
         }
       };
@@ -98,27 +99,47 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "SET_MINIMUM_BUILT_YEAR":
-      return{
+      return {
         ...state,
         filters: {
           ...state.filters,
           minimumBuiltYear: action.payload,
-        },  
+        },
       };
-    
+
     case "SET_DISTRICT_CODE":
-      return{
+      return {
         ...state,
         filters: {
           ...state.filters,
           districtCode: action.payload,
-        },  
+        },
       };
-    
+
     case "CLEAR_FILTERS":
       return {
         ...state,
         filters: { ...initialFilters },
+      };
+
+    case "PATCH_FILTERS":
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          ...action.payload,
+        },
+      };
+
+    case "REPLACE_FILTERS":
+      return{
+        ...state,
+        filters:{
+          ...action.payload,
+          landUseTypes:[
+            ...action.payload.landUseTypes,
+          ],
+        },
       };
 
     default:

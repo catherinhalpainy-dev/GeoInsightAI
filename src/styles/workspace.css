@@ -10,9 +10,14 @@
 
 .workspace-page.panel-open {
   grid-template-columns:
-    72px minmax(0, 1fr) 320px;
+    72px minmax(0, 1fr) 340px;
 }
 
+
+.workspace-page.agent-open {
+  grid-template-columns:
+    72px minmax(0, 1fr) 380px;
+}
 /* .workspace-page:has(.filter-panel) {
   grid-template-columns:
     72px minmax(0, 1fr) 320px;

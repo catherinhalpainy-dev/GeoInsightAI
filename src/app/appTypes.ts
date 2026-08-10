@@ -59,6 +59,16 @@ export type AppAction =
     }
     | {
         type: "CLEAR_FILTERS";
+    }
+    | {
+        type:
+        "PATCH_FILTERS";
+        payload:
+        Partial<LandUseFilters>;
+    }
+    |{
+        type:"REPLACE_FILTERS";
+        payload:LandUseFilters;
     };
 
 

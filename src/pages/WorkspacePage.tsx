@@ -2,10 +2,10 @@
 // 组件名称首字母大写
 // section             HTML 元素
 // DataImportPage      React 组件
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LandUseFeatureCollection } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
@@ -14,11 +14,23 @@ import type { WorkspacePanel, WorkspaceTool } from "../types/workspace";
 import { LayerPanel } from "../components/layers/LayerPanel";
 import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
 import { LayerStylePanel } from "../components/layers/LayerStylePanel";
+
+import { AgentPanel } from "../components/agent/AgentPanel";
+import type { AgentContext, AgentPlan } from "../types/agent";
+import type { LandUseFilters } from "../app/appTypes";
 // section 表示一个独立的页面功能区域
+
+interface AgentSnapshot{
+    filters:LandUseFilters,
+    layerStyle:LayerStyle,
+}
 
 
 export function WorkspacePage() {
-    const { state, filteredFeatures, } = useAppContext();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams,] = useSearchParams();
+
+    const { state, dispatch, filteredFeatures, } = useAppContext();
 
     const [
         activeTool,
@@ -34,7 +46,34 @@ export function WorkspacePage() {
         null,
     );
 
-  
+    const [lastAgentSnapshot,setlastAgentSnapshot]=useState<AgentSnapshot|null>(null,);
+
+    const requestedPanel = searchParams.get("panel");
+
+    useEffect(() => {
+        if (requestedPanel === "agent") {
+            setActivePanel("agent",);
+            return;
+        }
+        setActivePanel((previousPanel)=>{
+            return previousPanel==="agent"
+            ?null
+            :previousPanel;
+        });
+    }, [requestedPanel]);
+
+    function handleCloseAgent() {
+        setActivePanel(null);
+        const nextParams =
+            new URLSearchParams(searchParams,);
+        nextParams.delete("panel",);
+
+        setSearchParams(
+            nextParams,
+            {
+                replace: true,
+            },);
+    }
 
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
         setActivePanel(
@@ -45,6 +84,20 @@ export function WorkspacePage() {
                     : panel;
             },
         );
+
+        if (searchParams.get("panel",) === "agent") {
+            const nextParams =
+                new URLSearchParams(searchParams,);
+
+            nextParams.delete("panel",);
+
+            setSearchParams(
+                nextParams,
+                {
+                    replace: true,
+                },
+            );
+        }
     }
     const sidePanelOpen =
         activePanel !== null;
@@ -74,9 +127,9 @@ export function WorkspacePage() {
     }
 
     // 应用预设
-    function handleApplyPreset(presetStyle:Partial<LayerStyle>){
-        setLayerStyle((previous)=>{
-            return{
+    function handleApplyPreset(presetStyle: Partial<LayerStyle>) {
+        setLayerStyle((previous) => {
+            return {
                 ...previous,
                 ...presetStyle,
             };
@@ -129,14 +182,121 @@ export function WorkspacePage() {
     const totalFeatureCount =
         dataset.collection.features.length;
 
+    const agentContext: AgentContext = {
+        datasetName: dataset.name,
+        featureCount: filteredFeatures.length,
+        currentFilters: {
+            landUseTypes: state.filters.landUseTypes,
+            minimumBuiltYear: state.filters.minimumBuiltYear,
+            districtCode: state.filters.districtCode,
+        },
+        currentLayerStyle: layerStyle,
+    };
 
-    // const features = state.dataset?.collection.features;
-    return (
-        <section className={
-            sidePanelOpen
+    function handleExecuteAgentPlan(
+        plan: AgentPlan,
+    ) {
+        setlastAgentSnapshot({
+            filters:{
+                ...state.filters,
+
+                landUseTypes:[
+                    ...state.filters.landUseTypes,
+                ],
+            },
+            layerStyle:{
+                ...layerStyle,
+            },
+        });
+        for (
+            const command
+            of plan.commands
+        ) {
+            switch (
+            command.type
+            ) {
+
+                case "apply_filter": {
+                    dispatch({
+                        type:
+                            "PATCH_FILTERS",
+
+                        payload:
+                            command.payload,
+                    });
+
+                    break;
+                }
+
+
+                case "clear_filters": {
+                    dispatch({
+                        type:
+                            "CLEAR_FILTERS",
+                    });
+
+                    break;
+                }
+
+
+                case "update_layer_style": {
+                    setLayerStyle(
+                        (previous) => {
+                            return {
+                                ...previous,
+                                ...command.payload,
+                            };
+                        },
+                    );
+
+                    break;
+                }
+
+
+                case "navigate_statistics": {
+                    navigate(
+                        "/statistics",
+                    );
+
+                    break;
+                }
+
+
+                case "fit_map_bounds": {
+                    console.warn(
+                        "fit_map_bounds 暂未连接 MapView",
+                    );
+
+                    break;
+                }
+            }
+        }
+    };
+
+    function handleUndoAgentAction(){
+        if(!lastAgentSnapshot){
+            return;
+        }
+        dispatch({
+            type:"REPLACE_FILTERS",
+            payload:lastAgentSnapshot.filters,
+        });
+        setLayerStyle({
+            ...lastAgentSnapshot.layerStyle,
+        });
+        setlastAgentSnapshot(null);
+    };
+
+    const workspaceClassName =
+        activePanel === "agent"
+            ? "workspace-page panel-open agent-open"
+            : sidePanelOpen
                 ? "workspace-page panel-open"
-                : "workspace-page"
-        }>
+                : "workspace-page";
+    // const features = state.dataset?.collection.features;
+    // console.log({requestedPanel,activePanel,});
+    return (
+        <section className={workspaceClassName}>
             <WorkspaceToolbar
                 activeTool={activeTool}
                 activePanel={activePanel}
@@ -181,6 +341,7 @@ export function WorkspacePage() {
                     )}
                 </div>
             </main>
+
             {/* workspacepage持有唯一的activePanel
             子组件通过callback请求修改 */}
 
@@ -190,7 +351,7 @@ export function WorkspacePage() {
             {activePanel === "layers" && (
                 <LayerPanel
                     layerVisible={layerStyle.layerVisible}
-                    onLayerVisibleChange={(visible)=>{
+                    onLayerVisibleChange={(visible) => {
                         updateLayerStyle(
                             "layerVisible",
                             visible,
@@ -199,13 +360,13 @@ export function WorkspacePage() {
                     onOpenStyle={() => {
                         setActivePanel("style")
                     }}
-                    // 实际是在创建一个对象 相当于
-                    // const props={
-                    // onOpenStyle:()=>{
-                    //  setActivePanel("style");}}
+                // 实际是在创建一个对象 相当于
+                // const props={
+                // onOpenStyle:()=>{
+                //  setActivePanel("style");}}
 
-                    // react将该对象传给
-                    // function LayerPanel(props){}
+                // react将该对象传给
+                // function LayerPanel(props){}
 
                 />
 
@@ -221,6 +382,18 @@ export function WorkspacePage() {
                     hasUnsavedChanges={
                         hasUnsavedChanges
                     }
+                />
+            )}
+
+            {activePanel === "agent" && (
+                <AgentPanel
+                    context={agentContext}
+                    onExecutePlan={handleExecuteAgentPlan}
+                    onClose={
+                        handleCloseAgent
+                    }
+                    canUndo={lastAgentSnapshot!==null}
+                    onUndo={handleUndoAgentAction}
                 />
             )}
 
