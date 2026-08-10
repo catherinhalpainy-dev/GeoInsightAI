@@ -4,6 +4,64 @@ import type {
     AgentStartResponse,
 } from "../types/agent";
 
+const AGENT_TIMEOUT_MS =
+  30_000;
+
+async function requestAgentApi(
+  url: string,
+  body: unknown,
+): Promise<Response> {
+  const controller =
+    new AbortController();
+
+  const timeoutId =
+    window.setTimeout(
+      () => {
+        controller.abort();
+      },
+      AGENT_TIMEOUT_MS,
+    );
+
+  try {
+    return await fetch(
+      url,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify(body),
+
+        signal:
+          controller.signal,
+      },
+    );
+  } catch (
+    error: unknown
+  ) {
+    if (
+      error instanceof DOMException &&
+      error.name ===
+        "AbortError"
+    ) {
+      throw new Error(
+        "Agent 请求超时，请稍后重试",
+      );
+    }
+
+    throw new Error(
+      "无法连接 GeoInsight Agent 服务，请确认 Agent 后端正在运行",
+    );
+  } finally {
+    window.clearTimeout(
+      timeoutId,
+    );
+  }
+}
 
 interface ApiErrorResponse {
     ok?: false;
@@ -36,21 +94,11 @@ export async function startAgent(
 ): Promise<AgentStartResponse> {
 
     const response =
-        await fetch(
+        await requestAgentApi(
             "/api/agent/start",
             {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-                },
-
-                body:
-                    JSON.stringify({
-                        message,
-                        context,
-                    }),
+                message,
+                context,
             },
         );
 
@@ -76,21 +124,11 @@ export async function resumeAgent(
 ): Promise<AgentResumeResponse> {
 
     const response =
-        await fetch(
+        await requestAgentApi(
             "/api/agent/resume",
             {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-                },
-
-                body:
-                    JSON.stringify({
-                        threadId,
-                        approved,
-                    }),
+               threadId,
+               approved,
             },
         );
 

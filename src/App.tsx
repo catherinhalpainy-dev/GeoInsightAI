@@ -5,6 +5,7 @@ import { DataImportPage } from "./pages/DataImportPage";
 import { ReportPage } from "./pages/ReportPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 
 function App() {
@@ -32,6 +33,10 @@ function App() {
         <Route
           path="/report"
           element={<ReportPage />}
+        />
+        <Route
+          path="*"
+          element={<NotFoundPage/>}
         />
 
 
