@@ -2,6 +2,13 @@
 
 > AI-powered spatial data visualization and analysis platform built with React, TypeScript, MapLibre and LangGraph.
 
+## Live Demo
+
+[Open GeoInsight AI](https://geoinsightai.onrender.com)
+
+> The demo is deployed on a free Render instance.
+> The first request after a period of inactivity may require a short cold start.
+
 GeoInsight AI 是一个面向城市空间数据分析场景的 Web GIS 应用。
 
 项目支持 GeoJSON 空间数据导入、运行时校验、地图可视化、属性筛选、图层样式编辑、统计分析与报告生成，并集成基于智谱 GLM + LangGraph 的受约束 GIS Agent，使用户可以通过自然语言生成结构化 GIS 操作计划，在人工确认后安全执行筛选和地图样式修改。
