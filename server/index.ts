@@ -1,9 +1,10 @@
 // 读取.env文件中的环境变量
-import { error } from "console";
+
 import "dotenv/config";
 // express:node.js后端开发最经典框架之一
 // 快速写HTTP后端服务器
 // 封装好了：收到请求、识别url、识别GET/POST、解析JSON、发送响应
+import path from "node:path";
 import express from "express"
 import { ZAI_MODEL, zhipuClient } from "./llm/zhipuClient";
 
@@ -362,13 +363,69 @@ app.post(
     },
 );
 
+/* ==============================
+   Unknown API
+   ============================== */
+
+app.use(
+  "/api",
+  (_request, response) => {
+    response.status(404).json({
+      ok: false,
+      error: "API endpoint not found",
+    });
+  },
+);
+
+
+/* ==============================
+   Production Frontend
+   ============================== */
+
+const distPath =
+  path.resolve(
+    process.cwd(),
+    "dist",
+  );
+
+
+app.use(
+  express.static(
+    distPath,
+  ),
+);
+
+
+/*
+ * React Router SPA fallback
+ *
+ * /workspace
+ * /statistics
+ * /report
+ *
+ * 都返回 index.html，
+ * 再交给 React Router 处理。
+ */
+app.get(
+  "/{*splat}",
+
+  (_request, response) => {
+    response.sendFile(
+      path.join(
+        distPath,
+        "index.html",
+      ),
+    );
+  },
+);
+
 // 让服务器开始监听一个端口
 app.listen(
     PORT,
     // 回调函数，当服务器开始监听后，执行该函数
     () => {
-        // console.log(
-        //     `Agent server running on http://localhost:${PORT}`,
-        // );
+        console.log(
+            `Agent server running on http://localhost:${PORT}`,
+        );
     }
 )
