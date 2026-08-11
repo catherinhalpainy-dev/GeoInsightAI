@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "server": "tsx watch server/index.ts",
-    "start": "tsx watch server/index.ts"
+    "start": "tsx server/index.ts"
   },
   "dependencies": {
     "@langchain/langgraph": "^1.4.9",
