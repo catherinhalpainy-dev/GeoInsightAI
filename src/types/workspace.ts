@@ -7,5 +7,6 @@ export type WorkspacePanel =
     | "layers"
     | "filter"
     | "style"
+    | "feature"
     | "agent"
     | null;

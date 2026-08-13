@@ -6,7 +6,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
 import { useEffect, useMemo, useState } from "react";
-import type { LandUseFeatureCollection } from "../types/landUse";
+import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
 import "../styles/workspace.css";
@@ -18,11 +18,12 @@ import { LayerStylePanel } from "../components/layers/LayerStylePanel";
 import { AgentPanel } from "../components/agent/AgentPanel";
 import type { AgentContext, AgentPlan } from "../types/agent";
 import type { LandUseFilters } from "../app/appTypes";
+import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 // section 表示一个独立的页面功能区域
 
-interface AgentSnapshot{
-    filters:LandUseFilters,
-    layerStyle:LayerStyle,
+interface AgentSnapshot {
+    filters: LandUseFilters,
+    layerStyle: LayerStyle,
 }
 
 
@@ -46,7 +47,77 @@ export function WorkspacePage() {
         null,
     );
 
-    const [lastAgentSnapshot,setlastAgentSnapshot]=useState<AgentSnapshot|null>(null,);
+    const [
+        selectedFeature,
+        setSelectedFeature,
+    ] =
+        useState<LandUseFeature | null>(
+            null,
+        );
+
+    function handleFeatureSelect(feature: LandUseFeature | null,) {
+        setSelectedFeature(feature,);
+        if (feature) {
+            setActivePanel("feature",);
+            return;
+        }
+
+        setActivePanel(
+            (previous) =>
+                previous === "feature"
+                    ? null
+                    : previous,
+        );
+
+    }
+
+    function handleCloseFeatureInfo() {
+        setSelectedFeature(null,);
+        setActivePanel(null,);
+    }
+
+
+
+    useEffect(() => {
+        if (
+            !selectedFeature
+        ) {
+            return;
+        }
+
+
+        const stillVisible =
+            filteredFeatures.some(
+                (feature) =>
+                    feature.properties.id ===
+                    selectedFeature
+                        .properties.id,
+            );
+
+
+        if (stillVisible) {
+            return;
+        }
+
+
+        setSelectedFeature(
+            null,
+        );
+
+
+        setActivePanel(
+            (previous) =>
+                previous === "feature"
+                    ? null
+                    : previous,
+        );
+    }, [
+        filteredFeatures,
+        selectedFeature,
+    ]);
+
+
+    const [lastAgentSnapshot, setlastAgentSnapshot] = useState<AgentSnapshot | null>(null,);
 
     const requestedPanel = searchParams.get("panel");
 
@@ -55,10 +126,10 @@ export function WorkspacePage() {
             setActivePanel("agent",);
             return;
         }
-        setActivePanel((previousPanel)=>{
-            return previousPanel==="agent"
-            ?null
-            :previousPanel;
+        setActivePanel((previousPanel) => {
+            return previousPanel === "agent"
+                ? null
+                : previousPanel;
         });
     }, [requestedPanel]);
 
@@ -197,14 +268,14 @@ export function WorkspacePage() {
         plan: AgentPlan,
     ) {
         setlastAgentSnapshot({
-            filters:{
+            filters: {
                 ...state.filters,
 
-                landUseTypes:[
+                landUseTypes: [
                     ...state.filters.landUseTypes,
                 ],
             },
-            layerStyle:{
+            layerStyle: {
                 ...layerStyle,
             },
         });
@@ -273,13 +344,13 @@ export function WorkspacePage() {
         }
     };
 
-    function handleUndoAgentAction(){
-        if(!lastAgentSnapshot){
+    function handleUndoAgentAction() {
+        if (!lastAgentSnapshot) {
             return;
         }
         dispatch({
-            type:"REPLACE_FILTERS",
-            payload:lastAgentSnapshot.filters,
+            type: "REPLACE_FILTERS",
+            payload: lastAgentSnapshot.filters,
         });
         setLayerStyle({
             ...lastAgentSnapshot.layerStyle,
@@ -326,6 +397,12 @@ export function WorkspacePage() {
                         }
                         interactionMode={activeTool}
                         layerStyle={layerStyle}
+                        selectedFeatureId={
+                            selectedFeature
+                                ?.properties.id ??
+                            null
+                        }
+                        onFeatureSelect={handleFeatureSelect}
                     />
 
                     {filteredFeatures.length === 0 && (
@@ -385,6 +462,13 @@ export function WorkspacePage() {
                 />
             )}
 
+            {activePanel === "feature" && selectedFeature && (
+                <FeatureInfoPanel
+                    feature={selectedFeature}
+                    onClose={handleCloseFeatureInfo}
+                />
+            )}
+
             {activePanel === "agent" && (
                 <AgentPanel
                     context={agentContext}
@@ -392,7 +476,7 @@ export function WorkspacePage() {
                     onClose={
                         handleCloseAgent
                     }
-                    canUndo={lastAgentSnapshot!==null}
+                    canUndo={lastAgentSnapshot !== null}
                     onUndo={handleUndoAgentAction}
                 />
             )}
