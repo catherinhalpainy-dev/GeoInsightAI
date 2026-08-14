@@ -10,3 +10,13 @@ export type WorkspacePanel =
     | "feature"
     | "agent"
     | null;
+
+export type MapViewCommandType=
+    |"fit-all"
+    |"fit-current"
+    |"fit-selected";
+
+export interface MapViewCommand{
+    type:MapViewCommandType;
+    requestId:number;
+}

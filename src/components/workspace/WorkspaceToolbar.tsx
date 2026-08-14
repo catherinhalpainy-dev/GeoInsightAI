@@ -16,6 +16,10 @@ interface WorkspaceToolbarProps {
       null
     >,
   ) => void;
+
+  onFitAll: () => void;
+  onFitSelected:()=>void
+  canFitSelected: boolean;
 }
 
 export function WorkspaceToolbar({
@@ -23,6 +27,9 @@ export function WorkspaceToolbar({
   activePanel,
   onToolChange,
   onPanelToggle,
+  onFitAll,
+  onFitSelected,
+  canFitSelected,
 }: WorkspaceToolbarProps) {
   return (
     <aside className="workspace-toolbar">
@@ -56,16 +63,63 @@ export function WorkspaceToolbar({
         <span>平移</span>
       </button>
 
+      <button
+        type="button"
+
+        className=
+        "workspace-tool"
+
+        onClick={
+          onFitAll
+        }
+
+        title=
+        "缩放至完整数据范围"
+      >
+        ⛶
+
+        <span>
+          全图
+        </span>
+      </button>
+
+
+      <button
+        type="button"
+
+        className=
+        "workspace-tool"
+
+        onClick={
+          onFitSelected
+        }
+
+        disabled={
+          !canFitSelected
+        }
+
+        title={
+          canFitSelected
+            ? "定位当前选中地块"
+            : "请先选择一个地块"
+        }
+      >
+        ◎
+
+        <span>
+          定位
+        </span>
+      </button>
       <div className="workspace-tool-divider" />
 
       <button
         type="button"
         className={
-          activePanel==="layers"
-          ? "workspace-tool active"
-          : "workspace-tool"
+          activePanel === "layers"
+            ? "workspace-tool active"
+            : "workspace-tool"
         }
-        onClick={()=>{
+        onClick={() => {
           onPanelToggle("layers");
         }}
       >
@@ -76,12 +130,12 @@ export function WorkspaceToolbar({
       <button
         type="button"
         className={
-          activePanel==="filter"
+          activePanel === "filter"
             ? "workspace-tool active"
             : "workspace-tool"
         }
-        onClick={()=>{onPanelToggle("filter")}}
-        
+        onClick={() => { onPanelToggle("filter") }}
+
       >
         ▽
         <span>筛选</span>

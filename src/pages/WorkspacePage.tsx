@@ -10,7 +10,7 @@ import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse"
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
 import "../styles/workspace.css";
-import type { WorkspacePanel, WorkspaceTool } from "../types/workspace";
+import type { WorkspacePanel, WorkspaceTool, MapViewCommand, MapViewCommandType } from "../types/workspace";
 import { LayerPanel } from "../components/layers/LayerPanel";
 import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
 import { LayerStylePanel } from "../components/layers/LayerStylePanel";
@@ -46,6 +46,26 @@ export function WorkspacePage() {
     ] = useState<WorkspacePanel>(
         null,
     );
+
+    const [
+        mapViewCommand,
+        setMapViewCommand,
+    ] = useState<MapViewCommand | null>(
+        null,
+    );
+
+    function requestMapView(type:MapViewCommandType,){
+        setMapViewCommand(
+            (previous)=>(
+                {
+                    type,
+                    requestId:(
+                        previous?.requestId??0
+                    )+1,
+                }
+            ),
+        );
+    }
 
     const [
         selectedFeature,
@@ -334,8 +354,8 @@ export function WorkspacePage() {
 
 
                 case "fit_map_bounds": {
-                    console.warn(
-                        "fit_map_bounds 暂未连接 MapView",
+                    requestMapView(
+                        "fit-current",
                     );
 
                     break;
@@ -373,6 +393,19 @@ export function WorkspacePage() {
                 activePanel={activePanel}
                 onToolChange={setActiveTool}
                 onPanelToggle={handlePanelToggle}
+                onFitAll={()=>{
+                    requestMapView(
+                        "fit-all",
+                    );
+                }}
+                onFitSelected={()=>{
+                    requestMapView(
+                        "fit-selected",
+                    );
+                }}
+                canFitSelected={
+                    selectedFeature !=null
+                }
             />
 
             <main className="workspace-map-area">
@@ -395,12 +428,18 @@ export function WorkspacePage() {
                         collection={
                             filteredCollection
                         }
+                        allCollection={
+                            dataset.collection
+                        }
                         interactionMode={activeTool}
                         layerStyle={layerStyle}
                         selectedFeatureId={
                             selectedFeature
                                 ?.properties.id ??
                             null
+                        }
+                        viewCommand={
+                            mapViewCommand
                         }
                         onFeatureSelect={handleFeatureSelect}
                     />
