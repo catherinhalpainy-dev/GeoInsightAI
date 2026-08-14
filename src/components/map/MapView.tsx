@@ -29,6 +29,7 @@ import type {
 
 import type {
     WorkspaceTool,
+    MapViewCommand,
 } from "../../types/workspace";
 
 import {
@@ -47,6 +48,9 @@ interface MapViewProps {
     collection?:
     LandUseFeatureCollection;
 
+    allCollection?:
+    LandUseFeatureCollection;
+
     interactionMode:
     WorkspaceTool;
 
@@ -55,6 +59,9 @@ interface MapViewProps {
 
     selectedFeatureId?:
     string | null;
+
+    viewCommand?:
+    MapViewCommand | null;
 
     onFeatureSelect?: (
         feature:
@@ -221,13 +228,62 @@ function createEmptySelectionFilter():
         "__no_selected_feature__",
     ];
 }
+function fitMapToFeatures(
+    map: maplibregl.Map,
 
+    features:
+        LandUseFeature[],
+
+    maxZoom = 16,
+) {
+    if (
+        features.length === 0
+    ) {
+        return;
+    }
+
+
+    const bounds =
+        calculateLandUseBounds(
+            features,
+        );
+
+
+    if (!bounds) {
+        return;
+    }
+
+
+    map.fitBounds(
+        [
+            [
+                bounds.minLongitude,
+                bounds.minLatitude,
+            ],
+
+            [
+                bounds.maxLongitude,
+                bounds.maxLatitude,
+            ],
+        ],
+
+        {
+            padding: 72,
+
+            duration: 650,
+
+            maxZoom,
+        },
+    );
+}
 
 export function MapView({
     collection,
+    allCollection,
     interactionMode,
     layerStyle,
     selectedFeatureId = null,
+    viewCommand = null,
     onFeatureSelect,
 }: MapViewProps) {
     const containerRef =
@@ -821,6 +877,130 @@ export function MapView({
         collection,
     ]);
 
+    /*
+ * Map View Command
+ *
+ * React 负责描述：
+ *
+ * fit-all
+ * fit-current
+ * fit-selected
+ *
+ * MapLibre 负责真正执行：
+ *
+ * map.fitBounds()
+ */
+    useEffect(() => {
+        const map =
+            mapRef.current;
+
+
+        if (
+            !map ||
+            !viewCommand
+        ) {
+            return;
+        }
+
+
+        /*
+         * 1. 全图
+         *
+         * 始终使用完整 Dataset，
+         * 不受当前筛选影响。
+         */
+        if (
+            viewCommand.type ===
+            "fit-all"
+        ) {
+            const features =
+                allCollection
+                    ?.features ??
+                collection
+                    ?.features ??
+                [];
+
+
+            fitMapToFeatures(
+                map,
+                features,
+                14,
+            );
+
+            return;
+        }
+
+
+        /*
+         * 2. 当前结果
+         *
+         * 使用 filteredCollection。
+         *
+         * 主要提供给 Agent。
+         */
+        if (
+            viewCommand.type ===
+            "fit-current"
+        ) {
+            fitMapToFeatures(
+                map,
+                collection
+                    ?.features ??
+                [],
+                15,
+            );
+
+            return;
+        }
+
+
+        /*
+         * 3. 定位当前选中要素
+         */
+        if (
+            viewCommand.type ===
+            "fit-selected"
+        ) {
+            if (
+                !selectedFeatureId
+            ) {
+                return;
+            }
+
+
+            const sourceFeatures =
+                allCollection
+                    ?.features ??
+                collection
+                    ?.features ??
+                [];
+
+
+            const selected =
+                sourceFeatures.find(
+                    (feature) =>
+                        feature.properties.id ===
+                        selectedFeatureId,
+                );
+
+
+            if (!selected) {
+                return;
+            }
+
+
+            fitMapToFeatures(
+                map,
+                [selected],
+                17,
+            );
+        }
+    }, [
+        viewCommand,
+        collection,
+        allCollection,
+        selectedFeatureId,
+    ]);
 
     return (
         <div className="map-view-shell">
