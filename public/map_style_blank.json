@@ -1,0 +1,16 @@
+{
+  "version": 8,
+  "name": "GeoInsight Blank Basemap",
+  "center": [116.4, 39.93],
+  "zoom": 10,
+  "sources": {},
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#101820"
+      }
+    }
+  ]
+}

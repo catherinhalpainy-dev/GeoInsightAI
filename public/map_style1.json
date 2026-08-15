@@ -1,0 +1,2587 @@
+{
+  "version": 8,
+  "name": "Bright",
+  "metadata": {
+    "mapbox:autocomposite": false,
+    "mapbox:groups": {
+      "1444849242106.713": {"collapsed": false, "name": "Places"},
+      "1444849334699.1902": {"collapsed": true, "name": "Bridges"},
+      "1444849345966.4436": {"collapsed": false, "name": "Roads"},
+      "1444849354174.1904": {"collapsed": true, "name": "Tunnels"},
+      "1444849364238.8171": {"collapsed": false, "name": "Buildings"},
+      "1444849382550.77": {"collapsed": false, "name": "Water"},
+      "1444849388993.3071": {"collapsed": false, "name": "Land"}
+    },
+    "mapbox:type": "template",
+    "openmaptiles:mapbox:owner": "openmaptiles",
+    "openmaptiles:mapbox:source:url": "mapbox://openmaptiles.4qljc88t",
+    "openmaptiles:version": "3.x",
+    "maputnik:renderer": "mlgljs",
+    "ai_map_theme": {
+      "title": "天津市国土空间规划用地现状图",
+      "description": "一幅依据国土空间规划用地分类标准着色的天津市土地利用专题地图，突出显示农用地、建设用地和水域等核心要素",
+      "location": "天津市",
+      "theme": "国土空间规划用地分类",
+      "style": "专题配色"
+    }
+  },
+  "center": [0, 0],
+  "zoom": 1,
+  "bearing": 0,
+  "pitch": 0,
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "url": "https://api.maptiler.com/tiles/v3-openmaptiles/tiles.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL"
+    },
+    "thematic-data": {
+    "type": "geojson",
+    "data": "./topics/all.geojson"
+  }
+  },
+  "sprite": "https://openmaptiles.github.io/osm-bright-gl-style/sprite",
+  "glyphs": "https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=get_your_own_OpIi9ZULNHzrESv6T2vL",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "metadata": {"maputnik:feature-type": "背景", "maputnik:comment": "地图背景"},
+      "paint": {
+        "background-color": "#F8F9FA", 
+        "background-opacity": 1
+      }
+    },
+    
+    {
+      "id": "landuse-residential",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["all", ["in", "class", "residential", "suburb", "neighbourhood"]],
+      "paint": {
+        "fill-color": "#FFF59D",       
+        "fill-opacity": 0.6,          
+        "fill-outline-color": "#E6DCA3" 
+      }
+    },
+    {
+      "id": "landuse-commercial",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["all", ["==", "$type", "Polygon"], ["==", "class", "commercial"]],
+      "paint": {
+        "fill-color": "#FFCC80",       
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#E6B873" 
+      }
+    },
+    {
+      "id": "landuse-industrial",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["all", ["==", "$type", "Polygon"], ["in", "class", "industrial", "garages", "dam"]],
+      "paint": {
+        "fill-color": "#A1887F",       
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#5D4037" 
+      }
+    },
+    {
+      "id": "landuse-cemetery",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849388993.3071",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "墓地用地"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["==", "class", "cemetery"],
+      "layout": {},
+      "paint": {
+        "fill-color": "transparent",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "landuse-hospital",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849388993.3071",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "医院用地"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["==", "class", "hospital"],
+      "layout": {},
+      "paint": {
+        "fill-color": "#E0E0E0",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "landuse-school",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849388993.3071",
+        "maputnik:comment": "学校用地",
+        "maputnik:feature-type": "居民地及设施"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["==", "class", "school"],
+      "layout": {},
+      "paint": {
+        "fill-color": "#E0E0E0",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "landuse-warehouse",
+      "type": "fill",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "仓储用地"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "filter": ["==", "class", "warehouse"],
+      "layout": {"visibility": "visible"},
+      "paint": {"fill-color": "#C0C0C0", "fill-outline-color": "#ddd9d1", "fill-opacity": 0.6}
+    },
+    {
+      "id": "landuse-railway",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849388993.3071",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "铁路用地"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 10,
+      "filter": ["==", "class", "railway"],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-color": "#F5F5F5",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "landuse-agricultural",
+      "type": "fill",
+      "metadata": {"maputnik:feature-type": "植被与土质", "maputnik:comment": "农用地"},
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "filter": ["==", "class", "agricultural"],
+      "layout": {"visibility": "visible"},
+      "paint": {"fill-color": "#FFE082", "fill-opacity": 0.7, 
+        "fill-outline-color": "#FFCA28"}
+    },
+    {
+      "id": "landuse-park",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "filter": ["==", "class", "park"],
+      "paint": {
+        "fill-color": "#A5D6A7",      
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#81C784" 
+      }
+    },
+    {
+      "id": "landuse-recreation-ground",
+      "type": "fill",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "娱乐用地"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "filter": ["==", "class", "recreation_ground"],
+      "layout": {"visibility": "visible"},
+      "paint": {"fill-color": "#81C784", "fill-outline-color": "#ddd9d1", "fill-opacity": 0.6}
+    },
+    {
+      "id": "landcover-wood",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "minzoom": 13,
+      "filter": ["==", "class", "wood"],
+      "paint": {
+        "fill-color": "#A5D6A7",
+        "fill-opacity": 0.2 
+      }
+    },
+    {
+      "id": "landcover-grass",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "minzoom": 13,
+      "filter": ["==", "class", "grass"],
+      "paint": {
+        "fill-color": "#A5D6A7",
+        "fill-opacity": 0.2 
+      }
+    },
+    {
+      "id": "landcover-grass-park",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849388993.3071",
+        "maputnik:feature-type": "植被与土质",
+        "maputnik:comment": "公园草地覆盖"
+      },
+      "source": "openmaptiles",
+      "source-layer": "park",
+      "minzoom": 11,
+      "filter": ["==", "class", "public_park"],
+      "layout": {},
+      "paint": {
+        "fill-color": "#81C784",
+        "fill-opacity": 1,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "water-offset",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "水体偏移"
+      },
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "maxzoom": 8,
+      "filter": ["==", "$type", "Polygon"],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-color": "#B3E5FC",
+        "fill-opacity": 0.6,
+        "fill-translate": {"base": 1, "stops": [[6, [2, 0]], [8, [0, 0]]]},
+        "fill-outline-color": "#0288D1"
+      }
+    },
+   {
+      "id": "water",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "filter": ["all", ["!=", "intermittent", 1], ["!=", "brunnel", "tunnel"]],
+      "paint": {
+        "fill-color": "#81D4FA",      
+        "fill-opacity": 0.6,         
+        "fill-outline-color": "#4FC3F7" 
+      }
+    },
+    {
+      "id": "water-intermittent",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "间歇性水体"
+      },
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "filter": ["all", ["==", "intermittent", 1]],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-color": "#B3E5FC",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#0288D1"
+      }
+    },
+    {
+      "id": "water-pattern",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "水体图案"
+      },
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "filter": ["all"],
+      "layout": {"visibility": "none"},
+      "paint": {
+        "fill-pattern": "wave",
+        "fill-translate": [0, 2.5],
+        "fill-color": "#64B5F6FF",
+        "fill-opacity": 1
+      }
+    },
+   
+    {
+      "id": "landcover-sand",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "植被与土质",
+        "maputnik:comment": "沙地覆盖"
+      },
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "filter": ["==", "class", "sand"],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-color": "transparent",
+        "fill-opacity": 0,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    {
+      "id": "building",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "minzoom": 12,
+      "maxzoom": 14, 
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-color": "#E0E0E0",
+        "fill-opacity": 0.5,
+        "fill-outline-color": "#CCCCCC"
+      }
+    },
+    
+    
+    {
+      "id": "building-3d",
+      "type": "fill-extrusion",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "minzoom":14,
+      "layout": {"visibility": "visible"},
+      "paint": {
+       
+        "fill-extrusion-color": "#F0F2F5", 
+        "fill-extrusion-opacity": 0.3,
+        
+        "fill-extrusion-height": ["coalesce", ["get", "render_height"], 3],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0]
+      }
+    },
+    {
+      "id": "aeroway-area",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:comment": "机场区域",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 4,
+      "filter": [
+        "all",
+        ["==", "$type", "Polygon"],
+        ["in", "class", "runway", "taxiway"]
+      ],
+      "layout": {"visibility": "none"},
+      "paint": {
+        "fill-color": "#9E9E9E",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#5e7775"
+      }
+    },
+    {
+      "id": "road_area_pier",
+      "type": "fill",
+      "metadata": {"maputnik:comment": "码头道路区域", "maputnik:feature-type": "交通"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "$type", "Polygon"], ["==", "class", "pier"]],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-antialias": true,
+        "fill-color": "#9E9E9E",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#dbdad6"
+      }
+    },
+    {
+      "id": "highway-area",
+      "type": "fill",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:comment": "公路区域",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "$type", "Polygon"], ["!in", "class", "pier"]],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "fill-antialias": false,
+        "fill-color": "#9E9E9E",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#907368"
+      }
+    },
+    {
+      "id": "waterway_tunnel",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "水系", "maputnik:comment": "水道隧道"},
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        ["in", "class", "river", "stream", "canal"],
+        ["==", "brunnel", "tunnel"]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-dasharray": [2, 4],
+        "line-width": {"base": 1.3, "stops": [[13, 0.5], [20, 6]]},
+        "line-opacity": 0.3
+      }
+    },
+    {
+      "id": "waterway-other",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:comment": "其他水道",
+        "maputnik:feature-type": "水系"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["!in", "class", "canal", "river", "stream"],
+        ["==", "intermittent", 0]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-width": {"base": 1.3, "stops": [[13, 0.5], [20, 2]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "waterway-other-intermittent",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "其他间歇性水道"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["!in", "class", "canal", "river", "stream"],
+        ["==", "intermittent", 1]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-dasharray": [4, 3],
+        "line-width": {"base": 1.3, "stops": [[13, 0.5], [20, 2]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "waterway-stream-canal",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "溪流/运河"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["in", "class", "canal", "stream"],
+        ["!=", "brunnel", "tunnel"],
+        ["==", "intermittent", 0]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-width": {"base": 1.3, "stops": [[13, 0.5], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "waterway-stream-canal-intermittent",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "间歇性溪流/运河"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["in", "class", "canal", "stream"],
+        ["!=", "brunnel", "tunnel"],
+        ["==", "intermittent", 1]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-dasharray": [4, 3],
+        "line-width": {"base": 1.3, "stops": [[13, 0.5], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "waterway-river",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "河流"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["==", "class", "river"],
+        ["!=", "brunnel", "tunnel"],
+        ["==", "intermittent", 0]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-width": {"base": 1.2, "stops": [[10, 0.8], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "waterway-river-intermittent",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849382550.77",
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "间歇性河流"
+      },
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "all",
+        ["==", "class", "river"],
+        ["!=", "brunnel", "tunnel"],
+        ["==", "intermittent", 1]
+      ],
+      "layout": {"line-cap": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B3E5FC",
+        "line-dasharray": [3, 2.5],
+        "line-width": {"base": 1.2, "stops": [[10, 0.8], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "tunnel-service-track-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "服务轨道隧道边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "brunnel", "tunnel"],
+        ["in", "class", "service", "track"]
+      ],
+      "layout": {"line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#5D4037",
+        "line-dasharray": [2, 2],
+        "line-width": 1,
+        "line-opacity": 0
+      }
+    },
+    {
+      "id": "tunnel-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1",
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 3], [20, 12]]},
+        "line-opacity": 0.4
+      }
+    },
+    {
+      "id": "tunnel-minor-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "次要公路隧道边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "minor"]],
+      "layout": {"line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#9E9E9E",
+        "line-opacity": 0,
+        "line-width": 1,
+        "line-dasharray": [0.5, 0.25]
+      }
+    },
+    {
+      "id": "tunnel-link-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "连接路隧道边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "brunnel", "tunnel"],
+        ["in", "class", "trunk", "primary", "secondary", "tertiary"],
+        ["==", "ramp", 1]
+      ],
+      "layout": {"line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#9E9E9E",
+        "line-opacity": 0,
+        "line-width": 1,
+        "line-dasharray": [0.5, 0.25]
+      }
+    },
+    {
+      "id": "tunnel-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["in", "class", "secondary", "tertiary"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#D7D7D7",
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 4], [20, 15]]},
+        "line-opacity": 0.4
+      }
+    },
+    {
+      "id": "tunnel-trunk-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B0BEC5",
+        "line-width": {"base": 1.2, "stops": [[9, 1.5], [13, 3.5], [20, 16]]},
+        "line-opacity": 0.4
+      }
+    },
+    {
+      "id": "tunnel-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1",
+        "line-width": {"base": 1.2, "stops": [[8, 1.5], [12, 4], [20, 18]]},
+        "line-opacity": 0.3 
+      }
+    },
+    {
+  "id": "tunnel-path-steps-casing",
+  "type": "line",
+  "source": "openmaptiles",
+  "source-layer": "transportation",
+  "filter": [
+    "all",
+    ["==", "$type", "LineString"],
+    ["==", "brunnel", "tunnel"],
+    ["==", "class", "path"],
+    ["==", "subclass", "steps"]
+  ],
+  "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+  "paint": {
+    "line-color": "#CCCCCC",
+    "line-opacity": 0.1, 
+    "line-width": 1,
+    "line-dasharray": [0.5, 0.25]
+  }
+},
+    {
+      "id": "tunnel-path-steps",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "阶梯步道隧道"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "brunnel", "tunnel"],
+        ["==", "class", "path"],
+        ["==", "subclass", "steps"]
+      ],
+      "layout": {
+        "line-join": "bevel",
+       "line-cap": "round",
+        "visibility": "none"
+      },
+      "paint": {
+        "line-color": "#9E9E9E",
+        "line-opacity": 1,
+        "line-width": 1,
+        "line-dasharray": [0.5, 0.25]
+      }
+    },
+    {
+      "id": "tunnel-path",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "步道隧道"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "brunnel", "tunnel"],
+        ["==", "class", "path"],
+        ["!=", "subclass", "steps"]
+      ],
+      "layout": {"visibility": "visible", "line-join": "bevel", "line-cap": "round"},
+      "paint": {
+        "line-color": "#9E9E9E",
+        "line-dasharray": [1.5, 0.75],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "tunnel-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA",
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2], [20, 10]]},
+        "line-dasharray": [2, 2],
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "tunnel-service-track",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:comment": "服务轨道隧道",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "brunnel", "tunnel"],
+        ["in", "class", "service", "track"]
+      ],
+      "layout": {"line-join": "round", "visibility": "none"},
+      "paint": {"line-color": "#9E9E9E", "line-width": 1, "line-opacity": 1}
+    },
+    {
+      "id": "tunnel-link",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849354174.1904",
+        "maputnik:comment": "连接路隧道",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "brunnel", "tunnel"],
+        ["in", "class", "trunk", "primary", "secondary", "tertiary"],
+        ["==", "ramp", 1]
+      ],
+      "layout": {"line-join": "round", "visibility": "none"},
+      "paint": {"line-color": "#9E9E9E", "line-width": 1, "line-opacity": 1}
+    },
+    {
+      "id": "tunnel-minor",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["in", "class", "minor", "service", "track"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.2, "stops": [[14, 0.5], [16, 1.5], [20, 6]]},
+        "line-opacity": 0.5,
+        "line-dasharray": [1, 2]
+      }
+    },
+    {
+      "id": "tunnel-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["in", "class", "secondary", "tertiary"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2.5], [20, 12]]},
+        "line-opacity": 0.6,
+        "line-dasharray": [2, 2]
+      }
+    },
+    {
+      "id": "tunnel-trunk-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFF59D",
+        "line-width": {"base": 1.2, "stops": [[9, 0.5], [13, 2], [20, 12]]},
+        "line-dasharray": [2, 2],
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "tunnel-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA",
+        "line-width": {"base": 1.2, "stops": [[8, 0.5], [12, 2.5], [20, 14]]},
+        "line-dasharray": [2, 2], 
+        "line-opacity": 0.5
+      }
+    },
+   {
+      "id": "tunnel-railway-base",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 8,
+      "filter": ["all", ["==", "brunnel", "tunnel"], ["==", "class", "rail"]],
+      "layout": { "line-join": "round", "line-cap": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#5D4037",
+        "line-width": {"base": 1.4, "stops": [[8, 2], [15, 3], [20, 4]]},
+        "line-opacity": 0.3, 
+        "line-dasharray": [2, 2] 
+      }
+    },
+    
+    {
+      "id": "ferry",
+      "type": "line",
+      "metadata": {"maputnik:comment": "渡轮航线", "maputnik:feature-type": "交通"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["in", "class", "ferry"]],
+      "layout": {"line-join": "round", "visibility": "none"},
+      "paint": {
+        "line-color": "#9E9E9E",
+        "line-dasharray": [2, 2],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "aeroway-taxiway-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "机场滑行道边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 12,
+      "filter": ["all", ["in", "class", "taxiway"]],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "none"
+      },
+      "paint": {"line-color": "#9E9E9E", "line-opacity": 1, "line-width": 1}
+    },
+    {
+      "id": "aeroway-runway-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "机场跑道边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 12,
+      "filter": ["all", ["in", "class", "runway"]],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "none"
+      },
+      "paint": {"line-color": "#9E9E9E", "line-opacity": 1, "line-width": 1}
+    },
+    {
+      "id": "aeroway-taxiway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 12,
+      "filter": ["all", ["in", "class", "taxiway"], ["==", "$type", "LineString"]],
+      "layout": { "line-cap": "round", "line-join": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#777777",
+        "line-width": { "base": 1.5, "stops": [[12, 1], [14, 4], [18, 15]] },
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "aeroway-runway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 4,
+      "filter": ["all", ["in", "class", "runway"], ["==", "$type", "LineString"]],
+      "layout": { "line-cap": "round", "line-join": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#555555", 
+        "line-width": { "base": 1.5, "stops": [[11, 2], [14, 12], [18, 40]] },
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "road_pier",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "码头道路"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "$type", "LineString"], ["in", "class", "pier"]],
+      "layout": {"line-cap": "round", "line-join": "round"},
+      "paint": {"line-color": "#9E9E9E", "line-width": 1, "line-opacity": 1}
+    },
+    {
+  "id": "highway-path-steps-casing",
+  "type": "line",
+  "source": "openmaptiles",
+  "source-layer": "transportation",
+  "minzoom": 16, 
+  "filter": [
+    "all",
+    ["==", "$type", "LineString"],
+    ["!in", "brunnel", "bridge", "tunnel"],
+    ["==", "class", "path"],
+    ["in", "subclass", "steps"]
+  ],
+  "layout": {"line-cap": "butt", "line-join": "round"},
+  "paint": {
+    "line-color": "#CCCCCC", 
+    "line-opacity": 0.2,     
+    "line-width": {"stops": [[16, 1], [18, 3]]}
+  }
+},
+    {
+      "id": "highway-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1", 
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 3], [20, 12]]}
+      }
+    },
+    {
+      "id": "highway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "trunk", "primary", "secondary", "tertiary"], ["==", "ramp", 1]],
+      "layout": { "line-cap": "round", "line-join": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#B0BEC5", 
+        "line-width": { "base": 1.2, "stops": [[12, 1.5], [15, 3], [20, 12]] }
+      }
+    },
+    {
+      "id": "highway-minor-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "minor", "service", "track"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E0E0E0",
+        "line-width": {"base": 1.2, "stops": [[14, 1.2], [16, 2.5], [20, 8]]}
+      }
+    },
+    {
+      "id": "highway-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "secondary", "tertiary"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#D7D7D7",
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 4], [20, 15]]}
+      }
+    },
+    {
+      "id": "highway-primary-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:comment": "一级公路边框",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": [
+        "all",
+        ["!in", "brunnel", "bridge", "tunnel"],
+        ["in", "class", "primary"],
+        ["!=", "ramp", 1]
+      ],
+      "layout": {
+       "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {"line-color": "#9E9E9E", "line-opacity": 1, "line-width": 1}
+    },
+    {
+      "id": "highway-trunk-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B0BEC5", 
+        "line-width": {"base": 1.2, "stops": [[9, 1.5], [13, 3.5], [20, 16]]}
+      }
+    },
+    {
+      "id": "highway-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1", 
+        "line-width": {"base": 1.2, "stops": [[8, 1.5], [12, 4], [20, 18]]}
+      }
+    },
+    {
+  "id": "highway-path",
+  "type": "line",
+  "source": "openmaptiles",
+  "source-layer": "transportation",
+  "minzoom": 15.5,
+  "filter": [
+    "all",
+    ["==", "$type", "LineString"],
+    ["!in", "brunnel", "bridge", "tunnel"],
+    ["==", "class", "path"],
+    ["!=", "subclass", "steps"]
+  ],
+  "paint": {
+    "line-color": "#9E9E9E",
+    "line-dasharray": [2, 4], 
+    "line-width": {"stops": [[15, 0.5], [18, 1.2]]},
+    "line-opacity": 0.4 
+  }
+},
+    {
+  "id": "highway-path-steps",
+  "type": "line",
+  "source": "openmaptiles",
+  "source-layer": "transportation",
+  "minzoom": 16,
+  "filter": [
+    "all",
+    ["==", "$type", "LineString"],
+    ["!in", "brunnel", "bridge", "tunnel"],
+    ["==", "class", "path"],
+    ["==", "subclass", "steps"]
+  ],
+  "layout": {"line-join": "bevel", "line-cap": "round"},
+  "paint": {
+    "line-color": "#9E9E9E",
+    "line-width": {"stops": [[16, 0.5], [18, 2]]},
+    "line-dasharray": [0.5, 0.25],
+    "line-opacity": 0.4
+  }
+},
+    {
+      "id": "highway-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA", 
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2], [20, 10]]}
+      }
+    },
+    {
+      "id": "highway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "trunk", "primary", "secondary", "tertiary"], ["==", "ramp", 1]],
+      "layout": { "line-cap": "round", "line-join": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#FFF59D", 
+        "line-width": { "base": 1.2, "stops": [[12, 0.5], [15, 1.5], [20, 10]] },
+        "line-opacity": 1 
+      }
+    },
+    {
+      "id": "highway-minor",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "minor", "service", "track"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.2, "stops": [[14, 0.5], [16, 1.5], [20, 6]]}
+      }
+    },
+    {
+      "id": "highway-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "secondary", "tertiary"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2.5], [20, 12]]}
+      }
+    },
+    {
+      "id": "highway-primary",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "一级公路"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["!in", "brunnel", "bridge", "tunnel"],
+        ["in", "class", "primary"],
+        ["!=", "ramp", 1]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {"line-color": "#9E9E9E", "line-width": 1, "line-opacity": 0.6}
+    },
+    {
+      "id": "highway-trunk-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFF59D", 
+        "line-width": {"base": 1.2, "stops": [[9, 0.5], [13, 2], [20, 12]]}
+      }
+    },
+    {
+      "id": "highway-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["!in", "brunnel", "bridge", "tunnel"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA", 
+        "line-width": {"base": 1.2, "stops": [[8, 0.5], [12, 2.5], [20, 14]]}
+      }
+    },
+    {
+      "id": "railway-transit",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "轨道交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "class", "transit"],
+        ["!in", "brunnel", "tunnel"]
+      ],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "line-color": "#5D4037",
+        "line-width": {"base": 1.4, "stops": [[14, 0.4], [20, 1]]},
+        "line-opacity": 0.6,
+        "line-dasharray": [2, 2]
+      }
+    },
+    {
+      "id": "railway-transit-hatching",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "轨道交通阴影线"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "class", "transit"],
+        ["!in", "brunnel", "tunnel"]
+      ],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "line-color": "#5D4037",
+        "line-dasharray": [0.2, 8],
+        "line-width": {"base": 1.4, "stops": [[14.5, 0], [15, 2], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "railway-service",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "服务铁路"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom":16,
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "class", "rail"],
+        ["has", "service"]
+      ],
+      "layout": {},
+      "paint": {
+        "line-color": "#5D4037",
+        "line-width": {"base": 1.4, "stops": [[14, 0.4], [20, 1]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "railway-service-hatching",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "服务铁路阴影线"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom":16,
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "class", "rail"],
+        ["has", "service"]
+      ],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "line-color": "#5D4037",
+        "line-dasharray": [0.2, 8],
+        "line-width": {"base": 1.4, "stops": [[14.5, 0], [15, 2], [20, 6]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "railway-base",
+      "type": "line",
+      "metadata": { "maputnik:comment": "铁路实线底座" },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 8,
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["!has", "service"],
+        ["!in", "brunnel", "bridge", "tunnel"],
+        ["==", "class", "rail"]
+      ],
+      "layout": { "line-join": "round", "line-cap": "round" },
+      "paint": {
+        "line-color": "#5D4037",
+        "line-width": {"base": 1.4, "stops": [[8, 2], [15, 3], [20, 4]]},
+        "line-opacity": 0.8
+      }
+    },
+    {
+      "id": "railway-dash",
+      "type": "line",
+      "metadata": { "maputnik:comment": "铁轨白色虚线" },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 8,
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["!has", "service"],
+        ["!in", "brunnel", "bridge", "tunnel"],
+        ["==", "class", "rail"]
+      ],
+      "layout": { "line-join": "round","line-cap": "round" },
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.4, "stops": [[8, 1], [15, 1.5], [20, 2]]},
+        "line-dasharray": [3, 3],
+        "line-opacity": 0.9
+      }
+    },
+    
+    
+   {
+      "id": "bridge-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "butt", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1",
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 3], [20, 12]]}
+      }
+    },
+    {
+      "id": "bridge-link-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849334699.1902",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "连接路桥边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "brunnel", "bridge"],
+        ["in", "class", "trunk", "primary", "secondary", "tertiary"],
+        ["==", "ramp", 1]
+      ],
+      "layout": {"line-join": "round", "visibility": "none"},
+      "paint": {
+        "line-color": "#D4B48399",
+        "line-opacity": 0.6,
+        "line-width": {
+          "base": 1.2,
+          "stops": [[12, 1], [13, 3], [14, 4], [20, 19]]
+        }
+      }
+    },
+    {
+      "id": "bridge-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "secondary", "tertiary"]],
+      "layout": {"line-cap": "butt", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#D7D7D7",
+        "line-width": {"base": 1.2, "stops": [[12, 1.5], [15, 4], [20, 15]]}
+      }
+    },
+    {
+      "id": "bridge-trunk-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "butt", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#B0BEC5",
+        "line-width": {"base": 1.2, "stops": [[9, 1.5], [13, 3.5], [20, 16]]}
+      }
+    },
+    {
+      "id": "bridge-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "butt", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E990A1", 
+        "line-width": {"base": 1.2, "stops": [[8, 1.5], [12, 4], [20, 18]]}
+      }
+    },
+    {
+      "id": "bridge-minor-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "minor", "service", "track"]],
+      "layout": {"line-cap": "butt", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#E0E0E0",
+        "line-width": {"base": 1.2, "stops": [[14, 1.2], [16, 2.5], [20, 8]]}
+      }
+    },
+    {
+      "id": "bridge-path-casing",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849334699.1902",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "步道桥边框"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "brunnel", "bridge"],
+        ["==", "class", "path"]
+      ],
+      "layout": {"visibility": "none"},
+      "paint": {
+        "line-color": "#228B2299",
+        "line-width": {"base": 1.2, "stops": [[15, 1.2], [20, 18]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "bridge-path-steps",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "阶梯步道桥"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "brunnel", "bridge"],
+        ["==", "class", "path"],
+        ["==", "subclass", "steps"]
+      ],
+      "layout": {
+        "line-join": "round",
+       "line-cap": "round",
+        "visibility": "none"
+      },
+      "paint": {
+        "line-color": "#228B2299",
+        "line-opacity": 0.6,
+        "line-width": {
+          "base": 1.2,
+          "stops": [[13.5, 0], [14, 1.25], [20, 5.75]]
+        },
+        "line-dasharray": [0.5, 0.25]
+      }
+    },
+    {
+  "id": "bridge-path",
+  "type": "line",
+  "source": "openmaptiles",
+  "source-layer": "transportation",
+  "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "path"]],
+  "layout": {"visibility": "visible"}, 
+  "paint": {
+    "line-color": "#9E9E9E",
+    "line-dasharray": [2, 4],
+    "line-width": {"stops": [[15, 0.5], [18, 1.2]]},
+    "line-opacity": 0.4
+  }
+},
+    {
+      "id": "bridge-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "motorway"], ["==", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA",
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2], [20, 10]]}
+      }
+    },
+   {
+      "id": "bridge-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "trunk", "primary", "secondary", "tertiary"], ["==", "ramp", 1]],
+      "layout": { "line-join": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#FFF59D",
+        "line-width": { "base": 1.2, "stops": [[12.5, 0], [13, 1.5], [14, 2.5], [20, 11.5]] },
+        "line-opacity": 1 
+      }
+    },
+    {
+      "id": "bridge-minor",
+      "type": "line",
+      "metadata": {
+        "mapbox:group": "1444849345966.4436",
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "次要公路桥"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "brunnel", "bridge"],
+        ["in", "class", "minor", "service", "track"]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "none"
+      },
+      "paint": {
+        "line-color": "#E8D0A999",
+        "line-opacity": 0.6,
+        "line-width": {"base": 1.2, "stops": [[13.5, 0], [14, 2.5], [20, 11.5]]}
+      }
+    },
+    {
+      "id": "bridge-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "secondary", "tertiary"]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.2, "stops": [[12, 0.5], [15, 2.5], [20, 12]]}
+      }
+    },
+    {
+      "id": "bridge-trunk-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 9,
+      "filter": ["all", ["==", "brunnel", "bridge"], ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#FFF59D",
+        "line-width": {"base": 1.2, "stops": [[9, 0.5], [13, 2], [20, 12]]}
+      }
+    },
+    {
+      "id": "bridge-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "motorway"], ["!=", "ramp", 1]],
+      "layout": {"line-cap": "round", "line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#F9D5DA",
+        "line-width": {"base": 1.2, "stops": [[8, 0.5], [12, 2.5], [20, 14]]}
+      }
+    },
+    {
+      "id": "bridge-railway-base",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "rail"]],
+      "layout": { "line-join": "round", "line-cap": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#5D4037",
+        "line-width": {"base": 1.4, "stops": [[8, 2], [15, 3], [20, 4]]},
+        "line-opacity": 0.8
+      }
+    },
+    {
+      "id": "bridge-railway-dash",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["==", "brunnel", "bridge"], ["==", "class", "rail"]],
+      "layout": { "line-join": "round","line-cap": "round", "visibility": "visible" },
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": {"base": 1.4, "stops": [[8, 1], [15, 1.5], [20, 2]]},
+        "line-dasharray": [3, 3],
+        "line-opacity": 0.9
+      }
+    },
+    
+    
+    {
+      "id": "cablecar",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "缆车"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": ["==", "subclass", "cable_car"],
+      "layout": {"line-cap": "round", "visibility": "none"},
+      "paint": {
+        "line-color": "#FF69B499",
+        "line-width": {"base": 1, "stops": [[11, 1], [19, 2.5]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "cablecar-dash",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "缆车虚线"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": ["==", "subclass", "cable_car"],
+      "layout": {"line-cap": "round", "visibility": "none"},
+      "paint": {
+        "line-color": "#FF69B499",
+        "line-dasharray": [2, 3],
+        "line-width": {"base": 1, "stops": [[11, 3], [19, 5.5]]},
+        "line-opacity": 0.6
+      }
+    },
+    {
+      "id": "boundary-land-level-4",
+      "type": "line",
+      "metadata": {
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "四级陆地边界"
+      },
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "minzoom": 2,
+      "filter": [
+        "all",
+        [">=", "admin_level", 3],
+        ["<=", "admin_level", 8],
+        ["!=", "maritime", 1]
+      ],
+      "layout": {"line-join": "round", "visibility": "visible"},
+      "paint": {
+        "line-color": "#CCCCCC",
+        "line-dasharray": [3, 1, 1, 1],
+        "line-width": 1,
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "boundary-land-level-2",
+      "type": "line",
+      "metadata": {
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "二级陆地边界"
+      },
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "filter": [
+        "all",
+        ["==", "admin_level", 2],
+        ["!=", "maritime", 1],
+        ["!=", "disputed", 1]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {"line-color": "#CCCCCC", "line-width": 1, "line-opacity": 1}
+    },
+    {
+      "id": "boundary-land-disputed",
+      "type": "line",
+      "metadata": {
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "争议地区边界"
+      },
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "filter": ["all", ["!=", "maritime", 1], ["==", "disputed", 1]],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-color": "#FF6B6B80",
+        "line-dasharray": [1, 3],
+        "line-width": {
+          "base": 1,
+          "stops": [[0, 0.6], [4, 1.4], [5, 2], [12, 8]]
+        },
+        "line-opacity": 1
+      }
+    },
+    {
+      "id": "boundary-water",
+      "type": "line",
+      "metadata": {"maputnik:feature-type": "水系", "maputnik:comment": "水体边界"},
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "minzoom": 4,
+      "filter": ["all", ["in", "admin_level", 2, 4], ["==", "maritime", 1]],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-color": "#6e98ba",
+        "line-opacity": 1,
+        "line-width": {
+          "base": 1,
+          "stops": [[0, 0.6], [4, 1.4], [5, 2], [12, 8]]
+        }
+      }
+    },
+    
+    {
+      "id": "waterway-name",
+      "type": "symbol",
+      "metadata": {"maputnik:feature-type": "水系", "maputnik:comment": "水道名称标注"},
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "minzoom": 13,
+      "filter": ["all", ["==", "$type", "LineString"], ["has", "name"]],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": 350,
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Italic"],
+        "text-letter-spacing": 0.2,
+        "text-max-width": 5,
+        "text-rotation-alignment": "map",
+        "text-size": 14
+      },
+      "paint": {
+        "text-color": "#B3E5FC99",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "water-name-lakeline",
+      "type": "symbol",
+      "metadata": {"maputnik:comment": "湖泊名称标注", "maputnik:feature-type": "水系"},
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "filter": ["==", "$type", "LineString"],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": 350,
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Italic"],
+        "text-letter-spacing": 0.2,
+        "text-max-width": 5,
+        "text-rotation-alignment": "map",
+        "text-size": 14
+      },
+      "paint": {
+        "text-color": "#B3E5FC99",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "water-name-ocean",
+      "type": "symbol",
+      "metadata": {"maputnik:comment": "海洋名称标注", "maputnik:feature-type": "水系"},
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "filter": ["all", ["==", "$type", "Point"], ["==", "class", "ocean"]],
+      "layout": {
+        "symbol-placement": "point",
+        "symbol-spacing": 350,
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Italic"],
+        "text-letter-spacing": 0.2,
+        "text-max-width": 5,
+        "text-rotation-alignment": "map",
+        "text-size": 14
+      },
+      "paint": {
+        "text-color": "#B3E5FC99",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "water-name-other",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "水系",
+        "maputnik:comment": "其他水体名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "filter": ["all", ["==", "$type", "Point"], ["!in", "class", "ocean"]],
+      "layout": {
+        "symbol-placement": "point",
+        "symbol-spacing": 350,
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Italic"],
+        "text-letter-spacing": 0.2,
+        "text-max-width": 5,
+        "text-rotation-alignment": "map",
+        "text-size": {"stops": [[0, 10], [6, 14]]},
+        "visibility": "visible"
+      },
+      "paint": {
+        "text-color": "#B3E5FC99",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "road_oneway",
+      "type": "symbol",
+      "metadata": {"maputnik:comment": "单行道", "maputnik:feature-type": "交通"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        ["==", "oneway", 1],
+        [
+          "in",
+          "class",
+          "motorway",
+          "trunk",
+          "primary",
+          "secondary",
+          "tertiary",
+          "minor",
+          "service"
+        ]
+      ],
+      "layout": {
+        "icon-image": "oneway",
+        "icon-padding": 2,
+        "icon-rotate": 90,
+        "icon-rotation-alignment": "map",
+        "icon-size": {"stops": [[15, 0.5], [19, 1]]},
+        "symbol-placement": "line",
+        "symbol-spacing": 75,
+        "text-size": 1,
+        "visibility": "none"
+      },
+      "paint": {
+        "icon-opacity": 0.5,
+        "text-color": "#9E9E9E",
+        "text-halo-color": "#FFFFFFFF"
+      }
+    },
+    {
+      "id": "road_oneway_opposite",
+      "type": "symbol",
+      "metadata": {"maputnik:feature-type": "交通", "maputnik:comment": "反向单行道"},
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        ["==", "oneway", -1],
+        [
+          "in",
+          "class",
+          "motorway",
+          "trunk",
+          "primary",
+          "secondary",
+          "tertiary",
+          "minor",
+          "service"
+        ]
+      ],
+      "layout": {
+        "icon-image": "oneway",
+        "icon-padding": 2,
+        "icon-rotate": -90,
+        "icon-rotation-alignment": "map",
+        "icon-size": {"stops": [[15, 0.5], [19, 1]]},
+        "symbol-placement": "line",
+        "symbol-spacing": 75,
+        "visibility": "none"
+      },
+      "paint": {
+        "icon-opacity": 0.5,
+        "text-color": "#D2691EFF",
+        "text-halo-color": "#FFFFFFFF"
+      }
+    },
+    
+    {
+      "id": "poi-level-3",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "三级POI点"
+      },
+      "source": "openmaptiles",
+      "source-layer": "poi",
+      "minzoom": 16,
+      "filter": [
+        "all",
+        ["==", "$type", "Point"],
+        [">=", "rank", 25],
+        ["any", ["!has", "level"], ["==", "level", 0]]
+      ],
+      "layout": {
+        "icon-image": "{class}_11",
+        "text-anchor": "top",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Regular"],
+        "text-max-width": 9,
+        "text-offset": [0, 0.6],
+        "text-padding": 2,
+        "text-size": 12,
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#666666FF",
+        "text-halo-blur": 0.5,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "poi-level-2",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "二级POI点"
+      },
+      "source": "openmaptiles",
+      "source-layer": "poi",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        ["==", "$type", "Point"],
+        ["<=", "rank", 24],
+        [">=", "rank", 15],
+        ["any", ["!has", "level"], ["==", "level", 0]]
+      ],
+      "layout": {
+        "icon-image": "{class}_11",
+        "text-anchor": "top",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Regular"],
+        "text-max-width": 9,
+        "text-offset": [0, 0.6],
+        "text-padding": 2,
+        "text-size": 12,
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#4A4A4AFF",
+        "text-halo-blur": 0.5,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1
+      }
+    },
+    {
+  "id": "poi-level-1",
+  "type": "symbol",
+  "source": "openmaptiles",
+  "source-layer": "poi",
+  "minzoom": 14,
+  "filter": [
+    "all",
+    ["==", "$type", "Point"],
+    ["<=", "rank", 14],
+    
+    ["!in", "class", "bus", "bus_stop", "station", "shop", "convenience"]
+  ],
+  "layout": {
+    "icon-image": "{class}_11",
+    "text-field": "{name:nonlatin}",
+    "text-font": ["Noto Sans SC Regular"],
+    "text-size": 12,
+    "visibility": "visible" 
+  },
+  "paint": {
+    "text-color": "#444444",
+    "text-halo-color": "#FFFFFF",
+    "text-halo-width": 1.5
+  }
+},
+{
+      "id": "landuse-control-label-pro",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "minzoom": 13.5,
+      "layout": {
+        "text-field": [
+          "match",
+          ["get", "class"],
+          "commercial",
+          "商业用地",
+          "residential",
+          "居住用地",
+          "industrial",
+          "工业用地",
+          "agricultural",
+          "农用地",
+          "park",
+          "公园绿地",
+          "hospital",
+          "医疗卫生用地",
+          "school",
+          "教育科研用地",
+          "warehouse",
+          "物流仓储用地",
+          "cemetery",
+          "殡葬设施用地",
+          "railway",
+          "交通设施用地",
+          ""
+        ],
+        "text-font": ["Noto Sans SC Regular"],
+        "text-size": {"stops": [[14, 10], [16, 14]]},
+        "text-padding": 20,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#444444",
+        "text-halo-color": "rgba(255, 255, 255, 0.7)",
+        "text-halo-width": 1.5,
+        "text-opacity": {"stops": [[13.5, 0], [14.5, 0.8]]}
+      }
+    },
+    {
+      "id": "poi-railway",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "铁路POI点"
+      },
+      "source": "openmaptiles",
+      "source-layer": "poi",
+      "minzoom": 13,
+      "filter": [
+        "all",
+        ["==", "$type", "Point"],
+        ["has", "name"],
+        ["==", "class", "railway"],
+        ["==", "subclass", "station"]
+      ],
+      "layout": {
+        "icon-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "icon-image": "{class}_11",
+        "icon-optional": false,
+        "text-allow-overlap": false,
+        "text-anchor": "top",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Regular"],
+        "text-ignore-placement": false,
+        "text-max-width": 9,
+        "text-offset": [0, 0.6],
+        "text-optional": true,
+        "text-padding": 2,
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#8B4513FF",
+        "text-halo-blur": 0.5,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1,
+        "icon-halo-color": ["literal", "rgba(0, 0, 0, 0)"]
+      }
+    },
+    {
+      "id": "highway-name-path",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:comment": "小路/步道名称标注",
+        "maputnik:feature-type": "交通"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 15.5,
+      "filter": ["==", "class", "path"],
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Regular"],
+        "text-rotation-alignment": "map",
+        "text-size": {"base": 1, "stops": [[13, 12], [14, 13]]},
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#8B7355FF",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1
+      }
+    },
+   {
+  "id": "highway-name-minor",
+  "type": "symbol",
+  "metadata": {
+    "maputnik:feature-type": "交通",
+    "maputnik:comment": "次要公路名称标注"
+  },
+  "source": "openmaptiles",
+  "source-layer": "transportation_name",
+  "minzoom": 17,
+  "filter": [
+    "all",
+    ["==", "$type", "LineString"],
+    ["in", "class", "minor", "service", "track"]
+  ],
+  "layout": {
+    "symbol-placement": "line",
+    "text-field": "{name:nonlatin}",
+    "text-font": ["Noto Sans Regular"],
+    "text-rotation-alignment": "map",
+    "text-size": {"base": 1, "stops": [[17, 12], [18, 14]]},
+    "text-letter-spacing": 0.2,
+    "visibility": "visible" 
+  },
+  "paint": {
+    "text-color": "#696969FF",
+    "text-halo-blur": 0,
+    "text-halo-width": 1,
+    "text-halo-color": "#FFFFFFFF"
+  }
+},
+    {
+      "id": "highway-name-major",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "交通",
+        "maputnik:comment": "主要公路名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 12.2,
+      "filter": ["in", "class", "primary", "secondary", "tertiary", "trunk"],
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Regular"],
+        "text-rotation-alignment": "map",
+        "text-size": {"base": 1, "stops": [[13, 12], [14, 13]]},
+        "text-letter-spacing": 0.2,
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#2F4F4FFF",
+        "text-halo-blur": 0,
+        "text-halo-width": 1.2,
+        "text-halo-color": "#FFFFFFFF"
+      }
+    },
+    
+    
+   
+    {
+      "id": "airport-label-major",
+      "type": "symbol",
+      "metadata": {
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "主要机场标签"
+      },
+      "source": "openmaptiles",
+      "source-layer": "aerodrome_label",
+      "minzoom": 10,
+      "filter": ["all", ["has", "iata"]],
+      "layout": {
+        "icon-image": "airport",
+        "icon-size": 1,
+        "text-anchor": "top",
+        "text-field": "{name}",
+        "text-font": ["Noto Sans Regular"],
+        "text-max-width": 9,
+        "text-offset": [0, 0.6],
+        "text-optional": true,
+        "text-padding": 2,
+        "text-size": 12,
+        "visibility": "visible"
+      },
+      "paint": {
+        "text-color": "#000000",
+        "text-halo-blur": 0.5,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1,
+        "icon-color": "#000000"
+      }
+    },
+    {
+      "id": "place-other",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "其他地点名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": [
+        "!in",
+        "class",
+        "city",
+        "town",
+        "village",
+        "state",
+        "country",
+        "continent"
+      ],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-letter-spacing": 0.1,
+        "text-max-width": 9,
+        "text-size": {"base": 1.2, "stops": [[12, 10], [15, 14]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#696969FF",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.2
+      }
+    },
+    {
+      "id": "place-village",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "村庄名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["==", "class", "village"],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans SC Regular", "Arial Unicode MS Regular"],
+        "text-max-width": 8,
+        "text-size": {"base": 1.2, "stops": [[10, 12], [15, 22]]},
+        "visibility": "visible"
+      },
+      "paint": {
+        "text-color": "#696969FF",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.2
+      }
+    },
+    {
+      "id": "place-town",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "城镇名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["==", "class", "town"],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans SC Regular", "Arial Unicode MS Regular"],
+        "text-max-width": 8,
+        "text-size": {"base": 1.2, "stops": [[10, 14], [15, 24]]},
+        "visibility": "visible"
+      },
+      "paint": {
+        "text-color": "#414141",
+        "text-halo-color": "rgba(255, 255, 255, 1)",
+        "text-halo-width": 1.2
+      }
+    },
+    
+    {
+      "id": "place-city-capital",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "居民地及设施",
+        "maputnik:comment": "首都/首府城市名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["all", ["==", "capital", 2], ["==", "class", "city"]],
+      "layout": {
+        "icon-image": "star_11",
+        "icon-size": 0.8,
+        "text-anchor": "left",
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans SC Regular", "Arial Unicode MS Regular"],
+        "text-max-width": 8,
+        "text-offset": [0.4, 0],
+        "text-size": {"base": 1.2, "stops": [[7, 14], [11, 24]]},
+        "visibility": "visible"
+      },
+      "paint": {
+        "text-color": "#8B0000FF",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1.2
+      }
+    },
+    {
+      "id": "place-state",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "州/省名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["in", "class", "state"],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-letter-spacing": 0.1,
+        "text-max-width": 9,
+        "text-size": {"base": 1.2, "stops": [[12, 10], [15, 14]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#2F4F4FFF",
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place-country-other",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "其他国家名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": [
+        "all",
+        ["==", "class", "country"],
+        [">=", "rank", 3],
+        ["!has", "iso_a2"]
+      ],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Italic"],
+        "text-max-width": 6.25,
+        "text-size": {"stops": [[3, 11], [7, 17]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#696969FF",
+        "text-halo-blur": 1,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "place-country-3",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "三级国家名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": [
+        "all",
+        ["==", "class", "country"],
+        [">=", "rank", 3],
+        ["has", "iso_a2"]
+      ],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-max-width": 6.25,
+        "text-size": {"stops": [[3, 11], [7, 17]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#4A4A4AFF",
+        "text-halo-blur": 1,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "place-country-2",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "二级国家名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": [
+        "all",
+        ["==", "class", "country"],
+        ["==", "rank", 2],
+        ["has", "iso_a2"]
+      ],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-max-width": 6.25,
+        "text-size": {"stops": [[2, 11], [5, 17]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#2F4F4FFF",
+        "text-halo-blur": 1,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "place-country-1",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "一级国家名称标注（重要国家）"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": [
+        "all",
+        ["==", "class", "country"],
+        ["==", "rank", 1],
+        ["has", "iso_a2"]
+      ],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-max-width": 6.25,
+        "text-size": {"stops": [[1, 11], [4, 17]]},
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#8B0000FF",
+        "text-halo-blur": 0,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place-continent",
+      "type": "symbol",
+      "metadata": {
+        "mapbox:group": "1444849242106.713",
+        "maputnik:feature-type": "境界与政区",
+        "maputnik:comment": "大洲名称标注"
+      },
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 1,
+      "filter": ["==", "class", "continent"],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans Bold"],
+        "text-max-width": 6.25,
+        "text-size": 14,
+        "text-transform": "uppercase",
+        "visibility": "none"
+      },
+      "paint": {
+        "text-color": "#000000FF",
+        "text-halo-blur": 0,
+        "text-halo-color": "#FFFFFFFF",
+        "text-halo-width": 2
+      }
+    },
+    
+    {
+      "id": "place-city",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["all", ["!=", "capital", 2], ["==", "class", "city"]],
+      "layout": {
+        "text-field": "{name:nonlatin}",
+        "text-font": ["Noto Sans SC Bold"],
+        "text-size": {"base": 1.2, "stops": [[7, 14], [11, 24]]}
+      },
+      "paint": {
+        "text-color": "#2F4F4FFF",
+        "text-halo-color": "rgba(255, 255, 255, 0.9)", 
+        "text-halo-width": 1.5
+      }
+    }
+  ],
+  "id": "bright"
+}

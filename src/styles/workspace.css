@@ -581,3 +581,47 @@
 
   text-align: right;
 }
+
+.basemap-panel {
+  border-left: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.basemap-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.basemap-panel-header h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
+.basemap-options {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.basemap-options button {
+  min-height: 46px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.basemap-options button.is-active {
+  border-color: var(--color-primary);
+}
+
+.map-coordinate-copy {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
