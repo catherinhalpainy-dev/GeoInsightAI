@@ -30,12 +30,26 @@ import type {
 import type {
     WorkspaceTool,
     MapViewCommand,
+    BasemapType,
 } from "../../types/workspace";
 
 import {
     calculateLandUseBounds,
 } from "../../utils/calculateLandUseBounds";
 
+const BASEMAP_STYLES: Record<
+    BasemapType,
+    string
+> = {
+    dark:
+        "https://tiles.openfreemap.org/styles/dark",
+
+    light:
+        "https://tiles.openfreemap.org/styles/positron",
+
+    blank:
+        "/map_style_blank.json",
+};
 
 const SELECTED_FILL_LAYER_ID =
     "land-use-selected-fill";
@@ -56,6 +70,9 @@ interface MapViewProps {
 
     layerStyle:
     LayerStyle;
+
+    basemap:
+    BasemapType;
 
     selectedFeatureId?:
     string | null;
@@ -80,6 +97,16 @@ interface MapRuntimeInfo {
     zoom:
     number;
 }
+
+interface PickedCoordinate {
+    longitude:
+    number;
+
+    latitude:
+    number;
+}
+
+
 
 
 function createClassifiedFillColor(): ExpressionSpecification {
@@ -220,6 +247,7 @@ function applyLayerStyle(
 }
 
 
+
 function createEmptySelectionFilter():
     FilterSpecification {
     return [
@@ -277,15 +305,180 @@ function fitMapToFeatures(
     );
 }
 
+function ensureLandUseLayers(
+    map: maplibregl.Map,
+
+    collection:
+        LandUseFeatureCollection,
+
+    layerStyle:
+        LayerStyle,
+) {
+    /*
+     * Source
+     */
+    if (
+        !map.getSource(
+            LAND_USE_SOURCE_ID,
+        )
+    ) {
+        map.addSource(
+            LAND_USE_SOURCE_ID,
+            {
+                type: "geojson",
+
+                data:
+                    collection,
+            },
+        );
+    }
+
+
+    /*
+     * Fill
+     */
+    if (
+        !map.getLayer(
+            LAND_USE_FILL_LAYER_ID,
+        )
+    ) {
+        map.addLayer({
+            id:
+                LAND_USE_FILL_LAYER_ID,
+
+            type:
+                "fill",
+
+            source:
+                LAND_USE_SOURCE_ID,
+
+            paint: {
+                "fill-color":
+                    createClassifiedFillColor(),
+
+                "fill-opacity":
+                    0.68,
+            },
+        });
+    }
+
+
+    /*
+     * Outline
+     */
+    if (
+        !map.getLayer(
+            LAND_USE_OUTLINE_LAYER_ID,
+        )
+    ) {
+        map.addLayer({
+            id:
+                LAND_USE_OUTLINE_LAYER_ID,
+
+            type:
+                "line",
+
+            source:
+                LAND_USE_SOURCE_ID,
+
+            paint: {
+                "line-color":
+                    "#ffffff",
+
+                "line-width":
+                    1,
+
+                "line-opacity":
+                    0.8,
+            },
+        });
+    }
+
+
+    /*
+     * Selected fill
+     */
+    if (
+        !map.getLayer(
+            SELECTED_FILL_LAYER_ID,
+        )
+    ) {
+        map.addLayer({
+            id:
+                SELECTED_FILL_LAYER_ID,
+
+            type:
+                "fill",
+
+            source:
+                LAND_USE_SOURCE_ID,
+
+            filter:
+                createEmptySelectionFilter(),
+
+            paint: {
+                "fill-color":
+                    "#facc15",
+
+                "fill-opacity":
+                    0.24,
+            },
+        });
+    }
+
+
+    /*
+     * Selected outline
+     */
+    if (
+        !map.getLayer(
+            SELECTED_OUTLINE_LAYER_ID,
+        )
+    ) {
+        map.addLayer({
+            id:
+                SELECTED_OUTLINE_LAYER_ID,
+
+            type:
+                "line",
+
+            source:
+                LAND_USE_SOURCE_ID,
+
+            filter:
+                createEmptySelectionFilter(),
+
+            paint: {
+                "line-color":
+                    "#facc15",
+
+                "line-width":
+                    4,
+
+                "line-opacity":
+                    1,
+            },
+        });
+    }
+
+
+    applyLayerStyle(
+        map,
+        layerStyle,
+    );
+}
 export function MapView({
     collection,
     allCollection,
     interactionMode,
     layerStyle,
+    basemap,
     selectedFeatureId = null,
     viewCommand = null,
     onFeatureSelect,
 }: MapViewProps) {
+
+
     const containerRef =
         useRef<HTMLDivElement | null>(
             null,
@@ -296,7 +489,13 @@ export function MapView({
             null,
         );
 
-
+    const [
+        pickedCoordinate,
+        setPickedCoordinate,
+    ] =
+        useState<PickedCoordinate | null>(
+            null,
+        );
     const latestCollectionRef =
         useRef(collection);
 
@@ -340,7 +539,7 @@ export function MapView({
                 container,
 
                 style:
-                    "/map_style.json",
+                    BASEMAP_STYLES.dark,
 
                 center: [
                     116.40,
@@ -408,10 +607,19 @@ export function MapView({
         /*
          * Identify / Select Feature
          */
+
+
         const handleMapClick = (
             event:
                 maplibregl.MapMouseEvent,
         ) => {
+            setPickedCoordinate({
+                longitude:
+                    event.lngLat.lng,
+
+                latitude:
+                    event.lngLat.lat,
+            });
             if (
                 latestInteractionModeRef.current !==
                 "select"
@@ -539,7 +747,121 @@ export function MapView({
         onFeatureSelect,
     ]);
 
+    const previousBasemapRef =
+        useRef<BasemapType>(
+            basemap,
+        );
+    useEffect(() => {
+        const map =
+            mapRef.current;
 
+
+        if (!map) {
+            return;
+        }
+
+
+        if (
+            previousBasemapRef.current ===
+            basemap
+        ) {
+            return;
+        }
+
+
+        previousBasemapRef.current =
+            basemap;
+
+
+        const styleUrl =
+            BASEMAP_STYLES[
+            basemap
+            ];
+
+
+
+        map.setStyle(
+            styleUrl,
+        );
+
+
+        const handleStyleLoad =
+            () => {
+                const currentCollection =
+                    latestCollectionRef.current;
+
+
+                if (
+                    !currentCollection
+                ) {
+                    return;
+                }
+
+
+                ensureLandUseLayers(
+                    map,
+                    currentCollection,
+                    latestLayerStyleRef.current,
+                );
+
+
+                /*
+                 * 恢复当前选中地块
+                 */
+                const filter:
+                    FilterSpecification =
+                    selectedFeatureId
+                        ? [
+                            "==",
+                            [
+                                "get",
+                                "id",
+                            ],
+                            selectedFeatureId,
+                        ]
+                        : createEmptySelectionFilter();
+
+
+                if (
+                    map.getLayer(
+                        SELECTED_FILL_LAYER_ID,
+                    )
+                ) {
+                    map.setFilter(
+                        SELECTED_FILL_LAYER_ID,
+                        filter,
+                    );
+                }
+
+
+                if (
+                    map.getLayer(
+                        SELECTED_OUTLINE_LAYER_ID,
+                    )
+                ) {
+                    map.setFilter(
+                        SELECTED_OUTLINE_LAYER_ID,
+                        filter,
+                    );
+                }
+            };
+
+
+        map.once(
+            "style.load",
+            handleStyleLoad,
+        );
+
+
+        return () => {
+            map.off(
+                "style.load",
+                handleStyleLoad,
+            );
+        };
+    }, [
+        basemap,
+    ]);
     /*
      * collection → MapLibre Source
      */
@@ -568,10 +890,6 @@ export function MapView({
                     );
 
 
-                /*
-                 * Source 已存在：
-                 * 只更新 GeoJSON。
-                 */
                 if (existingSource) {
                     (
                         existingSource as
@@ -584,125 +902,13 @@ export function MapView({
                 }
 
 
-                /*
-                 * 第一次加载：
-                 * Source + Layer。
-                 */
-                map.addSource(
-                    LAND_USE_SOURCE_ID,
-                    {
-                        type: "geojson",
-
-                        data:
-                            collection,
-                    },
-                );
-
-
-                map.addLayer({
-                    id:
-                        LAND_USE_FILL_LAYER_ID,
-
-                    type: "fill",
-
-                    source:
-                        LAND_USE_SOURCE_ID,
-
-                    paint: {
-                        "fill-color":
-                            createClassifiedFillColor(),
-
-                        "fill-opacity":
-                            0.68,
-                    },
-                });
-
-
-                map.addLayer({
-                    id:
-                        LAND_USE_OUTLINE_LAYER_ID,
-
-                    type: "line",
-
-                    source:
-                        LAND_USE_SOURCE_ID,
-
-                    paint: {
-                        "line-color":
-                            "#ffffff",
-
-                        "line-width":
-                            1,
-
-                        "line-opacity":
-                            0.8,
-                    },
-                });
-
-
-                /*
-                 * Selected Feature
-                 *
-                 * 使用同一 Source，
-                 * 通过 filter 只显示
-                 * 被选中的 Feature。
-                 */
-                map.addLayer({
-                    id:
-                        SELECTED_FILL_LAYER_ID,
-
-                    type: "fill",
-
-                    source:
-                        LAND_USE_SOURCE_ID,
-
-                    filter:
-                        createEmptySelectionFilter(),
-
-                    paint: {
-                        "fill-color":
-                            "#facc15",
-
-                        "fill-opacity":
-                            0.24,
-                    },
-                });
-
-
-                map.addLayer({
-                    id:
-                        SELECTED_OUTLINE_LAYER_ID,
-
-                    type: "line",
-
-                    source:
-                        LAND_USE_SOURCE_ID,
-
-                    filter:
-                        createEmptySelectionFilter(),
-
-                    paint: {
-                        "line-color":
-                            "#facc15",
-
-                        "line-width":
-                            4,
-
-                        "line-opacity":
-                            1,
-                    },
-                });
-
-
-                applyLayerStyle(
+                ensureLandUseLayers(
                     map,
+                    collection,
                     latestLayerStyleRef.current,
                 );
 
 
-                /*
-                 * 首次加载数据自动缩放至范围。
-                 */
                 const bounds =
                     calculateLandUseBounds(
                         collection.features,
@@ -878,18 +1084,18 @@ export function MapView({
     ]);
 
     /*
- * Map View Command
- *
- * React 负责描述：
- *
- * fit-all
- * fit-current
- * fit-selected
- *
- * MapLibre 负责真正执行：
- *
- * map.fitBounds()
- */
+    * Map View Command
+    *
+    * React 负责描述：
+    *
+    * fit-all
+    * fit-current
+    * fit-selected
+    *
+    * MapLibre 负责真正执行：
+    *
+    * map.fitBounds()
+    */
     useEffect(() => {
         const map =
             mapRef.current;
@@ -1023,7 +1229,38 @@ export function MapView({
                         )}°`
                         : "移动鼠标查看坐标"}
                 </span>
+                {pickedCoordinate && (
+                    <button
+                        type="button"
 
+                        className=
+                        "map-coordinate-copy"
+
+                        onClick={() => {
+                            const text =
+                                `${pickedCoordinate.longitude.toFixed(
+                                    6,
+                                )}, ${pickedCoordinate.latitude.toFixed(
+                                    6,
+                                )}`;
+
+                            void navigator.clipboard.writeText(
+                                text,
+                            );
+                        }}
+                    >
+                        已拾取：
+                        {pickedCoordinate.longitude.toFixed(
+                            6,
+                        )}
+                        ,
+                        {" "}
+                        {pickedCoordinate.latitude.toFixed(
+                            6,
+                        )}
+                        {" · 复制"}
+                    </button>
+                )}
 
                 <span>
                     Zoom：

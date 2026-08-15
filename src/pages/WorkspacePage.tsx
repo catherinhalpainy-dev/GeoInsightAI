@@ -10,7 +10,7 @@ import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse"
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
 import "../styles/workspace.css";
-import type { WorkspacePanel, WorkspaceTool, MapViewCommand, MapViewCommandType } from "../types/workspace";
+import { type WorkspacePanel, type WorkspaceTool, type MapViewCommand, type MapViewCommandType, type BasemapType } from "../types/workspace";
 import { LayerPanel } from "../components/layers/LayerPanel";
 import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
 import { LayerStylePanel } from "../components/layers/LayerStylePanel";
@@ -19,6 +19,7 @@ import { AgentPanel } from "../components/agent/AgentPanel";
 import type { AgentContext, AgentPlan } from "../types/agent";
 import type { LandUseFilters } from "../app/appTypes";
 import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
+import { BasemapPanel } from "../components/workspace/BasemapPanel";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -29,6 +30,12 @@ interface AgentSnapshot {
 
 export function WorkspacePage() {
     const navigate = useNavigate();
+    const [
+        basemap,
+        setBasemap,
+    ] = useState<BasemapType>(
+        "dark",
+    );
     const [searchParams, setSearchParams,] = useSearchParams();
 
     const { state, dispatch, filteredFeatures, } = useAppContext();
@@ -54,14 +61,14 @@ export function WorkspacePage() {
         null,
     );
 
-    function requestMapView(type:MapViewCommandType,){
+    function requestMapView(type: MapViewCommandType,) {
         setMapViewCommand(
-            (previous)=>(
+            (previous) => (
                 {
                     type,
-                    requestId:(
-                        previous?.requestId??0
-                    )+1,
+                    requestId: (
+                        previous?.requestId ?? 0
+                    ) + 1,
                 }
             ),
         );
@@ -393,18 +400,18 @@ export function WorkspacePage() {
                 activePanel={activePanel}
                 onToolChange={setActiveTool}
                 onPanelToggle={handlePanelToggle}
-                onFitAll={()=>{
+                onFitAll={() => {
                     requestMapView(
                         "fit-all",
                     );
                 }}
-                onFitSelected={()=>{
+                onFitSelected={() => {
                     requestMapView(
                         "fit-selected",
                     );
                 }}
                 canFitSelected={
-                    selectedFeature !=null
+                    selectedFeature != null
                 }
             />
 
@@ -433,6 +440,7 @@ export function WorkspacePage() {
                         }
                         interactionMode={activeTool}
                         layerStyle={layerStyle}
+                        basemap={basemap}
                         selectedFeatureId={
                             selectedFeature
                                 ?.properties.id ??
@@ -488,6 +496,23 @@ export function WorkspacePage() {
 
             )
             }
+            {activePanel ==="basemap" && (
+                    <BasemapPanel
+                        value={
+                            basemap
+                        }
+
+                        onChange={
+                            setBasemap
+                        }
+
+                        onClose={() =>
+                            setActivePanel(
+                                null,
+                            )
+                        }
+                    />
+                )}
             {activePanel === "style" && (
                 <LayerStylePanel
                     style={layerStyle}

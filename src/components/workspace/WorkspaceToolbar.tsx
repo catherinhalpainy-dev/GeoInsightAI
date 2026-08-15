@@ -18,7 +18,7 @@ interface WorkspaceToolbarProps {
   ) => void;
 
   onFitAll: () => void;
-  onFitSelected:()=>void
+  onFitSelected: () => void
   canFitSelected: boolean;
 }
 
@@ -111,7 +111,28 @@ export function WorkspaceToolbar({
         </span>
       </button>
       <div className="workspace-tool-divider" />
+      <button
+        type="button"
 
+        className={
+          activePanel ===
+            "basemap"
+            ? "workspace-tool is-active"
+            : "workspace-tool"
+        }
+
+        onClick={() =>
+          onPanelToggle(
+            "basemap",
+          )
+        }
+      >
+        ◫
+
+        <span>
+          底图
+        </span>
+      </button>
       <button
         type="button"
         className={

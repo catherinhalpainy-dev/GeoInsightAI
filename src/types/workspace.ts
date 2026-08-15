@@ -8,15 +8,21 @@ export type WorkspacePanel =
     | "filter"
     | "style"
     | "feature"
+    | "basemap"
     | "agent"
     | null;
 
-export type MapViewCommandType=
-    |"fit-all"
-    |"fit-current"
-    |"fit-selected";
+export type MapViewCommandType =
+    | "fit-all"
+    | "fit-current"
+    | "fit-selected";
 
-export interface MapViewCommand{
-    type:MapViewCommandType;
-    requestId:number;
+export interface MapViewCommand {
+    type: MapViewCommandType;
+    requestId: number;
 }
+
+export type BasemapType =
+    | "dark"
+    | "light"
+    | "blank";
