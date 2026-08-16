@@ -1,8 +1,7 @@
 .workspace-page {
   display: grid;
   grid-template-columns:
-    var(--toolbar-width)
-    minmax(0, 1fr);
+    var(--toolbar-width) minmax(0, 1fr);
 
   width: 100%;
   min-width: 0;
@@ -13,18 +12,15 @@
 
 .workspace-page.panel-open {
   grid-template-columns:
-    var(--toolbar-width)
-    minmax(0,1fr)
-    var(--side-panel-width);
+    var(--toolbar-width) minmax(0, 1fr) var(--side-panel-width);
 }
 
 
 .workspace-page.agent-open {
   grid-template-columns:
-    var(--toolbar-width)
-    minmax(0,1fr)
-    var(--agent-panel-width);
+    var(--toolbar-width) minmax(0, 1fr) var(--agent-panel-width);
 }
+
 /* .workspace-page:has(.filter-panel) {
   grid-template-columns:
     72px minmax(0, 1fr) 320px;
@@ -45,8 +41,7 @@
     14px 7px;
 
   border-right:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 
   background:
     rgba(255, 255, 255, 0.98);
@@ -111,8 +106,7 @@
   color: white;
 
   box-shadow:
-    0 6px 16px
-    rgba(15, 159, 147, 0.18);
+    0 6px 16px rgba(15, 159, 147, 0.18);
 }
 
 .workspace-tool:disabled {
@@ -128,8 +122,7 @@
     4px 0;
 
   border-top:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 .workspace-map-area {
@@ -181,8 +174,7 @@
   padding: 0;
 
   border-left:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 
   background:
     var(--color-panel);
@@ -205,8 +197,7 @@
   margin: 0;
 
   border-bottom:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 .filter-panel-header h2 {
@@ -246,8 +237,7 @@
   border-top: 0;
 
   border-bottom:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 .filter-group h3 {
@@ -315,8 +305,7 @@
     0 10px;
 
   border:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 
   border-radius:
     var(--radius-small);
@@ -429,8 +418,7 @@
   overflow: hidden;
 }
 
-.workspace-map-wrapper
-.map-container {
+.workspace-map-wrapper .map-container {
   position: absolute;
 
   inset: 0;
@@ -449,8 +437,7 @@
   overflow-y: auto;
 
   border-left:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 
   background:
     var(--color-panel);
@@ -466,8 +453,7 @@
   padding: 18px;
 
   border-bottom:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 
@@ -520,8 +506,7 @@
   padding: 18px;
 
   border-bottom:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 
@@ -545,7 +530,7 @@
 }
 
 
-.feature-info-list > div {
+.feature-info-list>div {
   display: flex;
 
   min-height: 48px;
@@ -556,8 +541,7 @@
   gap: 20px;
 
   border-bottom:
-    1px solid
-    var(--color-border);
+    1px solid var(--color-border);
 }
 
 
@@ -624,4 +608,97 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+}
+
+/* ==============================
+   Layer Management
+   ============================== */
+
+.layer-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 44px;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+
+.layer-slider-row {
+  display: grid;
+
+  gap: 8px;
+
+  padding:
+    12px 0;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+
+.layer-slider-row>div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+.layer-slider-row span,
+.layer-control-row span {
+  color:
+    var(--color-text-secondary);
+
+  font-size: 11px;
+}
+
+
+.layer-slider-row strong {
+  color:
+    var(--color-text);
+
+  font-size: 11px;
+}
+
+
+.layer-slider-row input[type="range"] {
+  width: 100%;
+}
+
+
+.layer-order-actions {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap: 8px;
+
+  margin-top: 16px;
+}
+
+
+.layer-order-actions button {
+  min-height: 36px;
+
+  border:
+    1px solid var(--color-border);
+
+  border-radius: 6px;
+
+  background:
+    transparent;
+
+  color:
+    var(--color-text);
+
+  cursor: pointer;
+}
+
+
+.layer-order-actions button:hover {
+  border-color:
+    var(--color-primary);
 }

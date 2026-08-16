@@ -474,17 +474,25 @@ export function WorkspacePage() {
             )}
             {activePanel === "layers" && (
                 <LayerPanel
-                    layerVisible={layerStyle.layerVisible}
-                    onLayerVisibleChange={(visible) => {
-                        updateLayerStyle(
-                            "layerVisible",
-                            visible,
+                    layerStyle={layerStyle} 
+                    onLayerStyleChange={setLayerStyle} 
+                    onMoveUp={()=>{
+                        requestMapView(
+                            "layer-up",
                         );
+                    }} 
+                    onMoveDown={()=>{
+                        requestMapView
+                        (
+                            "layer-down",
+                        );
+                    }} 
+                    onClose={()=>{
+                        setActivePanel(null,);
                     }}
                     onOpenStyle={() => {
-                        setActivePanel("style")
-                    }}
-                // 实际是在创建一个对象 相当于
+                        setActivePanel("style");
+                    }}             // 实际是在创建一个对象 相当于
                 // const props={
                 // onOpenStyle:()=>{
                 //  setActivePanel("style");}}
@@ -496,23 +504,23 @@ export function WorkspacePage() {
 
             )
             }
-            {activePanel ==="basemap" && (
-                    <BasemapPanel
-                        value={
-                            basemap
-                        }
+            {activePanel === "basemap" && (
+                <BasemapPanel
+                    value={
+                        basemap
+                    }
 
-                        onChange={
-                            setBasemap
-                        }
+                    onChange={
+                        setBasemap
+                    }
 
-                        onClose={() =>
-                            setActivePanel(
-                                null,
-                            )
-                        }
-                    />
-                )}
+                    onClose={() =>
+                        setActivePanel(
+                            null,
+                        )
+                    }
+                />
+            )}
             {activePanel === "style" && (
                 <LayerStylePanel
                     style={layerStyle}

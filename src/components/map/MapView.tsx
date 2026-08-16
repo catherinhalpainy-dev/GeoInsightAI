@@ -71,7 +71,7 @@ interface MapViewProps {
     layerStyle:
     LayerStyle;
 
-    basemap:
+    basemap?:
     BasemapType;
 
     selectedFeatureId?:
@@ -472,7 +472,7 @@ export function MapView({
     allCollection,
     interactionMode,
     layerStyle,
-    basemap,
+    basemap="dark",
     selectedFeatureId = null,
     viewCommand = null,
     onFeatureSelect,
@@ -1096,6 +1096,9 @@ export function MapView({
     *
     * map.fitBounds()
     */
+    /*
+ * Map View Command
+ */
     useEffect(() => {
         const map =
             mapRef.current;
@@ -1110,10 +1113,7 @@ export function MapView({
 
 
         /*
-         * 1. 全图
-         *
-         * 始终使用完整 Dataset，
-         * 不受当前筛选影响。
+         * 全图
          */
         if (
             viewCommand.type ===
@@ -1138,11 +1138,7 @@ export function MapView({
 
 
         /*
-         * 2. 当前结果
-         *
-         * 使用 filteredCollection。
-         *
-         * 主要提供给 Agent。
+         * 缩放到当前筛选结果
          */
         if (
             viewCommand.type ===
@@ -1161,7 +1157,7 @@ export function MapView({
 
 
         /*
-         * 3. 定位当前选中要素
+         * 定位当前选中的地块
          */
         if (
             viewCommand.type ===
@@ -1200,7 +1196,76 @@ export function MapView({
                 [selected],
                 17,
             );
+
+            return;
         }
+
+
+        /*
+         * Day 4：
+         * 业务图层上移
+         */
+        if (
+            viewCommand.type ===
+            "layer-up"
+        ) {
+            if (
+                map.getLayer(
+                    LAND_USE_FILL_LAYER_ID,
+                ) &&
+                map.getLayer(
+                    LAND_USE_OUTLINE_LAYER_ID,
+                ) &&
+                map.getLayer(
+                    SELECTED_FILL_LAYER_ID,
+                )
+            ) {
+                /*
+                 * 把普通业务图层移动到
+                 * selection layer 的下面。
+                 *
+                 * selection layer 始终保持最上层。
+                 */
+                map.moveLayer(
+                    LAND_USE_FILL_LAYER_ID,
+                    SELECTED_FILL_LAYER_ID,
+                );
+
+                map.moveLayer(
+                    LAND_USE_OUTLINE_LAYER_ID,
+                    SELECTED_FILL_LAYER_ID,
+                );
+            }
+
+            return;
+        }
+
+
+        /*
+         * Day 4：
+         * 业务图层下移
+         */
+        if (
+            viewCommand.type ===
+            "layer-down"
+        ) {
+            if (
+                map.getLayer(
+                    LAND_USE_FILL_LAYER_ID,
+                ) &&
+                map.getLayer(
+                    LAND_USE_OUTLINE_LAYER_ID,
+                )
+            ) {
+                map.moveLayer(
+                    LAND_USE_FILL_LAYER_ID,
+                    LAND_USE_OUTLINE_LAYER_ID,
+                );
+            }
+
+            return;
+        }
+
     }, [
         viewCommand,
         collection,

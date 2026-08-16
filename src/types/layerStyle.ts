@@ -1,20 +1,24 @@
-export interface LayerStyle{
-    layerVisible:boolean;
+export interface LayerStyle {
+    layerVisible: boolean;
 
-    fillVisible:boolean;
-    fillColor:string;
-    fillOpacity:number;
+    fillVisible: boolean;
+    fillColor: string;
+    fillOpacity: number;
 
-    outlineVisible:boolean;
-    outlineColor:string;
-    outlineWidth:number;
-    outlineOpacity:number;
+    outlineVisible: boolean;
+    outlineColor: string;
+    outlineWidth: number;
+    outlineOpacity: number;
 
-    colorMode:"single"|"classified";
+    colorMode: "single" | "classified";
 }
 
-export const DEFAULT_LAYER_STYLE:LayerStyle={
-    layerVisible:true,
+export type LayerOrder =
+    | "above"
+    | "below";
+
+export const DEFAULT_LAYER_STYLE: LayerStyle = {
+    layerVisible: true,
 
     fillVisible: true,
     fillColor: "#0d9488",
