@@ -15,7 +15,9 @@ export type WorkspacePanel =
 export type MapViewCommandType =
     | "fit-all"
     | "fit-current"
-    | "fit-selected";
+    | "fit-selected"
+    | "layer-up"
+    | "layer-down";
 
 export interface MapViewCommand {
     type: MapViewCommandType;
