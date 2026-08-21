@@ -8,6 +8,7 @@ export type WorkspacePanel =
     | "filter"
     | "style"
     | "feature"
+    |"table"
     | "basemap"
     | "agent"
     | null;

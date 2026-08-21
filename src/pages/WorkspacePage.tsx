@@ -20,6 +20,7 @@ import type { AgentContext, AgentPlan } from "../types/agent";
 import type { LandUseFilters } from "../app/appTypes";
 import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
+import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -82,20 +83,62 @@ export function WorkspacePage() {
             null,
         );
 
-    function handleFeatureSelect(feature: LandUseFeature | null,) {
-        setSelectedFeature(feature,);
-        if (feature) {
-            setActivePanel("feature",);
+    const [
+        shouldFitSelected,
+        setShouldFitSelected,
+    ] =
+        useState(false);
+    function handleFeatureSelect(
+        feature:
+            LandUseFeature | null,
+
+        options?: {
+            openFeaturePanel?:
+            boolean;
+
+            fitFeature?:
+            boolean;
+        },
+    ) {
+        setSelectedFeature(
+            feature,
+        );
+
+
+        if (!feature) {
+            setActivePanel(
+                (previous) =>
+                    previous ===
+                        "feature"
+                        ? null
+                        : previous,
+            );
+
             return;
         }
 
-        setActivePanel(
-            (previous) =>
-                previous === "feature"
-                    ? null
-                    : previous,
-        );
 
+        if (
+            options?.openFeaturePanel !==
+            false
+        ) {
+            setActivePanel(
+    (previous) =>
+        previous ===
+        "table"
+            ? "table"
+            : "feature",
+);
+        }
+
+
+        if (
+            options?.fitFeature
+        ) {
+            requestMapView(
+                "fit-selected",
+            );
+        }
     }
 
     function handleCloseFeatureInfo() {
@@ -103,7 +146,26 @@ export function WorkspacePage() {
         setActivePanel(null,);
     }
 
+    function handleTableFeatureSelect(
+        feature:
+            LandUseFeature,
+    ) {
+        setSelectedFeature(
+            feature,
+        );
 
+
+        setShouldFitSelected(
+            true,
+        );
+
+
+        /*
+         * 保持属性表开启。
+         *
+         * 不切换到 FeatureInfoPanel。
+         */
+    }
 
     useEffect(() => {
         if (
@@ -143,6 +205,27 @@ export function WorkspacePage() {
         selectedFeature,
     ]);
 
+    useEffect(() => {
+        if (
+            !selectedFeature ||
+            !shouldFitSelected
+        ) {
+            return;
+        }
+
+
+        requestMapView(
+            "fit-selected",
+        );
+
+
+        setShouldFitSelected(
+            false,
+        );
+    }, [
+        selectedFeature,
+        shouldFitSelected,
+    ]);
 
     const [lastAgentSnapshot, setlastAgentSnapshot] = useState<AgentSnapshot | null>(null,);
 
@@ -173,6 +256,79 @@ export function WorkspacePage() {
             },);
     }
 
+    // GeoJSON 导出
+    function handleExportGeoJSON() {
+    if (
+        filteredFeatures.length === 0
+    ) {
+        return;
+    }
+
+
+    const collection:
+        LandUseFeatureCollection = {
+        type:
+            "FeatureCollection",
+
+        features:
+            filteredFeatures,
+    };
+
+
+    const json =
+        JSON.stringify(
+            collection,
+            null,
+            2,
+        );
+
+
+    const blob =
+        new Blob(
+            [json],
+            {
+                type:
+                    "application/geo+json;charset=utf-8",
+            },
+        );
+
+
+    const url =
+        URL.createObjectURL(
+            blob,
+        );
+
+
+    const anchor =
+        document.createElement(
+            "a",
+        );
+
+
+    anchor.href =
+        url;
+
+    anchor.download =
+        `geoinsight-filtered-${Date.now()}.geojson`;
+
+
+    document.body.appendChild(
+        anchor,
+    );
+
+
+    anchor.click();
+
+
+    document.body.removeChild(
+        anchor,
+    );
+
+
+    URL.revokeObjectURL(
+        url,
+    );
+}
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
         setActivePanel(
             // 新值依赖于旧值
@@ -474,20 +630,20 @@ export function WorkspacePage() {
             )}
             {activePanel === "layers" && (
                 <LayerPanel
-                    layerStyle={layerStyle} 
-                    onLayerStyleChange={setLayerStyle} 
-                    onMoveUp={()=>{
+                    layerStyle={layerStyle}
+                    onLayerStyleChange={setLayerStyle}
+                    onMoveUp={() => {
                         requestMapView(
                             "layer-up",
                         );
-                    }} 
-                    onMoveDown={()=>{
+                    }}
+                    onMoveDown={() => {
                         requestMapView
-                        (
-                            "layer-down",
-                        );
-                    }} 
-                    onClose={()=>{
+                            (
+                                "layer-down",
+                            );
+                    }}
+                    onClose={() => {
                         setActivePanel(null,);
                     }}
                     onOpenStyle={() => {
@@ -504,6 +660,34 @@ export function WorkspacePage() {
 
             )
             }
+            {activePanel ===
+                "table" && (
+                    <FeatureTablePanel
+                        features={
+                            filteredFeatures
+                        }
+
+                        selectedFeatureId={
+                            selectedFeature
+                                ?.properties.id ??
+                            null
+                        }
+
+                        onFeatureSelect={
+                            handleTableFeatureSelect
+                        }
+
+                        onExport={
+                            handleExportGeoJSON
+                        }
+
+                        onClose={() => {
+                            setActivePanel(
+                                null,
+                            );
+                        }}
+                    />
+                )}
             {activePanel === "basemap" && (
                 <BasemapPanel
                     value={
