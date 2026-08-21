@@ -147,7 +147,30 @@ export function WorkspaceToolbar({
         ◫
         <span>图层</span>
       </button>
+      <button
+        type="button"
 
+        className={
+          activePanel ===
+            "table"
+            ? "workspace-tool is-active"
+            : "workspace-tool"
+        }
+
+        onClick={() => {
+          onPanelToggle(
+            "table",
+          );
+        }}
+
+        title="打开属性表"
+      >
+        ▦
+
+        <span>
+          属性表
+        </span>
+      </button>
       <button
         type="button"
         className={
