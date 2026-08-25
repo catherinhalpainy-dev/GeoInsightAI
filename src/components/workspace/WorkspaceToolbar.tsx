@@ -20,6 +20,24 @@ interface WorkspaceToolbarProps {
   onFitAll: () => void;
   onFitSelected: () => void
   canFitSelected: boolean;
+  measureMode:
+  "none"
+  |
+  "distance"
+  |
+  "area";
+
+
+  onMeasureChange:
+  (
+    mode:
+      "none"
+      |
+      "distance"
+      |
+      "area"
+  ) =>
+    void;
 }
 
 export function WorkspaceToolbar({
@@ -30,6 +48,8 @@ export function WorkspaceToolbar({
   onFitAll,
   onFitSelected,
   canFitSelected,
+  measureMode,
+  onMeasureChange,
 }: WorkspaceToolbarProps) {
   return (
     <aside className="workspace-toolbar">
@@ -48,6 +68,51 @@ export function WorkspaceToolbar({
         <span>选择</span>
       </button>
 
+      <button
+        type="button"
+        className={
+          measureMode === "distance"
+            ?
+            "workspace-tool active"
+            :
+            "workspace-tool"
+        }
+        onClick={() => {
+
+          onMeasureChange(
+            "distance"
+          )
+
+        }}
+
+      >
+
+        📏
+
+        <span>
+          测距
+        </span>
+      </button>
+      <button
+        type="button"
+        className={
+          measureMode === "area"
+            ?
+            "workspace-tool active"
+            :
+            "workspace-tool"
+        }
+        onClick={() => {
+          onMeasureChange(
+            "area"
+          )
+        }}
+      >
+        ⬡
+        <span>
+          测面积
+        </span>
+      </button>
       <button
         type="button"
         className={

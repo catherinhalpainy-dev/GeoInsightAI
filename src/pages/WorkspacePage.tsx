@@ -21,6 +21,9 @@ import type { LandUseFilters } from "../app/appTypes";
 import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
+
+import { MeasureResult } from "../components/map/measure/MeasureResult";
+import { useMeasure } from "../hooks/useMeasure";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -123,12 +126,12 @@ export function WorkspacePage() {
             false
         ) {
             setActivePanel(
-    (previous) =>
-        previous ===
-        "table"
-            ? "table"
-            : "feature",
-);
+                (previous) =>
+                    previous ===
+                        "table"
+                        ? "table"
+                        : "feature",
+            );
         }
 
 
@@ -258,77 +261,77 @@ export function WorkspacePage() {
 
     // GeoJSON 导出
     function handleExportGeoJSON() {
-    if (
-        filteredFeatures.length === 0
-    ) {
-        return;
+        if (
+            filteredFeatures.length === 0
+        ) {
+            return;
+        }
+
+
+        const collection:
+            LandUseFeatureCollection = {
+            type:
+                "FeatureCollection",
+
+            features:
+                filteredFeatures,
+        };
+
+
+        const json =
+            JSON.stringify(
+                collection,
+                null,
+                2,
+            );
+
+
+        const blob =
+            new Blob(
+                [json],
+                {
+                    type:
+                        "application/geo+json;charset=utf-8",
+                },
+            );
+
+
+        const url =
+            URL.createObjectURL(
+                blob,
+            );
+
+
+        const anchor =
+            document.createElement(
+                "a",
+            );
+
+
+        anchor.href =
+            url;
+
+        anchor.download =
+            `geoinsight-filtered-${Date.now()}.geojson`;
+
+
+        document.body.appendChild(
+            anchor,
+        );
+
+
+        anchor.click();
+
+
+        document.body.removeChild(
+            anchor,
+        );
+
+
+        URL.revokeObjectURL(
+            url,
+        );
     }
-
-
-    const collection:
-        LandUseFeatureCollection = {
-        type:
-            "FeatureCollection",
-
-        features:
-            filteredFeatures,
-    };
-
-
-    const json =
-        JSON.stringify(
-            collection,
-            null,
-            2,
-        );
-
-
-    const blob =
-        new Blob(
-            [json],
-            {
-                type:
-                    "application/geo+json;charset=utf-8",
-            },
-        );
-
-
-    const url =
-        URL.createObjectURL(
-            blob,
-        );
-
-
-    const anchor =
-        document.createElement(
-            "a",
-        );
-
-
-    anchor.href =
-        url;
-
-    anchor.download =
-        `geoinsight-filtered-${Date.now()}.geojson`;
-
-
-    document.body.appendChild(
-        anchor,
-    );
-
-
-    anchor.click();
-
-
-    document.body.removeChild(
-        anchor,
-    );
-
-
-    URL.revokeObjectURL(
-        url,
-    );
-}
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
         setActivePanel(
             // 新值依赖于旧值
@@ -419,6 +422,18 @@ export function WorkspacePage() {
             },
             [filteredFeatures],
         );
+
+    const {
+        mode: measureMode,
+        points: measurePoints,
+        isComplete: measureCompleted,
+        addPoint: addMeasurePoint,
+        start: startMeasure,
+        complete: completeMeasure,
+        restart: restartMeasure,
+        clear: clearMeasure,
+        result: measureValue,
+    } = useMeasure();
 
     if (!dataset ||
         state.importStatus !== "loaded") {
@@ -541,6 +556,7 @@ export function WorkspacePage() {
         setlastAgentSnapshot(null);
     };
 
+
     const workspaceClassName =
         activePanel === "agent"
             ? "workspace-page panel-open agent-open"
@@ -569,6 +585,11 @@ export function WorkspacePage() {
                 canFitSelected={
                     selectedFeature != null
                 }
+                measureMode={measureMode}
+
+                onMeasureChange={(mode)=>{
+                    startMeasure(mode);
+                }}
             />
 
             <main className="workspace-map-area">
@@ -605,9 +626,44 @@ export function WorkspacePage() {
                         viewCommand={
                             mapViewCommand
                         }
+
                         onFeatureSelect={handleFeatureSelect}
+                        measureMode={
+                            measureMode
+                        }
+
+                        measurePoints={
+                            measurePoints
+                        }
+
+                        measureCompleted={
+                            measureCompleted
+                        }
+
+                        onMeasurePointAdd={addMeasurePoint}
+
+                        onMeasureComplete={completeMeasure}
                     />
 
+                    <MeasureResult
+
+                        mode={
+                            measureMode
+                        }
+
+                        value={
+                            measureValue
+                        }
+
+                        points={measurePoints}
+
+                        isComplete={measureCompleted}
+
+                        onRestart={restartMeasure}
+
+                        onClear={clearMeasure}
+
+                    />
                     {filteredFeatures.length === 0 && (
                         <div className="map-empty-overlay">
                             <strong>

@@ -36,6 +36,7 @@ import type {
 import {
     calculateLandUseBounds,
 } from "../../utils/calculateLandUseBounds";
+import type { MeasureMode } from "../../types/measure";
 
 const BASEMAP_STYLES: Record<
     BasemapType,
@@ -56,6 +57,22 @@ const SELECTED_FILL_LAYER_ID =
 
 const SELECTED_OUTLINE_LAYER_ID =
     "land-use-selected-outline";
+
+const MEASURE_SOURCE_ID =
+    "measure-source";
+
+
+const MEASURE_FILL_LAYER_ID =
+    "measure-fill";
+
+
+const MEASURE_LINE_LAYER_ID =
+    "measure-line";
+
+const MEASURE_POINT_LAYER_ID =
+    "measure-point";
+
+
 
 
 interface MapViewProps {
@@ -80,12 +97,28 @@ interface MapViewProps {
     viewCommand?:
     MapViewCommand | null;
 
+
+    measureMode?:
+    MeasureMode;
+
+
+    measurePoints?:
+    [number, number][];
+
+    measureCompleted?:
+    boolean;
     onFeatureSelect?: (
         feature:
             LandUseFeature | null,
     ) => void;
-}
+    onMeasurePointAdd?:
+    (
+        point: [number, number]
+    ) => void;
 
+    onMeasureComplete?:
+    () => void;
+}
 
 interface MapRuntimeInfo {
     longitude:
@@ -304,7 +337,6 @@ function fitMapToFeatures(
         },
     );
 }
-
 function ensureLandUseLayers(
     map: maplibregl.Map,
 
@@ -467,18 +499,246 @@ function ensureLandUseLayers(
         layerStyle,
     );
 }
+function ensureMeasureLayers(
+    map: maplibregl.Map
+) {
+
+    if (
+        !map.getSource(
+            MEASURE_SOURCE_ID
+        )
+    ) {
+
+        map.addSource(
+            MEASURE_SOURCE_ID,
+            {
+
+                type: "geojson",
+
+                data: {
+                    type: "FeatureCollection",
+                    features: []
+                }
+
+            }
+        );
+
+    }
+
+
+
+    // 面填充
+
+    if (
+        !map.getLayer(
+            MEASURE_FILL_LAYER_ID
+        )
+    ) {
+
+        map.addLayer({
+
+            id:
+                MEASURE_FILL_LAYER_ID,
+
+
+            type:
+                "fill",
+
+
+            source:
+                MEASURE_SOURCE_ID,
+
+            paint: {
+
+
+                "fill-color":
+                    "#14b8a6",
+
+
+                "fill-opacity":
+                    0.16
+
+
+            }
+
+        })
+
+    }
+
+
+
+    // 线
+
+    if (
+        !map.getLayer(
+            MEASURE_LINE_LAYER_ID
+        )
+    ) {
+
+        map.addLayer({
+
+            id:
+                MEASURE_LINE_LAYER_ID,
+
+
+            type:
+                "line",
+
+
+            source:
+                MEASURE_SOURCE_ID,
+
+            layout: {
+                "line-cap": "round",
+                "line-join": "round",
+            },
+
+            paint: {
+
+
+                "line-color":
+                    "#2dd4bf",
+
+                "line-width":
+                    2,
+                "line-opacity":
+                    0.85,
+
+                "line-dasharray":
+                    [
+                        4,
+                        3
+                    ]
+
+            }
+
+
+        })
+
+
+    }
+
+    if (
+        !map.getLayer(
+            MEASURE_POINT_LAYER_ID
+        )
+    ) {
+        map.addLayer({
+            id: MEASURE_POINT_LAYER_ID,
+            type: "circle",
+            source: MEASURE_SOURCE_ID,
+            paint: {
+                "circle-radius": 5,
+                "circle-color":
+                    "#14b8a6",
+
+                "circle-stroke-color":
+                    "#ffffff",
+
+                "circle-stroke-width":
+                    2,
+            },
+        });
+    }
+
+
+}
+
+function updateMeasureLayer(
+    map: maplibregl.Map,
+    mode: MeasureMode,
+    points: [number, number][]
+) {
+    const source = map.getSource(MEASURE_SOURCE_ID);
+
+    if (!source || source.type !== "geojson") {
+        return;
+    }
+
+    const geojsonSource = source as maplibregl.GeoJSONSource;
+
+    if (mode === "none" || points.length === 0) {
+        geojsonSource.setData({
+            type: "FeatureCollection",
+            features: [],
+        });
+        return;
+    }
+
+    const pointFeatures = points.map((point) => ({
+        type: "Feature" as const,
+        properties: {},
+        geometry: {
+            type: "Point" as const,
+            coordinates: point,
+        },
+    }));
+
+    if (mode === "distance") {
+        const lineFeatures = points.length >= 2
+            ? [{
+                type: "Feature" as const,
+                properties: {},
+                geometry: {
+                    type: "LineString" as const,
+                    coordinates: points,
+                },
+            }]
+            : [];
+
+        geojsonSource.setData({
+            type: "FeatureCollection",
+            features: [
+                ...lineFeatures,
+                ...pointFeatures,
+            ],
+        });
+        return;
+    }
+
+    const shapeFeatures = points.length >= 3
+        ? [{
+            type: "Feature" as const,
+            properties: {},
+            geometry: {
+                type: "Polygon" as const,
+                coordinates: [[...points, points[0]]],
+            },
+        }]
+        : points.length === 2
+            ? [{
+                type: "Feature" as const,
+                properties: {},
+                geometry: {
+                    type: "LineString" as const,
+                    coordinates: points,
+                },
+            }]
+            : [];
+
+    geojsonSource.setData({
+        type: "FeatureCollection",
+        features: [
+            ...shapeFeatures,
+            ...pointFeatures,
+        ],
+    });
+}
 export function MapView({
     collection,
     allCollection,
     interactionMode,
     layerStyle,
-    basemap="dark",
+    basemap = "dark",
     selectedFeatureId = null,
     viewCommand = null,
+    measureMode = "none",
+    measurePoints = [],
+    measureCompleted = false,
     onFeatureSelect,
+    onMeasurePointAdd,
+    onMeasureComplete,
 }: MapViewProps) {
-
-
     const containerRef =
         useRef<HTMLDivElement | null>(
             null,
@@ -488,6 +748,9 @@ export function MapView({
         useRef<maplibregl.Map | null>(
             null,
         );
+
+    const initialBasemapRef =
+        useRef(basemap);
 
     const [
         pickedCoordinate,
@@ -508,6 +771,29 @@ export function MapView({
     const latestOnFeatureSelectRef =
         useRef(onFeatureSelect);
 
+    const latestSelectedFeatureIdRef =
+        useRef(selectedFeatureId);
+
+    const latestOnMeasurePointAddRef =
+        useRef(onMeasurePointAdd);
+
+    const latestOnMeasureCompleteRef =
+        useRef(onMeasureComplete);
+
+
+    const latestMeasureModeRef =
+        useRef<MeasureMode>(
+            measureMode
+        );
+
+
+    const latestMeasurePointsRef =
+        useRef<[number, number][]>(
+            measurePoints
+        );
+
+    const latestMeasureCompletedRef =
+        useRef(measureCompleted);
 
     const [
         runtimeInfo,
@@ -520,11 +806,12 @@ export function MapView({
         });
 
 
+
     /*
-     * 创建 MapLibre 实例
-     *
-     * Map 只创建一次。
-     */
+ * 创建 MapLibre 实例
+ *
+ * Map 只创建一次。
+ */
     useEffect(() => {
         const container =
             containerRef.current;
@@ -539,7 +826,7 @@ export function MapView({
                 container,
 
                 style:
-                    BASEMAP_STYLES.dark,
+                    BASEMAP_STYLES[initialBasemapRef.current],
 
                 center: [
                     116.40,
@@ -553,12 +840,20 @@ export function MapView({
         mapRef.current =
             map;
 
+        const handleMapLoad = () => {
+            ensureMeasureLayers(map);
+            updateMeasureLayer(
+                map,
+                latestMeasureModeRef.current,
+                latestMeasurePointsRef.current,
+            );
+        };
 
+        map.on("load", handleMapLoad);
         map.addControl(
             new maplibregl.NavigationControl(),
             "top-right",
         );
-
 
         const resizeObserver =
             new ResizeObserver(
@@ -613,6 +908,26 @@ export function MapView({
             event:
                 maplibregl.MapMouseEvent,
         ) => {
+            if (
+                latestMeasureModeRef.current !== "none"
+            ) {
+                if (
+                    !latestMeasureCompletedRef.current &&
+                    event.originalEvent.detail < 2
+                ) {
+
+                    latestOnMeasurePointAddRef.current?.(
+                        [
+                            event.lngLat.lng,
+                            event.lngLat.lat
+                        ]
+                    );
+                }
+
+
+                return;
+
+            }
             setPickedCoordinate({
                 longitude:
                     event.lngLat.lng,
@@ -690,6 +1005,20 @@ export function MapView({
                 );
         };
 
+        const handleMapDoubleClick = (
+            event: maplibregl.MapMouseEvent,
+        ) => {
+            if (
+                latestMeasureModeRef.current === "none" ||
+                latestMeasureCompletedRef.current
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            latestOnMeasureCompleteRef.current?.();
+        };
+
 
         map.on(
             "mousemove",
@@ -706,6 +1035,10 @@ export function MapView({
             handleMapClick,
         );
 
+        map.on(
+            "dblclick",
+            handleMapDoubleClick,
+        );
 
         return () => {
             map.off(
@@ -721,6 +1054,16 @@ export function MapView({
             map.off(
                 "click",
                 handleMapClick,
+            );
+
+            map.off(
+                "dblclick",
+                handleMapDoubleClick,
+            );
+
+            map.off(
+                "load",
+                handleMapLoad,
             );
 
             resizeObserver.disconnect();
@@ -743,8 +1086,20 @@ export function MapView({
     useEffect(() => {
         latestOnFeatureSelectRef.current =
             onFeatureSelect;
+
+        latestOnMeasurePointAddRef.current =
+            onMeasurePointAdd;
+
+        latestOnMeasureCompleteRef.current =
+            onMeasureComplete;
+
+        latestSelectedFeatureIdRef.current =
+            selectedFeatureId;
     }, [
         onFeatureSelect,
+        onMeasurePointAdd,
+        onMeasureComplete,
+        selectedFeatureId,
     ]);
 
     const previousBasemapRef =
@@ -780,16 +1135,17 @@ export function MapView({
 
 
 
-        map.setStyle(
-            styleUrl,
-        );
-
-
         const handleStyleLoad =
             () => {
                 const currentCollection =
                     latestCollectionRef.current;
 
+                ensureMeasureLayers(map);
+                updateMeasureLayer(
+                    map,
+                    latestMeasureModeRef.current,
+                    latestMeasurePointsRef.current,
+                );
 
                 if (
                     !currentCollection
@@ -804,20 +1160,19 @@ export function MapView({
                     latestLayerStyleRef.current,
                 );
 
-
                 /*
                  * 恢复当前选中地块
                  */
                 const filter:
                     FilterSpecification =
-                    selectedFeatureId
+                    latestSelectedFeatureIdRef.current
                         ? [
                             "==",
                             [
                                 "get",
                                 "id",
                             ],
-                            selectedFeatureId,
+                            latestSelectedFeatureIdRef.current,
                         ]
                         : createEmptySelectionFilter();
 
@@ -850,6 +1205,11 @@ export function MapView({
         map.once(
             "style.load",
             handleStyleLoad,
+
+        );
+
+        map.setStyle(
+            styleUrl,
         );
 
 
@@ -861,6 +1221,39 @@ export function MapView({
         };
     }, [
         basemap,
+    ]);
+
+    // 测距
+    useEffect(() => {
+
+        latestMeasureModeRef.current =
+            measureMode;
+
+        latestMeasurePointsRef.current =
+            measurePoints;
+
+        latestMeasureCompletedRef.current =
+            measureCompleted;
+
+        const map =
+            mapRef.current;
+
+
+        if (map?.isStyleLoaded()) {
+            ensureMeasureLayers(map);
+
+            updateMeasureLayer(
+                map,
+                measureMode,
+                measurePoints
+            );
+        }
+
+
+    }, [
+        measurePoints,
+        measureMode,
+        measureCompleted,
     ]);
     /*
      * collection → MapLibre Source
@@ -946,10 +1339,9 @@ export function MapView({
             map.once(
                 "load",
                 updateSource,
+
             );
         }
-
-
         return () => {
             map.off(
                 "load",
@@ -1002,7 +1394,6 @@ export function MapView({
     }, [
         interactionMode,
     ]);
-
 
     /*
      * Layer Style
@@ -1281,8 +1672,10 @@ export function MapView({
             />
 
 
+
+
             <div className="map-runtime-info">
-                <span>
+                <span className="map-cursor-coordinate">
                     {runtimeInfo.longitude !==
                         null &&
                         runtimeInfo.latitude !==
@@ -1294,7 +1687,8 @@ export function MapView({
                         )}°`
                         : "移动鼠标查看坐标"}
                 </span>
-                {pickedCoordinate && (
+                <div className="map-coordinate-slot">
+                {pickedCoordinate ? (
                     <button
                         type="button"
 
@@ -1325,7 +1719,10 @@ export function MapView({
                         )}
                         {" · 复制"}
                     </button>
+                ) : (
+                    <span>点击地图拾取坐标</span>
                 )}
+                </div>
 
                 <span>
                     Zoom：
