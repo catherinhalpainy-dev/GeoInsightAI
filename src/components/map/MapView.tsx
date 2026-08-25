@@ -58,6 +58,9 @@ const SELECTED_FILL_LAYER_ID =
 const SELECTED_OUTLINE_LAYER_ID =
     "land-use-selected-outline";
 
+const HOVER_OUTLINE_LAYER_ID =
+    "land-use-hover-outline";
+
 const MEASURE_SOURCE_ID =
     "measure-source";
 
@@ -111,6 +114,7 @@ interface MapViewProps {
         feature:
             LandUseFeature | null,
     ) => void;
+
     onMeasurePointAdd?:
     (
         point: [number, number]
@@ -277,6 +281,18 @@ function applyLayerStyle(
             selectionVisible,
         );
     }
+
+    if (
+        map.getLayer(
+            HOVER_OUTLINE_LAYER_ID,
+        )
+    ) {
+        map.setLayoutProperty(
+            HOVER_OUTLINE_LAYER_ID,
+            "visibility",
+            selectionVisible,
+        );
+    }
 }
 
 
@@ -422,6 +438,41 @@ function ensureLandUseLayers(
 
                 "line-opacity":
                     0.8,
+            },
+        });
+    }
+
+
+    /*
+     * Hover outline
+     */
+    if (
+        !map.getLayer(
+            HOVER_OUTLINE_LAYER_ID,
+        )
+    ) {
+        map.addLayer({
+            id:
+                HOVER_OUTLINE_LAYER_ID,
+
+            type:
+                "line",
+
+            source:
+                LAND_USE_SOURCE_ID,
+
+            filter:
+                createEmptySelectionFilter(),
+
+            paint: {
+                "line-color":
+                    "#2dd4bf",
+
+                "line-width":
+                    3,
+
+                "line-opacity":
+                    0.95,
             },
         });
     }
@@ -867,6 +918,19 @@ export function MapView({
             container,
         );
 
+        const clearHover = () => {
+            if (
+                map.getLayer(
+                    HOVER_OUTLINE_LAYER_ID,
+                )
+            ) {
+                map.setFilter(
+                    HOVER_OUTLINE_LAYER_ID,
+                    createEmptySelectionFilter(),
+                );
+            }
+        };
+
 
         const handleMouseMove = (
             event:
@@ -882,6 +946,39 @@ export function MapView({
                     latitude:
                         event.lngLat.lat,
                 }),
+            );
+
+            if (
+                latestMeasureModeRef.current !== "none" ||
+                !map.getLayer(LAND_USE_FILL_LAYER_ID) ||
+                !map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ) {
+                clearHover();
+                return;
+            }
+
+            const hoveredFeature =
+                map.queryRenderedFeatures(
+                    event.point,
+                    {
+                        layers: [
+                            LAND_USE_FILL_LAYER_ID,
+                        ],
+                    },
+                )[0];
+
+            const hoveredFeatureId =
+                hoveredFeature?.properties?.id;
+
+            map.setFilter(
+                HOVER_OUTLINE_LAYER_ID,
+                typeof hoveredFeatureId === "string"
+                    ? [
+                        "==",
+                        ["get", "id"],
+                        hoveredFeatureId,
+                    ]
+                    : createEmptySelectionFilter(),
             );
         };
 
@@ -989,8 +1086,7 @@ export function MapView({
 
 
             const selected =
-                latestCollectionRef
-                    .current
+                latestCollectionRef.current
                     ?.features
                     .find(
                         (feature) =>
@@ -1040,6 +1136,11 @@ export function MapView({
             handleMapDoubleClick,
         );
 
+        container.addEventListener(
+            "mouseleave",
+            clearHover,
+        );
+
         return () => {
             map.off(
                 "mousemove",
@@ -1064,6 +1165,11 @@ export function MapView({
             map.off(
                 "load",
                 handleMapLoad,
+            );
+
+            container.removeEventListener(
+                "mouseleave",
+                clearHover,
             );
 
             resizeObserver.disconnect();
@@ -1241,6 +1347,16 @@ export function MapView({
 
         if (map?.isStyleLoaded()) {
             ensureMeasureLayers(map);
+
+            if (
+                measureMode !== "none" &&
+                map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ) {
+                map.setFilter(
+                    HOVER_OUTLINE_LAYER_ID,
+                    createEmptySelectionFilter(),
+                );
+            }
 
             updateMeasureLayer(
                 map,
