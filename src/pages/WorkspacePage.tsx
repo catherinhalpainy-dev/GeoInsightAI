@@ -196,7 +196,6 @@ export function WorkspacePage() {
             null,
         );
 
-
         setActivePanel(
             (previous) =>
                 previous === "feature"
@@ -664,6 +663,7 @@ export function WorkspacePage() {
                         onClear={clearMeasure}
 
                     />
+
                     {filteredFeatures.length === 0 && (
                         <div className="map-empty-overlay">
                             <strong>
