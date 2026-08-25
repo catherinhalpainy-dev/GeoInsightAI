@@ -46,6 +46,22 @@ GeoInsight AI 是一个面向城市空间数据分析场景的 Web GIS 应用。
 - 样式预设
 - Reset / Save
 
+## GIS Measurement
+
+支持：
+
+- Distance measurement
+- Polygon area measurement
+- Turf.js spatial calculation
+- Dynamic GeoJSON rendering
+- Multi-unit area display
+
+技术：
+
+- MapLibre GL
+- Turf.js
+- React state management
+
 ### Statistics dashboard
 
 - 当前要素数量
