@@ -37,6 +37,7 @@ import {
     calculateLandUseBounds,
 } from "../../utils/calculateLandUseBounds";
 import type { MeasureMode } from "../../types/measure";
+import type { BufferFeature } from "../../services/gis/buffer";
 
 const BASEMAP_STYLES: Record<
     BasemapType,
@@ -75,6 +76,12 @@ const MEASURE_LINE_LAYER_ID =
 const MEASURE_POINT_LAYER_ID =
     "measure-point";
 
+const BUFFER_SOURCE_ID =
+    "buffer-source";
+
+const BUFFER_LAYER_ID =
+    "buffer-fill";
+
 
 
 
@@ -110,6 +117,10 @@ interface MapViewProps {
 
     measureCompleted?:
     boolean;
+
+    bufferFeature?:
+    BufferFeature | null;
+
     onFeatureSelect?: (
         feature:
             LandUseFeature | null,
@@ -775,6 +786,67 @@ function updateMeasureLayer(
         ],
     });
 }
+
+function ensureBufferLayer(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(BUFFER_SOURCE_ID)) {
+        map.addSource(BUFFER_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    if (!map.getLayer(BUFFER_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: BUFFER_LAYER_ID,
+                type: "fill",
+                source: BUFFER_SOURCE_ID,
+                paint: {
+                    "fill-color": "#14b8a6",
+                    "fill-opacity": 0.28,
+                    "fill-outline-color": "#0f766e",
+                },
+            },
+            map.getLayer(HOVER_OUTLINE_LAYER_ID)
+                ? HOVER_OUTLINE_LAYER_ID
+                : map.getLayer(SELECTED_FILL_LAYER_ID)
+                    ? SELECTED_FILL_LAYER_ID
+                    : undefined,
+        );
+    }
+}
+
+function showBufferResult(
+    map: maplibregl.Map,
+    feature: BufferFeature,
+) {
+    ensureBufferLayer(map);
+
+    const source = map.getSource(BUFFER_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData(feature);
+    }
+}
+
+function clearBufferResult(
+    map: maplibregl.Map,
+) {
+    const source = map.getSource(BUFFER_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: [],
+        });
+    }
+}
+
 export function MapView({
     collection,
     allCollection,
@@ -786,6 +858,7 @@ export function MapView({
     measureMode = "none",
     measurePoints = [],
     measureCompleted = false,
+    bufferFeature = null,
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
@@ -845,6 +918,9 @@ export function MapView({
 
     const latestMeasureCompletedRef =
         useRef(measureCompleted);
+
+    const latestBufferFeatureRef =
+        useRef<BufferFeature | null>(bufferFeature);
 
     const [
         runtimeInfo,
@@ -1266,6 +1342,13 @@ export function MapView({
                     latestLayerStyleRef.current,
                 );
 
+                if (latestBufferFeatureRef.current) {
+                    showBufferResult(
+                        map,
+                        latestBufferFeatureRef.current,
+                    );
+                }
+
                 /*
                  * 恢复当前选中地块
                  */
@@ -1371,6 +1454,29 @@ export function MapView({
         measureMode,
         measureCompleted,
     ]);
+
+    useEffect(() => {
+        latestBufferFeatureRef.current =
+            bufferFeature;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        if (bufferFeature) {
+            showBufferResult(
+                map,
+                bufferFeature,
+            );
+        } else {
+            clearBufferResult(map);
+        }
+    }, [
+        bufferFeature,
+    ]);
+
     /*
      * collection → MapLibre Source
      */

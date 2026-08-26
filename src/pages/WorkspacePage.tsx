@@ -24,6 +24,12 @@ import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
+import type { BufferAnalysisResult } from "../types/analysis";
+import {
+    calculateBufferAreaM2,
+    createBuffer,
+    type BufferFeature,
+} from "../services/gis/buffer";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -86,6 +92,13 @@ export function WorkspacePage() {
             null,
         );
 
+    const [bufferFeature, setBufferFeature] =
+        useState<BufferFeature | null>(null);
+    const [bufferResult, setBufferResult] =
+        useState<BufferAnalysisResult | null>(null);
+    const [bufferError, setBufferError] =
+        useState<string | null>(null);
+
     const [
         shouldFitSelected,
         setShouldFitSelected,
@@ -103,6 +116,15 @@ export function WorkspacePage() {
             boolean;
         },
     ) {
+        if (
+            feature &&
+            feature.properties.id !== selectedFeature?.properties.id
+        ) {
+            setBufferFeature(null);
+            setBufferResult(null);
+            setBufferError(null);
+        }
+
         setSelectedFeature(
             feature,
         );
@@ -153,6 +175,14 @@ export function WorkspacePage() {
         feature:
             LandUseFeature,
     ) {
+        if (
+            feature.properties.id !== selectedFeature?.properties.id
+        ) {
+            setBufferFeature(null);
+            setBufferResult(null);
+            setBufferError(null);
+        }
+
         setSelectedFeature(
             feature,
         );
@@ -168,6 +198,36 @@ export function WorkspacePage() {
          *
          * 不切换到 FeatureInfoPanel。
          */
+    }
+
+    function handleCreateBuffer(
+        feature: LandUseFeature,
+        distance: number,
+    ) {
+        try {
+            const nextBufferFeature =
+                createBuffer(feature, distance);
+            const areaM2 =
+                calculateBufferAreaM2(nextBufferFeature);
+
+            setBufferFeature(nextBufferFeature);
+            setBufferResult({
+                distance,
+                unit: "meter",
+                areaM2,
+                areaKm2: areaM2 / 1_000_000,
+                featureCount: 1,
+            });
+            setBufferError(null);
+        } catch (error) {
+            setBufferFeature(null);
+            setBufferResult(null);
+            setBufferError(
+                error instanceof Error
+                    ? error.message
+                    : "缓冲区分析失败",
+            );
+        }
     }
 
     useEffect(() => {
@@ -626,6 +686,10 @@ export function WorkspacePage() {
                             mapViewCommand
                         }
 
+                        bufferFeature={
+                            bufferFeature
+                        }
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -778,6 +842,9 @@ export function WorkspacePage() {
                 <FeatureInfoPanel
                     feature={selectedFeature}
                     onClose={handleCloseFeatureInfo}
+                    onCreateBuffer={handleCreateBuffer}
+                    bufferResult={bufferResult}
+                    bufferError={bufferError}
                 />
             )}
 
