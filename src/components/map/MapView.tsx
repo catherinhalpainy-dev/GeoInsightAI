@@ -82,6 +82,18 @@ const BUFFER_SOURCE_ID =
 const BUFFER_LAYER_ID =
     "buffer-fill";
 
+const BUFFER_OUTLINE_LAYER_ID =
+    "buffer-outline";
+
+const SPATIAL_QUERY_SOURCE_ID =
+    "spatial-query-source";
+
+const SPATIAL_QUERY_FILL_LAYER_ID =
+    "spatial-query-fill";
+
+const SPATIAL_QUERY_OUTLINE_LAYER_ID =
+    "spatial-query-outline";
+
 
 
 
@@ -120,6 +132,9 @@ interface MapViewProps {
 
     bufferFeature?:
     BufferFeature | null;
+
+    spatialQueryFeatures?:
+    LandUseFeature[];
 
     onFeatureSelect?: (
         feature:
@@ -800,6 +815,13 @@ function ensureBufferLayer(
         });
     }
 
+    const beforeLayerId =
+        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ? HOVER_OUTLINE_LAYER_ID
+            : map.getLayer(SELECTED_FILL_LAYER_ID)
+                ? SELECTED_FILL_LAYER_ID
+                : undefined;
+
     if (!map.getLayer(BUFFER_LAYER_ID)) {
         map.addLayer(
             {
@@ -808,15 +830,26 @@ function ensureBufferLayer(
                 source: BUFFER_SOURCE_ID,
                 paint: {
                     "fill-color": "#14b8a6",
-                    "fill-opacity": 0.28,
-                    "fill-outline-color": "#0f766e",
+                    "fill-opacity": 0.11,
                 },
             },
-            map.getLayer(HOVER_OUTLINE_LAYER_ID)
-                ? HOVER_OUTLINE_LAYER_ID
-                : map.getLayer(SELECTED_FILL_LAYER_ID)
-                    ? SELECTED_FILL_LAYER_ID
-                    : undefined,
+            beforeLayerId,
+        );
+    }
+
+    if (!map.getLayer(BUFFER_OUTLINE_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: BUFFER_OUTLINE_LAYER_ID,
+                type: "line",
+                source: BUFFER_SOURCE_ID,
+                paint: {
+                    "line-color": "#0f766e",
+                    "line-width": 1.5,
+                    "line-opacity": 0.75,
+                },
+            },
+            beforeLayerId,
         );
     }
 }
@@ -847,6 +880,89 @@ function clearBufferResult(
     }
 }
 
+function ensureSpatialQueryLayers(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(SPATIAL_QUERY_SOURCE_ID)) {
+        map.addSource(SPATIAL_QUERY_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    const beforeLayerId =
+        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ? HOVER_OUTLINE_LAYER_ID
+            : map.getLayer(SELECTED_FILL_LAYER_ID)
+                ? SELECTED_FILL_LAYER_ID
+                : undefined;
+
+    if (!map.getLayer(SPATIAL_QUERY_FILL_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: SPATIAL_QUERY_FILL_LAYER_ID,
+                type: "fill",
+                source: SPATIAL_QUERY_SOURCE_ID,
+                paint: {
+                    "fill-color": "#3b82f6",
+                    "fill-opacity": 0.1,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+
+    if (!map.getLayer(SPATIAL_QUERY_OUTLINE_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: SPATIAL_QUERY_OUTLINE_LAYER_ID,
+                type: "line",
+                source: SPATIAL_QUERY_SOURCE_ID,
+                paint: {
+                    "line-color": "#2563eb",
+                    "line-width": 1.5,
+                    "line-opacity": 0.75,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+}
+
+function updateSpatialQueryLayer(
+    map: maplibregl.Map,
+    features: LandUseFeature[],
+) {
+    ensureSpatialQueryLayers(map);
+
+    const source =
+        map.getSource(SPATIAL_QUERY_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features,
+        });
+    }
+}
+
+function clearSpatialQueryLayer(
+    map: maplibregl.Map,
+) {
+    const source =
+        map.getSource(SPATIAL_QUERY_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: [],
+        });
+    }
+}
+
 export function MapView({
     collection,
     allCollection,
@@ -859,6 +975,7 @@ export function MapView({
     measurePoints = [],
     measureCompleted = false,
     bufferFeature = null,
+    spatialQueryFeatures = [],
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
@@ -921,6 +1038,9 @@ export function MapView({
 
     const latestBufferFeatureRef =
         useRef<BufferFeature | null>(bufferFeature);
+
+    const latestSpatialQueryFeaturesRef =
+        useRef<LandUseFeature[]>(spatialQueryFeatures);
 
     const [
         runtimeInfo,
@@ -1349,6 +1469,15 @@ export function MapView({
                     );
                 }
 
+                if (
+                    latestSpatialQueryFeaturesRef.current.length > 0
+                ) {
+                    updateSpatialQueryLayer(
+                        map,
+                        latestSpatialQueryFeaturesRef.current,
+                    );
+                }
+
                 /*
                  * 恢复当前选中地块
                  */
@@ -1461,20 +1590,52 @@ export function MapView({
 
         const map = mapRef.current;
 
-        if (!map?.isStyleLoaded()) {
+        if (!map) {
             return;
         }
 
-        if (bufferFeature) {
-            showBufferResult(
-                map,
-                bufferFeature,
-            );
-        } else {
+        if (!bufferFeature) {
             clearBufferResult(map);
+            return;
         }
+
+        if (!map.isStyleLoaded()) {
+            return;
+        }
+
+        showBufferResult(
+            map,
+            bufferFeature,
+        );
     }, [
         bufferFeature,
+    ]);
+
+    useEffect(() => {
+        latestSpatialQueryFeaturesRef.current =
+            spatialQueryFeatures;
+
+        const map = mapRef.current;
+
+        if (!map) {
+            return;
+        }
+
+        if (spatialQueryFeatures.length === 0) {
+            clearSpatialQueryLayer(map);
+            return;
+        }
+
+        if (!map.isStyleLoaded()) {
+            return;
+        }
+
+        updateSpatialQueryLayer(
+            map,
+            spatialQueryFeatures,
+        );
+    }, [
+        spatialQueryFeatures,
     ]);
 
     /*

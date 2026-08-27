@@ -24,12 +24,19 @@ import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
-import type { BufferAnalysisResult } from "../types/analysis";
+import type {
+    BufferAnalysisResult,
+    SpatialQueryResult,
+} from "../types/analysis";
 import {
     calculateBufferAreaM2,
     createBuffer,
     type BufferFeature,
 } from "../services/gis/buffer";
+import {
+    queryFeaturesByGeometry,
+    summarizeSpatialQuery,
+} from "../services/gis/spatialQuery";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -98,6 +105,18 @@ export function WorkspacePage() {
         useState<BufferAnalysisResult | null>(null);
     const [bufferError, setBufferError] =
         useState<string | null>(null);
+    const [spatialQueryFeatures, setSpatialQueryFeatures] =
+        useState<LandUseFeature[]>([]);
+    const [spatialQueryResult, setSpatialQueryResult] =
+        useState<SpatialQueryResult | null>(null);
+    const [spatialQueryError, setSpatialQueryError] =
+        useState<string | null>(null);
+
+    function handleClearSpatialQuery() {
+        setSpatialQueryFeatures([]);
+        setSpatialQueryResult(null);
+        setSpatialQueryError(null);
+    }
 
     const [
         shouldFitSelected,
@@ -123,6 +142,7 @@ export function WorkspacePage() {
             setBufferFeature(null);
             setBufferResult(null);
             setBufferError(null);
+            handleClearSpatialQuery();
         }
 
         setSelectedFeature(
@@ -181,6 +201,7 @@ export function WorkspacePage() {
             setBufferFeature(null);
             setBufferResult(null);
             setBufferError(null);
+            handleClearSpatialQuery();
         }
 
         setSelectedFeature(
@@ -204,6 +225,8 @@ export function WorkspacePage() {
         feature: LandUseFeature,
         distance: number,
     ) {
+        handleClearSpatialQuery();
+
         try {
             const nextBufferFeature =
                 createBuffer(feature, distance);
@@ -228,6 +251,49 @@ export function WorkspacePage() {
                     : "缓冲区分析失败",
             );
         }
+    }
+
+    function handleRunSpatialQuery() {
+        if (!bufferFeature) {
+            setSpatialQueryError(
+                "请先生成缓冲区，再执行空间查询",
+            );
+            return;
+        }
+
+        try {
+            const relation = "intersects" as const;
+            const nextFeatures =
+                queryFeaturesByGeometry(
+                    filteredCollection,
+                    bufferFeature,
+                    relation,
+                );
+
+            setSpatialQueryFeatures(nextFeatures);
+            setSpatialQueryResult(
+                summarizeSpatialQuery(
+                    nextFeatures,
+                    relation,
+                ),
+            );
+            setSpatialQueryError(null);
+        } catch (error) {
+            setSpatialQueryFeatures([]);
+            setSpatialQueryResult(null);
+            setSpatialQueryError(
+                error instanceof Error
+                    ? error.message
+                    : "空间查询失败",
+            );
+        }
+    }
+
+    function handleClearBuffer() {
+        setBufferFeature(null);
+        setBufferResult(null);
+        setBufferError(null);
+        handleClearSpatialQuery();
     }
 
     useEffect(() => {
@@ -265,6 +331,14 @@ export function WorkspacePage() {
     }, [
         filteredFeatures,
         selectedFeature,
+    ]);
+
+    useEffect(() => {
+        setSpatialQueryFeatures([]);
+        setSpatialQueryResult(null);
+        setSpatialQueryError(null);
+    }, [
+        filteredFeatures,
     ]);
 
     useEffect(() => {
@@ -690,6 +764,10 @@ export function WorkspacePage() {
                             bufferFeature
                         }
 
+                        spatialQueryFeatures={
+                            spatialQueryFeatures
+                        }
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -843,8 +921,13 @@ export function WorkspacePage() {
                     feature={selectedFeature}
                     onClose={handleCloseFeatureInfo}
                     onCreateBuffer={handleCreateBuffer}
+                    onClearBuffer={handleClearBuffer}
                     bufferResult={bufferResult}
                     bufferError={bufferError}
+                    spatialQueryResult={spatialQueryResult}
+                    spatialQueryError={spatialQueryError}
+                    onRunSpatialQuery={handleRunSpatialQuery}
+                    onClearSpatialQuery={handleClearSpatialQuery}
                 />
             )}
 

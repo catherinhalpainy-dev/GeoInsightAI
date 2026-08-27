@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import {
     LAND_USE_LABELS,
+    LAND_USE_TYPES,
 } from "../../constants/landUse";
 
 import type {
@@ -10,6 +11,7 @@ import type {
 } from "../../types/landUse";
 import type {
     BufferAnalysisResult,
+    SpatialQueryResult,
 } from "../../types/analysis";
 
 
@@ -23,9 +25,19 @@ interface FeatureInfoPanelProps {
         distance: number,
     ) => void;
 
+    onClearBuffer: () => void;
+
     bufferResult: BufferAnalysisResult | null;
 
     bufferError: string | null;
+
+    spatialQueryResult: SpatialQueryResult | null;
+
+    spatialQueryError: string | null;
+
+    onRunSpatialQuery: () => void;
+
+    onClearSpatialQuery: () => void;
 }
 
 
@@ -33,8 +45,13 @@ export function FeatureInfoPanel({
     feature,
     onClose,
     onCreateBuffer,
+    onClearBuffer,
     bufferResult,
     bufferError,
+    spatialQueryResult,
+    spatialQueryError,
+    onRunSpatialQuery,
+    onClearSpatialQuery,
 }: FeatureInfoPanelProps) {
     const [bufferDistance, setBufferDistance] =
         useState("500");
@@ -46,6 +63,27 @@ export function FeatureInfoPanel({
 
     const areaHa =
         properties.areaM2 / 10_000;
+
+    const spatialQueryTypeEntries =
+        spatialQueryResult
+            ? LAND_USE_TYPES
+                .filter(
+                    (landUseType) =>
+                        spatialQueryResult.typeCounts[landUseType] > 0,
+                )
+                .map((landUseType) => ({
+                    landUseType,
+                    count: spatialQueryResult.typeCounts[landUseType],
+                }))
+            : [];
+
+    const maximumSpatialQueryTypeCount =
+        Math.max(
+            1,
+            ...spatialQueryTypeEntries.map(
+                (entry) => entry.count,
+            ),
+        );
 
     function handleCreateBuffer() {
         const distance = Number(bufferDistance);
@@ -188,7 +226,12 @@ export function FeatureInfoPanel({
                 </header>
 
                 <div className="feature-buffer-tool">
-                    <strong>缓冲区分析</strong>
+                    <header className="feature-analysis-section-header">
+                        <div>
+                            <span>BUFFER</span>
+                            <h4>缓冲区分析</h4>
+                        </div>
+                    </header>
 
                     <label htmlFor="feature-buffer-distance">
                         距离
@@ -224,26 +267,139 @@ export function FeatureInfoPanel({
                     </button>
 
                     {bufferResult && (
-                        <dl className="feature-buffer-result">
-                            <div>
-                                <dt>缓冲距离</dt>
-                                <dd>
-                                    {bufferResult.distance.toLocaleString("zh-CN")} m
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>缓冲面积</dt>
-                                <dd>
-                                    {bufferResult.areaM2.toLocaleString("zh-CN", {
-                                        maximumFractionDigits: 0,
-                                    })} m²
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>面积（km²）</dt>
-                                <dd>{bufferResult.areaKm2.toFixed(3)} km²</dd>
-                            </div>
-                        </dl>
+                        <>
+                            <dl className="feature-buffer-result">
+                                <div>
+                                    <dt>缓冲距离</dt>
+                                    <dd>
+                                        <strong>
+                                            {bufferResult.distance.toLocaleString("zh-CN")} m
+                                        </strong>
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>缓冲面积</dt>
+                                    <dd>
+                                        <strong>{bufferResult.areaKm2.toFixed(3)} km²</strong>
+                                        <span>
+                                            {bufferResult.areaM2.toLocaleString("zh-CN", {
+                                                maximumFractionDigits: 0,
+                                            })} m²
+                                        </span>
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            <section className="feature-location-query">
+                                <header className="feature-analysis-section-header">
+                                    <div>
+                                        <span>SELECT BY LOCATION</span>
+                                        <h4>范围查询</h4>
+                                    </div>
+
+                                    <span className="feature-relation-badge">
+                                        Intersects
+                                    </span>
+                                </header>
+
+                                {!spatialQueryResult && (
+                                    <button
+                                        type="button"
+                                        className="feature-spatial-query-submit"
+                                        onClick={onRunSpatialQuery}
+                                    >
+                                        查询范围内地块
+                                    </button>
+                                )}
+
+                                {spatialQueryError && (
+                                    <p className="feature-buffer-error">
+                                        {spatialQueryError}
+                                    </p>
+                                )}
+
+                                {spatialQueryResult && (
+                                    <section className="feature-spatial-query-result">
+                                        <header>
+                                            <strong>查询结果</strong>
+                                            <span>
+                                                {spatialQueryResult.featureCount.toLocaleString("zh-CN")}
+                                                {" 个要素"}
+                                            </span>
+                                        </header>
+
+                                        <dl className="feature-spatial-query-metrics">
+                                            <div>
+                                                <dd>
+                                                    {spatialQueryResult.featureCount.toLocaleString("zh-CN")}
+                                                </dd>
+                                                <dt>命中地块</dt>
+                                            </div>
+                                            <div>
+                                                <dd>
+                                                    {spatialQueryResult.totalAreaM2.toLocaleString("zh-CN", {
+                                                        maximumFractionDigits: 0,
+                                                    })}
+                                                    <span> m²</span>
+                                                </dd>
+                                                <dt>总面积</dt>
+                                            </div>
+                                        </dl>
+
+                                        <div className="feature-spatial-query-types">
+                                            <strong>分类分布</strong>
+
+                                            {spatialQueryTypeEntries.length > 0 ? (
+                                                <ul>
+                                                    {spatialQueryTypeEntries.map((entry) => (
+                                                        <li key={entry.landUseType}>
+                                                            <div>
+                                                                <span>
+                                                                    {LAND_USE_LABELS[entry.landUseType]}
+                                                                </span>
+                                                                <strong>{entry.count}</strong>
+                                                            </div>
+                                                            <span className="feature-distribution-track">
+                                                                <span
+                                                                    style={{
+                                                                        width: `${entry.count / maximumSpatialQueryTypeCount * 100}%`,
+                                                                    }}
+                                                                />
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p>暂无命中分类</p>
+                                            )}
+                                        </div>
+
+                                        <div className="feature-spatial-query-actions">
+                                            <button
+                                                type="button"
+                                                onClick={onRunSpatialQuery}
+                                            >
+                                                重新查询
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={onClearSpatialQuery}
+                                            >
+                                                清除查询结果
+                                            </button>
+                                        </div>
+                                    </section>
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="feature-analysis-secondary"
+                                    onClick={onClearBuffer}
+                                >
+                                    清除缓冲区
+                                </button>
+                            </section>
+                        </>
                     )}
                 </div>
             </section>
