@@ -8,6 +8,13 @@ import maplibregl, {
     type FilterSpecification,
     type ExpressionSpecification,
 } from "maplibre-gl";
+import type {
+    Feature,
+    GeoJsonProperties,
+    LineString,
+    Point,
+    Polygon,
+} from "geojson";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -21,7 +28,12 @@ import {
 import type {
     LandUseFeature,
     LandUseFeatureCollection,
+    Position,
 } from "../../types/landUse";
+import type {
+    AoiFeature,
+    AoiSketchMode,
+} from "../../types/analysis";
 
 import type {
     LayerStyle,
@@ -94,6 +106,27 @@ const SPATIAL_QUERY_FILL_LAYER_ID =
 const SPATIAL_QUERY_OUTLINE_LAYER_ID =
     "spatial-query-outline";
 
+const AOI_SOURCE_ID =
+    "aoi-source";
+
+const AOI_FILL_LAYER_ID =
+    "aoi-fill";
+
+const AOI_LINE_LAYER_ID =
+    "aoi-line";
+
+const AOI_POINT_LAYER_ID =
+    "aoi-points";
+
+const AOI_QUERY_SOURCE_ID =
+    "aoi-query-source";
+
+const AOI_QUERY_FILL_LAYER_ID =
+    "aoi-query-fill";
+
+const AOI_QUERY_OUTLINE_LAYER_ID =
+    "aoi-query-outline";
+
 
 
 
@@ -136,6 +169,18 @@ interface MapViewProps {
     spatialQueryFeatures?:
     LandUseFeature[];
 
+    aoiMode?:
+    AoiSketchMode;
+
+    aoiPoints?:
+    Position[];
+
+    aoiPolygon?:
+    AoiFeature | null;
+
+    aoiQueryFeatures?:
+    LandUseFeature[];
+
     onFeatureSelect?: (
         feature:
             LandUseFeature | null,
@@ -147,6 +192,13 @@ interface MapViewProps {
     ) => void;
 
     onMeasureComplete?:
+    () => void;
+
+    onAoiPointAdd?: (
+        point: Position,
+    ) => void;
+
+    onAoiComplete?:
     () => void;
 }
 
@@ -963,6 +1015,221 @@ function clearSpatialQueryLayer(
     }
 }
 
+type AoiRenderFeature = Feature<
+    Point | LineString | Polygon,
+    GeoJsonProperties
+>;
+
+function ensureAoiLayers(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(AOI_SOURCE_ID)) {
+        map.addSource(AOI_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    const beforeLayerId =
+        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ? HOVER_OUTLINE_LAYER_ID
+            : map.getLayer(SELECTED_FILL_LAYER_ID)
+                ? SELECTED_FILL_LAYER_ID
+                : undefined;
+
+    if (!map.getLayer(AOI_FILL_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: AOI_FILL_LAYER_ID,
+                type: "fill",
+                source: AOI_SOURCE_ID,
+                paint: {
+                    "fill-color": "#8b5cf6",
+                    "fill-opacity": 0.08,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+
+    if (!map.getLayer(AOI_LINE_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: AOI_LINE_LAYER_ID,
+                type: "line",
+                source: AOI_SOURCE_ID,
+                paint: {
+                    "line-color": "#7c3aed",
+                    "line-width": 2,
+                    "line-opacity": 0.85,
+                    "line-dasharray": [
+                        4,
+                        3,
+                    ],
+                },
+            },
+            beforeLayerId,
+        );
+    }
+
+    if (!map.getLayer(AOI_POINT_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: AOI_POINT_LAYER_ID,
+                type: "circle",
+                source: AOI_SOURCE_ID,
+                paint: {
+                    "circle-radius": 4,
+                    "circle-color": "#7c3aed",
+                    "circle-stroke-color": "#ffffff",
+                    "circle-stroke-width": 1.5,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+}
+
+function updateAoiLayers(
+    map: maplibregl.Map,
+    mode: AoiSketchMode,
+    points: Position[],
+    polygon: AoiFeature | null,
+) {
+    ensureAoiLayers(map);
+
+    const pointFeatures: AoiRenderFeature[] =
+        points.map((point) => ({
+            type: "Feature",
+            properties: {},
+            geometry: {
+                type: "Point",
+                coordinates: point,
+            },
+        }));
+    const shapeFeatures: AoiRenderFeature[] =
+        polygon
+            ? [polygon]
+            : mode === "drawing" && points.length >= 2
+                ? [{
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                        type: "LineString",
+                        coordinates: points,
+                    },
+                }]
+                : [];
+    const source = map.getSource(AOI_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: [
+                ...shapeFeatures,
+                ...pointFeatures,
+            ],
+        });
+    }
+}
+
+function clearAoiLayers(
+    map: maplibregl.Map,
+) {
+    const source = map.getSource(AOI_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: [],
+        });
+    }
+}
+
+function ensureAoiQueryLayers(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(AOI_QUERY_SOURCE_ID)) {
+        map.addSource(AOI_QUERY_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    const beforeLayerId =
+        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ? HOVER_OUTLINE_LAYER_ID
+            : map.getLayer(SELECTED_FILL_LAYER_ID)
+                ? SELECTED_FILL_LAYER_ID
+                : undefined;
+
+    if (!map.getLayer(AOI_QUERY_FILL_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: AOI_QUERY_FILL_LAYER_ID,
+                type: "fill",
+                source: AOI_QUERY_SOURCE_ID,
+                paint: {
+                    "fill-color": "#6366f1",
+                    "fill-opacity": 0.09,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+
+    if (!map.getLayer(AOI_QUERY_OUTLINE_LAYER_ID)) {
+        map.addLayer(
+            {
+                id: AOI_QUERY_OUTLINE_LAYER_ID,
+                type: "line",
+                source: AOI_QUERY_SOURCE_ID,
+                paint: {
+                    "line-color": "#4f46e5",
+                    "line-width": 1.5,
+                    "line-opacity": 0.75,
+                },
+            },
+            beforeLayerId,
+        );
+    }
+}
+
+function updateAoiQueryLayers(
+    map: maplibregl.Map,
+    features: LandUseFeature[],
+) {
+    ensureAoiQueryLayers(map);
+
+    const source = map.getSource(AOI_QUERY_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features,
+        });
+    }
+}
+
+function clearAoiQueryLayers(
+    map: maplibregl.Map,
+) {
+    const source = map.getSource(AOI_QUERY_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: [],
+        });
+    }
+}
+
 export function MapView({
     collection,
     allCollection,
@@ -976,9 +1243,15 @@ export function MapView({
     measureCompleted = false,
     bufferFeature = null,
     spatialQueryFeatures = [],
+    aoiMode = "idle",
+    aoiPoints = [],
+    aoiPolygon = null,
+    aoiQueryFeatures = [],
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
+    onAoiPointAdd,
+    onAoiComplete,
 }: MapViewProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
@@ -1041,6 +1314,24 @@ export function MapView({
 
     const latestSpatialQueryFeaturesRef =
         useRef<LandUseFeature[]>(spatialQueryFeatures);
+
+    const latestAoiModeRef =
+        useRef<AoiSketchMode>(aoiMode);
+
+    const latestAoiPointsRef =
+        useRef<Position[]>(aoiPoints);
+
+    const latestAoiPolygonRef =
+        useRef<AoiFeature | null>(aoiPolygon);
+
+    const latestAoiQueryFeaturesRef =
+        useRef<LandUseFeature[]>(aoiQueryFeatures);
+
+    const latestOnAoiPointAddRef =
+        useRef(onAoiPointAdd);
+
+    const latestOnAoiCompleteRef =
+        useRef(onAoiComplete);
 
     const [
         runtimeInfo,
@@ -1145,6 +1436,7 @@ export function MapView({
             );
 
             if (
+                latestAoiModeRef.current === "drawing" ||
                 latestMeasureModeRef.current !== "none" ||
                 !map.getLayer(LAND_USE_FILL_LAYER_ID) ||
                 !map.getLayer(HOVER_OUTLINE_LAYER_ID)
@@ -1201,6 +1493,19 @@ export function MapView({
             event:
                 maplibregl.MapMouseEvent,
         ) => {
+            if (
+                latestAoiModeRef.current === "drawing"
+            ) {
+                if (event.originalEvent.detail < 2) {
+                    latestOnAoiPointAddRef.current?.([
+                        event.lngLat.lng,
+                        event.lngLat.lat,
+                    ]);
+                }
+
+                return;
+            }
+
             if (
                 latestMeasureModeRef.current !== "none"
             ) {
@@ -1301,6 +1606,14 @@ export function MapView({
             event: maplibregl.MapMouseEvent,
         ) => {
             if (
+                latestAoiModeRef.current === "drawing"
+            ) {
+                event.preventDefault();
+                latestOnAoiCompleteRef.current?.();
+                return;
+            }
+
+            if (
                 latestMeasureModeRef.current === "none" ||
                 latestMeasureCompletedRef.current
             ) {
@@ -1395,12 +1708,20 @@ export function MapView({
         latestOnMeasureCompleteRef.current =
             onMeasureComplete;
 
+        latestOnAoiPointAddRef.current =
+            onAoiPointAdd;
+
+        latestOnAoiCompleteRef.current =
+            onAoiComplete;
+
         latestSelectedFeatureIdRef.current =
             selectedFeatureId;
     }, [
         onFeatureSelect,
         onMeasurePointAdd,
         onMeasureComplete,
+        onAoiPointAdd,
+        onAoiComplete,
         selectedFeatureId,
     ]);
 
@@ -1475,6 +1796,27 @@ export function MapView({
                     updateSpatialQueryLayer(
                         map,
                         latestSpatialQueryFeaturesRef.current,
+                    );
+                }
+
+                if (
+                    latestAoiModeRef.current !== "idle" &&
+                    latestAoiPointsRef.current.length > 0
+                ) {
+                    updateAoiLayers(
+                        map,
+                        latestAoiModeRef.current,
+                        latestAoiPointsRef.current,
+                        latestAoiPolygonRef.current,
+                    );
+                }
+
+                if (
+                    latestAoiQueryFeaturesRef.current.length > 0
+                ) {
+                    updateAoiQueryLayers(
+                        map,
+                        latestAoiQueryFeaturesRef.current,
                     );
                 }
 
@@ -1638,6 +1980,68 @@ export function MapView({
         spatialQueryFeatures,
     ]);
 
+    useEffect(() => {
+        latestAoiModeRef.current = aoiMode;
+        latestAoiPointsRef.current = aoiPoints;
+        latestAoiPolygonRef.current = aoiPolygon;
+
+        const map = mapRef.current;
+
+        if (!map) {
+            return;
+        }
+
+        if (
+            aoiMode === "idle" ||
+            aoiPoints.length === 0
+        ) {
+            clearAoiLayers(map);
+            return;
+        }
+
+        if (!map.isStyleLoaded()) {
+            return;
+        }
+
+        updateAoiLayers(
+            map,
+            aoiMode,
+            aoiPoints,
+            aoiPolygon,
+        );
+    }, [
+        aoiMode,
+        aoiPoints,
+        aoiPolygon,
+    ]);
+
+    useEffect(() => {
+        latestAoiQueryFeaturesRef.current =
+            aoiQueryFeatures;
+
+        const map = mapRef.current;
+
+        if (!map) {
+            return;
+        }
+
+        if (aoiQueryFeatures.length === 0) {
+            clearAoiQueryLayers(map);
+            return;
+        }
+
+        if (!map.isStyleLoaded()) {
+            return;
+        }
+
+        updateAoiQueryLayers(
+            map,
+            aoiQueryFeatures,
+        );
+    }, [
+        aoiQueryFeatures,
+    ]);
+
     /*
      * collection → MapLibre Source
      */
@@ -1756,6 +2160,15 @@ export function MapView({
         const canvas =
             map.getCanvas();
 
+        if (aoiMode === "drawing") {
+            map.dragPan.disable();
+
+            canvas.style.cursor =
+                "crosshair";
+
+            return;
+        }
+
 
         if (
             interactionMode ===
@@ -1776,6 +2189,7 @@ export function MapView({
             "crosshair";
     }, [
         interactionMode,
+        aoiMode,
     ]);
 
     /*

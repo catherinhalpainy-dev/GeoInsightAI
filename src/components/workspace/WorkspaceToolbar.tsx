@@ -1,3 +1,7 @@
+import {
+  SquareDashed,
+} from "lucide-react";
+
 import type { WorkspacePanel, WorkspaceTool } from "../../types/workspace";
 
 interface WorkspaceToolbarProps {
@@ -113,6 +117,23 @@ export function WorkspaceToolbar({
           测面积
         </span>
       </button>
+
+      <button
+        type="button"
+        className={
+          activePanel === "aoi-analysis"
+            ? "workspace-tool active"
+            : "workspace-tool"
+        }
+        onClick={() => {
+          onPanelToggle("aoi-analysis");
+        }}
+        title="绘制 AOI 并执行空间查询"
+      >
+        <SquareDashed size={19} strokeWidth={1.8} aria-hidden="true" />
+        <span>范围分析</span>
+      </button>
+
       <button
         type="button"
         className={
@@ -248,16 +269,6 @@ export function WorkspaceToolbar({
       >
         ▽
         <span>筛选</span>
-      </button>
-
-      <button
-        type="button"
-        className="workspace-tool"
-        disabled
-        title="空间分析将在后续实现"
-      >
-        ▥
-        <span>分析</span>
       </button>
 
       <button

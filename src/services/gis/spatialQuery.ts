@@ -1,6 +1,10 @@
 import {
     booleanIntersects,
+    booleanWithin,
 } from "@turf/turf";
+import {
+    area,
+} from "@turf/area";
 import type {
     Feature,
     GeoJsonProperties,
@@ -62,7 +66,10 @@ export function queryFeaturesByGeometry(
     relation: SpatialQueryRelation,
 ): LandUseFeature[] {
     if (
-        relation !== "intersects" ||
+        (
+            relation !== "intersects" &&
+            relation !== "within"
+        ) ||
         !hasValidCoordinates(queryGeometry)
     ) {
         return [];
@@ -79,10 +86,15 @@ export function queryFeaturesByGeometry(
             }
 
             try {
-                return booleanIntersects(
-                    feature,
-                    queryGeometry,
-                );
+                return relation === "within"
+                    ? booleanWithin(
+                        feature,
+                        queryGeometry,
+                    )
+                    : booleanIntersects(
+                        feature,
+                        queryGeometry,
+                    );
             } catch {
                 return false;
             }
@@ -122,6 +134,20 @@ export function summarizeSpatialQuery(
             properties.areaM2 > 0
         ) {
             totalAreaM2 += properties.areaM2;
+            continue;
+        }
+
+        try {
+            const calculatedArea = area(feature);
+
+            if (
+                Number.isFinite(calculatedArea) &&
+                calculatedArea > 0
+            ) {
+                totalAreaM2 += calculatedArea;
+            }
+        } catch {
+            // Invalid runtime geometry contributes no area.
         }
     }
 
@@ -132,6 +158,7 @@ export function summarizeSpatialQuery(
         ),
         featureCount: features.length,
         totalAreaM2,
+        totalAreaKm2: totalAreaM2 / 1_000_000,
         typeCounts,
     };
 }

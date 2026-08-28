@@ -21,10 +21,14 @@ import type { LandUseFilters } from "../app/appTypes";
 import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
+import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
+import { useAoiSketch } from "../hooks/useAoiSketch";
 import type {
+    AoiAnalysisResult,
+    AoiQueryRelation,
     BufferAnalysisResult,
     SpatialQueryResult,
 } from "../types/analysis";
@@ -37,6 +41,9 @@ import {
     queryFeaturesByGeometry,
     summarizeSpatialQuery,
 } from "../services/gis/spatialQuery";
+import {
+    downloadLandUseCsv,
+} from "../services/export/exportCsv";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -112,10 +119,94 @@ export function WorkspacePage() {
     const [spatialQueryError, setSpatialQueryError] =
         useState<string | null>(null);
 
+    const {
+        mode: aoiMode,
+        points: aoiPoints,
+        polygon: aoiPolygon,
+        start: startAoi,
+        addPoint: addAoiPoint,
+        complete: completeAoi,
+        restart: restartAoi,
+        clear: clearAoi,
+    } = useAoiSketch();
+    const [aoiRelation, setAoiRelation] =
+        useState<AoiQueryRelation>("intersects");
+    const [aoiQueryFeatures, setAoiQueryFeatures] =
+        useState<LandUseFeature[]>([]);
+    const [aoiAnalysisResult, setAoiAnalysisResult] =
+        useState<AoiAnalysisResult | null>(null);
+    const [aoiQueryError, setAoiQueryError] =
+        useState<string | null>(null);
+
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
         setSpatialQueryResult(null);
         setSpatialQueryError(null);
+    }
+
+    function handleClearAoiQuery() {
+        setAoiQueryFeatures([]);
+        setAoiAnalysisResult(null);
+        setAoiQueryError(null);
+    }
+
+    function handleStartAoi() {
+        clearMeasure();
+        handleClearAoiQuery();
+        startAoi();
+    }
+
+    function handleRestartAoi() {
+        handleClearAoiQuery();
+        restartAoi();
+    }
+
+    function handleClearAoiAnalysis() {
+        clearAoi();
+        handleClearAoiQuery();
+        setAoiRelation("intersects");
+    }
+
+    function handleAoiRelationChange(
+        relation: AoiQueryRelation,
+    ) {
+        setAoiRelation(relation);
+        handleClearAoiQuery();
+    }
+
+    function handleRunAoiQuery() {
+        if (!aoiPolygon) {
+            setAoiQueryError(
+                "请先完成 AOI 范围绘制",
+            );
+            return;
+        }
+
+        try {
+            const nextFeatures =
+                queryFeaturesByGeometry(
+                    filteredCollection,
+                    aoiPolygon,
+                    aoiRelation,
+                );
+            const nextResult =
+                summarizeSpatialQuery(
+                    nextFeatures,
+                    aoiRelation,
+                );
+
+            setAoiQueryFeatures(nextFeatures);
+            setAoiAnalysisResult(nextResult);
+            setAoiQueryError(null);
+        } catch (error) {
+            setAoiQueryFeatures([]);
+            setAoiAnalysisResult(null);
+            setAoiQueryError(
+                error instanceof Error
+                    ? error.message
+                    : "AOI 空间查询失败",
+            );
+        }
     }
 
     const [
@@ -337,6 +428,9 @@ export function WorkspacePage() {
         setSpatialQueryFeatures([]);
         setSpatialQueryResult(null);
         setSpatialQueryError(null);
+        setAoiQueryFeatures([]);
+        setAoiAnalysisResult(null);
+        setAoiQueryError(null);
     }, [
         filteredFeatures,
     ]);
@@ -463,6 +557,46 @@ export function WorkspacePage() {
 
         URL.revokeObjectURL(
             url,
+        );
+    }
+
+    function handleExportAoiGeoJson() {
+        if (!aoiAnalysisResult) {
+            return;
+        }
+
+        const collection: LandUseFeatureCollection = {
+            type: "FeatureCollection",
+            features: aoiQueryFeatures,
+        };
+        const blob = new Blob(
+            [JSON.stringify(collection, null, 2)],
+            {
+                type: "application/geo+json;charset=utf-8",
+            },
+        );
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+
+        anchor.href = url;
+        anchor.download =
+            `geoinsight-aoi-${aoiRelation}-${Date.now()}.geojson`;
+
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+
+        URL.revokeObjectURL(url);
+    }
+
+    function handleExportAoiCsv() {
+        if (!aoiAnalysisResult) {
+            return;
+        }
+
+        downloadLandUseCsv(
+            aoiQueryFeatures,
+            `geoinsight-aoi-result-${Date.now()}.csv`,
         );
     }
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
@@ -768,6 +902,14 @@ export function WorkspacePage() {
                             spatialQueryFeatures
                         }
 
+                        aoiMode={aoiMode}
+
+                        aoiPoints={aoiPoints}
+
+                        aoiPolygon={aoiPolygon}
+
+                        aoiQueryFeatures={aoiQueryFeatures}
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -784,6 +926,10 @@ export function WorkspacePage() {
                         onMeasurePointAdd={addMeasurePoint}
 
                         onMeasureComplete={completeMeasure}
+
+                        onAoiPointAdd={addAoiPoint}
+
+                        onAoiComplete={completeAoi}
                     />
 
                     <MeasureResult
@@ -913,6 +1059,27 @@ export function WorkspacePage() {
                     hasUnsavedChanges={
                         hasUnsavedChanges
                     }
+                />
+            )}
+
+            {activePanel === "aoi-analysis" && (
+                <AoiAnalysisPanel
+                    mode={aoiMode}
+                    pointCount={aoiPoints.length}
+                    relation={aoiRelation}
+                    result={aoiAnalysisResult}
+                    error={aoiQueryError}
+                    onRelationChange={handleAoiRelationChange}
+                    onStart={handleStartAoi}
+                    onRestart={handleRestartAoi}
+                    onCancelDrawing={handleClearAoiAnalysis}
+                    onRunQuery={handleRunAoiQuery}
+                    onExportGeoJson={handleExportAoiGeoJson}
+                    onExportCsv={handleExportAoiCsv}
+                    onClear={handleClearAoiAnalysis}
+                    onClose={() => {
+                        setActivePanel(null);
+                    }}
                 />
             )}
 

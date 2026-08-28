@@ -10,6 +10,7 @@ export type WorkspacePanel =
     | "feature"
     |"table"
     | "basemap"
+    | "aoi-analysis"
     | "agent"
     | null;
 
