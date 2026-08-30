@@ -542,3 +542,297 @@ button:disabled {
   background:
     rgba(255, 255, 255, 0.98);
 }
+
+/* ==============================
+   Day 6 · GIS Symbology
+   ============================== */
+
+.layer-style-panel {
+  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: thin;
+}
+
+.layer-style-header > span,
+.style-section-eyebrow {
+  display: block;
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.layer-style-header h2 {
+  margin-top: 4px;
+}
+
+.style-section .style-section-eyebrow + h3 {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.symbology-mode-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.symbology-mode-control button,
+.style-segmented-control button,
+.style-method-control button,
+.style-class-counts button,
+.style-color-ramps button {
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  cursor: pointer;
+}
+
+.symbology-mode-control button {
+  display: flex;
+  min-height: 50px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 3px;
+  border-radius: 7px;
+}
+
+.symbology-mode-control button > span {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.symbology-mode-control button > small {
+  font-size: 8px;
+}
+
+.symbology-mode-control button.is-active,
+.style-segmented-control button.is-active,
+.style-method-control button.is-active,
+.style-class-counts button.is-active {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  color: #0f766e;
+}
+
+.style-data-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 12px;
+  min-height: 38px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.style-data-field > span,
+.style-control-group > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.style-data-field > strong {
+  color: #0f172a;
+  font-size: 11px;
+}
+
+.style-data-field > small {
+  grid-column: 1 / -1;
+  color: #94a3b8;
+  font-size: 9px;
+}
+
+.style-symbol-list,
+.style-class-preview ul {
+  display: grid;
+  gap: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.style-symbol-list li,
+.style-class-preview li {
+  display: grid;
+  min-height: 30px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  color: #475569;
+  font-size: 10px;
+}
+
+.style-symbol-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 4px;
+}
+
+.style-control-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.style-control-group:first-of-type {
+  margin-top: 0;
+}
+
+.style-segmented-control,
+.style-method-control,
+.style-class-counts {
+  display: grid;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 9px;
+  background: #f1f5f9;
+}
+
+.style-segmented-control,
+.style-method-control {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.style-segmented-control button,
+.style-class-counts button {
+  min-height: 32px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.style-method-control button {
+  display: flex;
+  min-height: 42px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 6px;
+}
+
+.style-method-control button > span {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.style-method-control button > small {
+  font-size: 8px;
+}
+
+.style-class-counts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.style-color-ramps {
+  display: grid;
+  gap: 5px;
+}
+
+.style-color-ramps button {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 7px;
+  border-color: #e2e8f0;
+  border-radius: 7px;
+  background: #ffffff;
+  text-align: left;
+}
+
+.style-color-ramps button > span:first-child {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.style-color-ramps button.is-active {
+  border-color: #5eead4;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.08);
+  color: #0f766e;
+}
+
+.style-ramp-preview {
+  display: flex;
+  min-width: 0;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.style-ramp-preview i {
+  min-width: 0;
+  flex: 1;
+}
+
+.style-class-preview {
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.style-class-preview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.style-class-preview > div > span {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.style-class-preview > div > small {
+  color: #94a3b8;
+  font-size: 9px;
+}
+
+.style-class-preview p {
+  margin: 10px 0 0;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.style-presets {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.style-preset {
+  min-height: 36px;
+  padding: 7px;
+  border-radius: 7px;
+}
+
+.symbology-mode-control button:focus-visible,
+.style-segmented-control button:focus-visible,
+.style-method-control button:focus-visible,
+.style-class-counts button:focus-visible,
+.style-color-ramps button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .symbology-mode-control {
+    grid-template-columns: 1fr;
+  }
+
+  .style-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

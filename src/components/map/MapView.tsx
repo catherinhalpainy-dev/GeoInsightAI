@@ -50,6 +50,7 @@ import {
 } from "../../utils/calculateLandUseBounds";
 import type { MeasureMode } from "../../types/measure";
 import type { BufferFeature } from "../../services/gis/buffer";
+import { MapLegend } from "./MapLegend";
 
 const BASEMAP_STYLES: Record<
     BasemapType,
@@ -224,11 +225,17 @@ interface PickedCoordinate {
 
 
 
-function createClassifiedFillColor(): ExpressionSpecification {
+const GRADUATED_NO_DATA_COLOR =
+    "#cbd5e1";
+
+function createCategorizedFillColor(
+    field: LayerStyle["categorizedField"] =
+        "landUseType",
+): ExpressionSpecification {
     return [
         "match",
 
-        ["get", "landUseType"],
+        ["get", field],
 
         "residential",
         LAND_USE_COLORS.residential,
@@ -250,6 +257,74 @@ function createClassifiedFillColor(): ExpressionSpecification {
 
         LAND_USE_COLORS.other,
     ];
+}
+
+function createGraduatedFillColor(
+    style: LayerStyle,
+): string | ExpressionSpecification {
+    const firstClass =
+        style.graduatedClasses[0];
+
+    if (!firstClass) {
+        return GRADUATED_NO_DATA_COLOR;
+    }
+
+    const stops = style.graduatedClasses
+        .slice(1)
+        .flatMap((item) => [
+            item.min,
+            item.color,
+        ]);
+    const stepExpression = [
+        "step",
+        [
+            "to-number",
+            [
+                "get",
+                style.graduatedField,
+            ],
+        ],
+        firstClass.color,
+        ...stops,
+    ] as ExpressionSpecification;
+
+    return [
+        "case",
+        [
+            "all",
+            [
+                "has",
+                style.graduatedField,
+            ],
+            [
+                "!=",
+                [
+                    "get",
+                    style.graduatedField,
+                ],
+                null,
+            ],
+        ],
+        stepExpression,
+        GRADUATED_NO_DATA_COLOR,
+    ] as ExpressionSpecification;
+}
+
+function createLandUseFillColor(
+    style: LayerStyle,
+): string | ExpressionSpecification {
+    switch (style.symbologyMode) {
+        case "categorized":
+            return createCategorizedFillColor(
+                style.categorizedField,
+            );
+
+        case "graduated":
+            return createGraduatedFillColor(style);
+
+        case "single":
+            return style.fillColor;
+    }
 }
 
 
@@ -282,10 +357,7 @@ function applyLayerStyle(
         map.setPaintProperty(
             LAND_USE_FILL_LAYER_ID,
             "fill-color",
-            style.colorMode ===
-                "classified"
-                ? createClassifiedFillColor()
-                : style.fillColor,
+            createLandUseFillColor(style),
         );
 
         map.setPaintProperty(
@@ -480,7 +552,7 @@ function ensureLandUseLayers(
 
             paint: {
                 "fill-color":
-                    createClassifiedFillColor(),
+                    createCategorizedFillColor(),
 
                 "fill-opacity":
                     0.68,
@@ -2468,8 +2540,7 @@ export function MapView({
                 className="map-container"
             />
 
-
-
+            <MapLegend style={layerStyle} />
 
             <div className="map-runtime-info">
                 <span className="map-cursor-coordinate">

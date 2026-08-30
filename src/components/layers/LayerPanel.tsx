@@ -299,31 +299,70 @@ export function LayerPanel({
 
 
       <section className="layer-section">
-        <h3>分类图例</h3>
+        <h3>符号概览</h3>
 
         <ul className="layer-legend">
-          {LAND_USE_TYPES.map((type) => (
-            <li key={type}>
+          {layerStyle.symbologyMode === "single" && (
+            <li>
               <span
                 className="layer-legend-color"
                 style={{
                   background:
-                    LAND_USE_COLORS[type],
+                    layerStyle.fillColor,
                 }}
               />
 
               <span className="layer-legend-name">
-                {LAND_USE_LABELS[type]}
+                土地利用地块
               </span>
 
               <strong>
-                {
-                  statistics
-                    .countsByType[type]
-                }
+                {filteredFeatures.length}
               </strong>
             </li>
-          ))}
+          )}
+
+          {layerStyle.symbologyMode === "categorized" &&
+            LAND_USE_TYPES.map((type) => (
+              <li key={type}>
+                <span
+                  className="layer-legend-color"
+                  style={{
+                    background:
+                      LAND_USE_COLORS[type],
+                  }}
+                />
+
+                <span className="layer-legend-name">
+                  {LAND_USE_LABELS[type]}
+                </span>
+
+                <strong>
+                  {
+                    statistics
+                      .countsByType[type]
+                  }
+                </strong>
+              </li>
+            ))}
+
+          {layerStyle.symbologyMode === "graduated" &&
+            layerStyle.graduatedClasses.map((item, index) => (
+              <li
+                key={`${item.min}-${item.max}-${index}`}
+              >
+                <span
+                  className="layer-legend-color"
+                  style={{
+                    background: item.color,
+                  }}
+                />
+
+                <span className="layer-legend-name">
+                  {item.label}
+                </span>
+              </li>
+            ))}
         </ul>
       </section>
       <div className="layer-order-actions">

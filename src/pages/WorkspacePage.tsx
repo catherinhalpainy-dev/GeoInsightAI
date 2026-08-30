@@ -44,6 +44,12 @@ import {
 import {
     downloadLandUseCsv,
 } from "../services/export/exportCsv";
+import {
+    getColorRampColors,
+} from "../constants/colorRamps";
+import {
+    createGraduatedClasses,
+} from "../services/gis/symbology";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -690,6 +696,52 @@ export function WorkspacePage() {
             [filteredFeatures],
         );
 
+    const graduatedClasses = useMemo(
+        () => {
+            if (
+                layerStyle.symbologyMode !==
+                "graduated"
+            ) {
+                return [];
+            }
+
+            return createGraduatedClasses(
+                filteredFeatures,
+                {
+                    field:
+                        layerStyle.graduatedField,
+                    method:
+                        layerStyle.classificationMethod,
+                    classCount:
+                        layerStyle.classCount,
+                    colors: getColorRampColors(
+                        layerStyle.colorRamp,
+                        layerStyle.classCount,
+                    ),
+                },
+            );
+        },
+        [
+            filteredFeatures,
+            layerStyle.symbologyMode,
+            layerStyle.graduatedField,
+            layerStyle.classificationMethod,
+            layerStyle.classCount,
+            layerStyle.colorRamp,
+        ],
+    );
+
+    const thematicLayerStyle = useMemo<LayerStyle>(
+        () => ({
+            ...layerStyle,
+            graduatedClasses,
+        }),
+        [
+            layerStyle,
+            graduatedClasses,
+        ],
+    );
+
     const {
         mode: measureMode,
         points: measurePoints,
@@ -776,11 +828,22 @@ export function WorkspacePage() {
 
 
                 case "update_layer_style": {
+                    const {
+                        colorMode,
+                        ...styleUpdates
+                    } = command.payload;
+
                     setLayerStyle(
                         (previous) => {
                             return {
                                 ...previous,
-                                ...command.payload,
+                                ...styleUpdates,
+                                symbologyMode:
+                                    colorMode === undefined
+                                        ? previous.symbologyMode
+                                        : colorMode === "classified"
+                                            ? "categorized"
+                                            : "single",
                             };
                         },
                     );
@@ -883,7 +946,7 @@ export function WorkspacePage() {
                             dataset.collection
                         }
                         interactionMode={activeTool}
-                        layerStyle={layerStyle}
+                        layerStyle={thematicLayerStyle}
                         basemap={basemap}
                         selectedFeatureId={
                             selectedFeature
@@ -974,8 +1037,13 @@ export function WorkspacePage() {
             )}
             {activePanel === "layers" && (
                 <LayerPanel
-                    layerStyle={layerStyle}
-                    onLayerStyleChange={setLayerStyle}
+                    layerStyle={thematicLayerStyle}
+                    onLayerStyleChange={(nextStyle) => {
+                        setLayerStyle({
+                            ...nextStyle,
+                            graduatedClasses: [],
+                        });
+                    }}
                     onMoveUp={() => {
                         requestMapView(
                             "layer-up",
@@ -1051,7 +1119,7 @@ export function WorkspacePage() {
             )}
             {activePanel === "style" && (
                 <LayerStylePanel
-                    style={layerStyle}
+                    style={thematicLayerStyle}
                     onChange={updateLayerStyle}
                     onReset={handleResetStyle}
                     onApplyReset={handleApplyPreset}
