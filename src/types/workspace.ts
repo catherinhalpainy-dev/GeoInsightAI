@@ -11,6 +11,7 @@ export type WorkspacePanel =
     |"table"
     | "basemap"
     | "aoi-analysis"
+    | "geoprocessing"
     | "agent"
     | null;
 

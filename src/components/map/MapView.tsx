@@ -31,6 +31,7 @@ import type {
     Position,
 } from "../../types/landUse";
 import type {
+    AnalysisResultLayer,
     AoiFeature,
     AoiSketchMode,
 } from "../../types/analysis";
@@ -128,6 +129,18 @@ const AOI_QUERY_FILL_LAYER_ID =
 const AOI_QUERY_OUTLINE_LAYER_ID =
     "aoi-query-outline";
 
+const ANALYSIS_SOURCE_PREFIX =
+    "analysis-source-";
+
+const ANALYSIS_FILL_PREFIX =
+    "analysis-fill-";
+
+const ANALYSIS_LINE_PREFIX =
+    "analysis-line-";
+
+const ANALYSIS_CIRCLE_PREFIX =
+    "analysis-circle-";
+
 
 
 
@@ -181,6 +194,9 @@ interface MapViewProps {
 
     aoiQueryFeatures?:
     LandUseFeature[];
+
+    analysisResultLayers?:
+    AnalysisResultLayer[];
 
     onFeatureSelect?: (
         feature:
@@ -1302,6 +1318,219 @@ function clearAoiQueryLayers(
     }
 }
 
+function getAnalysisSourceId(
+    layerId: string,
+) {
+    return `${ANALYSIS_SOURCE_PREFIX}${layerId}`;
+}
+
+function getAnalysisFillLayerId(
+    layerId: string,
+) {
+    return `${ANALYSIS_FILL_PREFIX}${layerId}`;
+}
+
+function getAnalysisLineLayerId(
+    layerId: string,
+) {
+    return `${ANALYSIS_LINE_PREFIX}${layerId}`;
+}
+
+function getAnalysisCircleLayerId(
+    layerId: string,
+) {
+    return `${ANALYSIS_CIRCLE_PREFIX}${layerId}`;
+}
+
+function isManagedAnalysisLayerId(
+    layerId: string,
+) {
+    return layerId.startsWith(ANALYSIS_FILL_PREFIX) ||
+        layerId.startsWith(ANALYSIS_LINE_PREFIX) ||
+        layerId.startsWith(ANALYSIS_CIRCLE_PREFIX);
+}
+
+function syncAnalysisResultLayers(
+    map: maplibregl.Map,
+    layers: AnalysisResultLayer[],
+) {
+    const desiredSourceIds = new Set(
+        layers.map(
+            (layer) => getAnalysisSourceId(layer.id),
+        ),
+    );
+    const desiredLayerIds = new Set<string>();
+
+    for (const layer of layers) {
+        if (layer.geometryType === "Point") {
+            desiredLayerIds.add(
+                getAnalysisCircleLayerId(layer.id),
+            );
+        } else {
+            desiredLayerIds.add(
+                getAnalysisFillLayerId(layer.id),
+            );
+            desiredLayerIds.add(
+                getAnalysisLineLayerId(layer.id),
+            );
+        }
+    }
+
+    const currentStyle = map.getStyle();
+    const obsoleteLayerIds =
+        (currentStyle.layers ?? [])
+            .map((layer) => layer.id)
+            .filter(
+                (layerId) =>
+                    isManagedAnalysisLayerId(layerId) &&
+                    !desiredLayerIds.has(layerId),
+            );
+
+    for (const layerId of obsoleteLayerIds) {
+        if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+        }
+    }
+
+    const obsoleteSourceIds = Object.keys(
+        currentStyle.sources ?? {},
+    ).filter(
+        (sourceId) =>
+            sourceId.startsWith(ANALYSIS_SOURCE_PREFIX) &&
+            !desiredSourceIds.has(sourceId),
+    );
+
+    for (const sourceId of obsoleteSourceIds) {
+        if (map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+        }
+    }
+
+    const beforeLayerId =
+        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+            ? HOVER_OUTLINE_LAYER_ID
+            : map.getLayer(SELECTED_FILL_LAYER_ID)
+                ? SELECTED_FILL_LAYER_ID
+                : undefined;
+
+    for (const layer of layers) {
+        const sourceId =
+            getAnalysisSourceId(layer.id);
+        const visibility =
+            layer.visible
+                ? "visible"
+                : "none";
+        const existingSource =
+            map.getSource(sourceId);
+
+        if (!existingSource) {
+            map.addSource(sourceId, {
+                type: "geojson",
+                data: layer.collection,
+            });
+        } else if (existingSource.type === "geojson") {
+            (
+                existingSource as
+                maplibregl.GeoJSONSource
+            ).setData(layer.collection);
+        }
+
+        if (layer.geometryType === "Point") {
+            const circleLayerId =
+                getAnalysisCircleLayerId(layer.id);
+
+            if (!map.getLayer(circleLayerId)) {
+                map.addLayer(
+                    {
+                        id: circleLayerId,
+                        type: "circle",
+                        source: sourceId,
+                        layout: {
+                            visibility,
+                        },
+                        paint: {
+                            "circle-color": "#ef4444",
+                            "circle-radius": 4.5,
+                            "circle-opacity": 0.9,
+                            "circle-stroke-color": "#ffffff",
+                            "circle-stroke-width": 1.5,
+                        },
+                    },
+                    beforeLayerId,
+                );
+            }
+
+            map.setLayoutProperty(
+                circleLayerId,
+                "visibility",
+                visibility,
+            );
+            continue;
+        }
+
+        const fillLayerId =
+            getAnalysisFillLayerId(layer.id);
+        const lineLayerId =
+            getAnalysisLineLayerId(layer.id);
+        const isIntersection =
+            layer.operation === "intersection";
+
+        if (!map.getLayer(fillLayerId)) {
+            map.addLayer(
+                {
+                    id: fillLayerId,
+                    type: "fill",
+                    source: sourceId,
+                    layout: {
+                        visibility,
+                    },
+                    paint: {
+                        "fill-color": isIntersection
+                            ? "#f59e0b"
+                            : "#8b5cf6",
+                        "fill-opacity": isIntersection
+                            ? 0.16
+                            : 0.14,
+                    },
+                },
+                beforeLayerId,
+            );
+        }
+
+        if (!map.getLayer(lineLayerId)) {
+            map.addLayer(
+                {
+                    id: lineLayerId,
+                    type: "line",
+                    source: sourceId,
+                    layout: {
+                        visibility,
+                    },
+                    paint: {
+                        "line-color": isIntersection
+                            ? "#d97706"
+                            : "#7c3aed",
+                        "line-width": 1.5,
+                        "line-opacity": 0.85,
+                    },
+                },
+                beforeLayerId,
+            );
+        }
+
+        map.setLayoutProperty(
+            fillLayerId,
+            "visibility",
+            visibility,
+        );
+        map.setLayoutProperty(
+            lineLayerId,
+            "visibility",
+            visibility,
+        );
+    }
+}
+
 export function MapView({
     collection,
     allCollection,
@@ -1319,6 +1548,7 @@ export function MapView({
     aoiPoints = [],
     aoiPolygon = null,
     aoiQueryFeatures = [],
+    analysisResultLayers = [],
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
@@ -1398,6 +1628,11 @@ export function MapView({
 
     const latestAoiQueryFeaturesRef =
         useRef<LandUseFeature[]>(aoiQueryFeatures);
+
+    const latestAnalysisResultLayersRef =
+        useRef<AnalysisResultLayer[]>(
+            analysisResultLayers,
+        );
 
     const latestOnAoiPointAddRef =
         useRef(onAoiPointAdd);
@@ -1892,6 +2127,11 @@ export function MapView({
                     );
                 }
 
+                syncAnalysisResultLayers(
+                    map,
+                    latestAnalysisResultLayersRef.current,
+                );
+
                 /*
                  * 恢复当前选中地块
                  */
@@ -2114,6 +2354,24 @@ export function MapView({
         aoiQueryFeatures,
     ]);
 
+    useEffect(() => {
+        latestAnalysisResultLayersRef.current =
+            analysisResultLayers;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        syncAnalysisResultLayers(
+            map,
+            analysisResultLayers,
+        );
+    }, [
+        analysisResultLayers,
+    ]);
+
     /*
      * collection → MapLibre Source
      */
@@ -2150,6 +2408,11 @@ export function MapView({
                         collection,
                     );
 
+                    syncAnalysisResultLayers(
+                        map,
+                        latestAnalysisResultLayersRef.current,
+                    );
+
                     return;
                 }
 
@@ -2158,6 +2421,11 @@ export function MapView({
                     map,
                     collection,
                     latestLayerStyleRef.current,
+                );
+
+                syncAnalysisResultLayers(
+                    map,
+                    latestAnalysisResultLayersRef.current,
                 );
 
 

@@ -5,7 +5,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
@@ -22,6 +22,7 @@ import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
+import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
@@ -29,7 +30,11 @@ import { useAoiSketch } from "../hooks/useAoiSketch";
 import type {
     AoiAnalysisResult,
     AoiQueryRelation,
+    AnalysisResultFeatureCollection,
+    AnalysisResultLayer,
     BufferAnalysisResult,
+    GeoprocessingRunRequest,
+    GeoprocessingRunSummary,
     SpatialQueryResult,
 } from "../types/analysis";
 import {
@@ -50,6 +55,16 @@ import {
 import {
     createGraduatedClasses,
 } from "../services/gis/symbology";
+import {
+    calculateAnalysisAreaM2,
+    createCentroids,
+    dissolveFeatures,
+    getAnalysisGeometryType,
+    intersectFeaturesWithGeometry,
+} from "../services/gis/geoprocessing";
+import {
+    exportFeatureCollection,
+} from "../services/export/exportGeoJson";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -143,6 +158,13 @@ export function WorkspacePage() {
         useState<AoiAnalysisResult | null>(null);
     const [aoiQueryError, setAoiQueryError] =
         useState<string | null>(null);
+    const [analysisResultLayers, setAnalysisResultLayers] =
+        useState<AnalysisResultLayer[]>([]);
+    const [geoprocessingSummary, setGeoprocessingSummary] =
+        useState<GeoprocessingRunSummary | null>(null);
+    const [geoprocessingError, setGeoprocessingError] =
+        useState<string | null>(null);
+    const analysisLayerSequenceRef = useRef(0);
 
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
@@ -393,6 +415,206 @@ export function WorkspacePage() {
         handleClearSpatialQuery();
     }
 
+    function resolveGeoprocessingInput(
+        inputSource: GeoprocessingRunRequest["inputSource"],
+    ): LandUseFeatureCollection {
+        const features =
+            inputSource === "aoi-query"
+                ? aoiQueryFeatures
+                : inputSource === "buffer-query"
+                    ? spatialQueryFeatures
+                    : filteredFeatures;
+
+        return {
+            type: "FeatureCollection",
+            features,
+        };
+    }
+
+    function getGeoprocessingLayerName(
+        request: GeoprocessingRunRequest,
+    ) {
+        if (request.operation === "intersection") {
+            return request.overlaySource === "aoi"
+                ? "AOI Intersection"
+                : "Buffer Intersection";
+        }
+
+        if (request.operation === "dissolve") {
+            return request.dissolveField === "landUseType"
+                ? "Dissolve by landUseType"
+                : "Dissolve All";
+        }
+
+        return "Centroids";
+    }
+
+    function handleRunGeoprocessing(
+        request: GeoprocessingRunRequest,
+    ) {
+        const startedAt = performance.now();
+        const inputCollection =
+            resolveGeoprocessingInput(
+                request.inputSource,
+            );
+
+        if (inputCollection.features.length === 0) {
+            setGeoprocessingSummary(null);
+            setGeoprocessingError(
+                "所选输入图层没有可处理的要素",
+            );
+            return;
+        }
+
+        try {
+            let resultCollection:
+                AnalysisResultFeatureCollection;
+
+            if (request.operation === "intersection") {
+                const overlay =
+                    request.overlaySource === "aoi"
+                        ? aoiPolygon
+                        : bufferFeature;
+
+                if (!overlay) {
+                    throw new Error(
+                        request.overlaySource === "aoi"
+                            ? "请先完成 AOI 绘制"
+                            : "请先创建 Buffer",
+                    );
+                }
+
+                resultCollection =
+                    intersectFeaturesWithGeometry(
+                        inputCollection,
+                        overlay,
+                    );
+
+                if (resultCollection.features.length === 0) {
+                    throw new Error(
+                        "叠加范围与输入图层没有面积交集",
+                    );
+                }
+            } else if (request.operation === "dissolve") {
+                resultCollection = dissolveFeatures(
+                    inputCollection,
+                    request.dissolveField,
+                );
+            } else {
+                resultCollection = createCentroids(
+                    inputCollection,
+                );
+            }
+
+            const createdAt = Date.now();
+
+            analysisLayerSequenceRef.current += 1;
+
+            const layerId = [
+                "analysis",
+                request.operation,
+                createdAt,
+                analysisLayerSequenceRef.current,
+            ].join("-");
+            const nextLayer: AnalysisResultLayer = {
+                id: layerId,
+                name: getGeoprocessingLayerName(request),
+                operation: request.operation,
+                geometryType:
+                    getAnalysisGeometryType(
+                        resultCollection,
+                    ),
+                visible: true,
+                createdAt,
+                featureCount:
+                    resultCollection.features.length,
+                collection: resultCollection,
+            };
+            const elapsedMs =
+                performance.now() - startedAt;
+
+            setAnalysisResultLayers(
+                (previous) => [
+                    ...previous,
+                    nextLayer,
+                ],
+            );
+            setGeoprocessingSummary({
+                layerId,
+                operation: request.operation,
+                inputCount:
+                    inputCollection.features.length,
+                outputCount:
+                    resultCollection.features.length,
+                totalAreaM2:
+                    request.operation === "intersection"
+                        ? calculateAnalysisAreaM2(
+                            resultCollection,
+                        )
+                        : undefined,
+                elapsedMs,
+            });
+            setGeoprocessingError(null);
+        } catch (error) {
+            setGeoprocessingSummary(null);
+            setGeoprocessingError(
+                error instanceof Error
+                    ? error.message
+                    : "地理处理执行失败",
+            );
+        }
+    }
+
+    function handleAnalysisLayerVisibilityChange(
+        layerId: string,
+        visible: boolean,
+    ) {
+        setAnalysisResultLayers(
+            (previous) => previous.map(
+                (layer) =>
+                    layer.id === layerId
+                        ? {
+                            ...layer,
+                            visible,
+                        }
+                        : layer,
+            ),
+        );
+    }
+
+    function handleDeleteAnalysisLayer(
+        layerId: string,
+    ) {
+        setAnalysisResultLayers(
+            (previous) => previous.filter(
+                (layer) => layer.id !== layerId,
+            ),
+        );
+        setGeoprocessingSummary(
+            (previous) =>
+                previous?.layerId === layerId
+                    ? null
+                    : previous,
+        );
+    }
+
+    function handleExportAnalysisLayer(
+        layerId: string,
+    ) {
+        const layer = analysisResultLayers.find(
+            (item) => item.id === layerId,
+        );
+
+        if (!layer) {
+            return;
+        }
+
+        exportFeatureCollection(
+            layer.collection,
+            `geoinsight-${layer.operation}-${layer.createdAt}.geojson`,
+        );
+    }
+
     useEffect(() => {
         if (
             !selectedFeature
@@ -494,75 +716,16 @@ export function WorkspacePage() {
 
     // GeoJSON 导出
     function handleExportGeoJSON() {
-        if (
-            filteredFeatures.length === 0
-        ) {
+        if (filteredFeatures.length === 0) {
             return;
         }
 
-
-        const collection:
-            LandUseFeatureCollection = {
-            type:
-                "FeatureCollection",
-
-            features:
-                filteredFeatures,
-        };
-
-
-        const json =
-            JSON.stringify(
-                collection,
-                null,
-                2,
-            );
-
-
-        const blob =
-            new Blob(
-                [json],
-                {
-                    type:
-                        "application/geo+json;charset=utf-8",
-                },
-            );
-
-
-        const url =
-            URL.createObjectURL(
-                blob,
-            );
-
-
-        const anchor =
-            document.createElement(
-                "a",
-            );
-
-
-        anchor.href =
-            url;
-
-        anchor.download =
-            `geoinsight-filtered-${Date.now()}.geojson`;
-
-
-        document.body.appendChild(
-            anchor,
-        );
-
-
-        anchor.click();
-
-
-        document.body.removeChild(
-            anchor,
-        );
-
-
-        URL.revokeObjectURL(
-            url,
+        exportFeatureCollection(
+            {
+                type: "FeatureCollection",
+                features: filteredFeatures,
+            },
+            `geoinsight-filtered-${Date.now()}.geojson`,
         );
     }
 
@@ -575,24 +738,10 @@ export function WorkspacePage() {
             type: "FeatureCollection",
             features: aoiQueryFeatures,
         };
-        const blob = new Blob(
-            [JSON.stringify(collection, null, 2)],
-            {
-                type: "application/geo+json;charset=utf-8",
-            },
+        exportFeatureCollection(
+            collection,
+            `geoinsight-aoi-${aoiRelation}-${Date.now()}.geojson`,
         );
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-
-        anchor.href = url;
-        anchor.download =
-            `geoinsight-aoi-${aoiRelation}-${Date.now()}.geojson`;
-
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-
-        URL.revokeObjectURL(url);
     }
 
     function handleExportAoiCsv() {
@@ -973,6 +1122,8 @@ export function WorkspacePage() {
 
                         aoiQueryFeatures={aoiQueryFeatures}
 
+                        analysisResultLayers={analysisResultLayers}
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -1038,12 +1189,22 @@ export function WorkspacePage() {
             {activePanel === "layers" && (
                 <LayerPanel
                     layerStyle={thematicLayerStyle}
+                    analysisResultLayers={analysisResultLayers}
                     onLayerStyleChange={(nextStyle) => {
                         setLayerStyle({
                             ...nextStyle,
                             graduatedClasses: [],
                         });
                     }}
+                    onAnalysisLayerVisibilityChange={
+                        handleAnalysisLayerVisibilityChange
+                    }
+                    onDeleteAnalysisLayer={
+                        handleDeleteAnalysisLayer
+                    }
+                    onExportAnalysisLayer={
+                        handleExportAnalysisLayer
+                    }
                     onMoveUp={() => {
                         requestMapView(
                             "layer-up",
@@ -1145,6 +1306,26 @@ export function WorkspacePage() {
                     onExportGeoJson={handleExportAoiGeoJson}
                     onExportCsv={handleExportAoiCsv}
                     onClear={handleClearAoiAnalysis}
+                    onClose={() => {
+                        setActivePanel(null);
+                    }}
+                />
+            )}
+
+            {activePanel === "geoprocessing" && (
+                <GeoprocessingPanel
+                    filteredCount={filteredFeatures.length}
+                    aoiQueryCount={aoiQueryFeatures.length}
+                    bufferQueryCount={spatialQueryFeatures.length}
+                    hasAoi={aoiPolygon !== null}
+                    hasBuffer={bufferFeature !== null}
+                    summary={geoprocessingSummary}
+                    error={geoprocessingError}
+                    onRun={handleRunGeoprocessing}
+                    onClearFeedback={() => {
+                        setGeoprocessingSummary(null);
+                        setGeoprocessingError(null);
+                    }}
                     onClose={() => {
                         setActivePanel(null);
                     }}

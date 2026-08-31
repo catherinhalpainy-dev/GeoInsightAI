@@ -1,5 +1,6 @@
 import {
   SquareDashed,
+  Workflow,
 } from "lucide-react";
 
 import type { WorkspacePanel, WorkspaceTool } from "../../types/workspace";
@@ -132,6 +133,22 @@ export function WorkspaceToolbar({
       >
         <SquareDashed size={19} strokeWidth={1.8} aria-hidden="true" />
         <span>范围分析</span>
+      </button>
+
+      <button
+        type="button"
+        className={
+          activePanel === "geoprocessing"
+            ? "workspace-tool active"
+            : "workspace-tool"
+        }
+        onClick={() => {
+          onPanelToggle("geoprocessing");
+        }}
+        title="运行叠加、融合与中心点工具"
+      >
+        <Workflow size={19} strokeWidth={1.8} aria-hidden="true" />
+        <span>地理处理</span>
       </button>
 
       <button

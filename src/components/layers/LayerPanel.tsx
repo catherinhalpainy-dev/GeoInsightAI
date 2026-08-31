@@ -1,5 +1,12 @@
 import { useMemo } from "react";
+import {
+  Download,
+  Trash2,
+} from "lucide-react";
 import type { LayerStyle } from "../../types/layerStyle";
+import type {
+  AnalysisResultLayer,
+} from "../../types/analysis";
 import { useAppContext }
   from "../../app/AppProvider";
 
@@ -17,10 +24,25 @@ import "../../styles/layerpanel.css"
 
 interface LayerPanelProps {
   layerStyle: LayerStyle;
+  analysisResultLayers:
+    AnalysisResultLayer[];
 
 
   onLayerStyleChange: (
     next: LayerStyle,
+  ) => void;
+
+  onAnalysisLayerVisibilityChange: (
+    layerId: string,
+    visible: boolean,
+  ) => void;
+
+  onDeleteAnalysisLayer: (
+    layerId: string,
+  ) => void;
+
+  onExportAnalysisLayer: (
+    layerId: string,
   ) => void;
 
   onMoveUp: () => void;
@@ -33,7 +55,11 @@ interface LayerPanelProps {
 
 export function LayerPanel({
   layerStyle,
+  analysisResultLayers,
   onLayerStyleChange,
+  onAnalysisLayerVisibilityChange,
+  onDeleteAnalysisLayer,
+  onExportAnalysisLayer,
   onMoveUp,
   onMoveDown,
   onClose,
@@ -365,6 +391,83 @@ export function LayerPanel({
             ))}
         </ul>
       </section>
+
+      <section className="layer-section analysis-layers-section">
+        <header className="analysis-layers-header">
+          <div>
+            <span>ANALYSIS RESULTS</span>
+            <h3>分析结果图层</h3>
+          </div>
+          <strong>
+            {analysisResultLayers.length}
+          </strong>
+        </header>
+
+        {analysisResultLayers.length === 0 ? (
+          <p className="analysis-layers-empty">
+            地理处理结果会作为独立图层显示在这里。
+          </p>
+        ) : (
+          <ul className="analysis-layer-list">
+            {analysisResultLayers.map((layer) => (
+              <li key={layer.id}>
+                <div className="analysis-layer-main">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={layer.visible}
+                      aria-label={`${layer.visible ? "隐藏" : "显示"}${layer.name}`}
+                      onChange={(event) => {
+                        onAnalysisLayerVisibilityChange(
+                          layer.id,
+                          event.currentTarget.checked,
+                        );
+                      }}
+                    />
+                    <span
+                      className={`analysis-layer-symbol ${layer.operation}`}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>{layer.name}</strong>
+                      <small>
+                        {layer.geometryType}
+                        {" · "}
+                        {layer.featureCount.toLocaleString("zh-CN")}
+                        {" features"}
+                      </small>
+                    </span>
+                  </label>
+                </div>
+
+                <div className="analysis-layer-actions">
+                  <button
+                    type="button"
+                    aria-label={`导出 ${layer.name}`}
+                    title="导出 GeoJSON"
+                    onClick={() => {
+                      onExportAnalysisLayer(layer.id);
+                    }}
+                  >
+                    <Download size={13} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`删除 ${layer.name}`}
+                    title="删除结果图层"
+                    onClick={() => {
+                      onDeleteAnalysisLayer(layer.id);
+                    }}
+                  >
+                    <Trash2 size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div className="layer-order-actions">
         <button
           type="button"
