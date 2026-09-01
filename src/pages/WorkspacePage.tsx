@@ -65,6 +65,16 @@ import {
 import {
     exportFeatureCollection,
 } from "../services/export/exportGeoJson";
+import {
+    parseOverlayGeoJson,
+} from "../services/gis/overlayLayer";
+import {
+    createDefaultOverlayLayerStyle,
+} from "../constants/overlayLayerStyles";
+import type {
+    OverlayLayerStyle,
+    WorkspaceVectorLayer,
+} from "../types/mapLayer";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -106,7 +116,12 @@ export function WorkspacePage() {
         null,
     );
 
-    function requestMapView(type: MapViewCommandType,) {
+    function requestMapView(
+        type: Exclude<
+            MapViewCommandType,
+            "fit-overlay"
+        >,
+    ) {
         setMapViewCommand(
             (previous) => (
                 {
@@ -160,6 +175,12 @@ export function WorkspacePage() {
         useState<string | null>(null);
     const [analysisResultLayers, setAnalysisResultLayers] =
         useState<AnalysisResultLayer[]>([]);
+    const [overlayLayers, setOverlayLayers] =
+        useState<WorkspaceVectorLayer[]>([]);
+    const [overlayImportError, setOverlayImportError] =
+        useState<string | null>(null);
+    const [overlayImporting, setOverlayImporting] =
+        useState(false);
     const [geoprocessingSummary, setGeoprocessingSummary] =
         useState<GeoprocessingRunSummary | null>(null);
     const [geoprocessingError, setGeoprocessingError] =
@@ -612,6 +633,253 @@ export function WorkspacePage() {
         exportFeatureCollection(
             layer.collection,
             `geoinsight-${layer.operation}-${layer.createdAt}.geojson`,
+        );
+    }
+
+    function getUniqueOverlayLayerName(
+        requestedName: string,
+        layers: readonly WorkspaceVectorLayer[],
+    ) {
+        const usedNames = new Set(
+            layers.map(
+                (layer) => layer.name.toLocaleLowerCase(),
+            ),
+        );
+
+        if (!usedNames.has(requestedName.toLocaleLowerCase())) {
+            return requestedName;
+        }
+
+        let suffix = 2;
+
+        while (
+            usedNames.has(
+                `${requestedName} (${suffix})`
+                    .toLocaleLowerCase(),
+            )
+        ) {
+            suffix += 1;
+        }
+
+        return `${requestedName} (${suffix})`;
+    }
+
+    async function handleAddOverlayLayer(
+        file: File,
+    ) {
+        const lowerCaseName = file.name.toLowerCase();
+
+        setOverlayImportError(null);
+
+        if (
+            !lowerCaseName.endsWith(".geojson") &&
+            !lowerCaseName.endsWith(".json")
+        ) {
+            setOverlayImportError(
+                "仅支持 .geojson 或 .json 文件",
+            );
+            return;
+        }
+
+        setOverlayImporting(true);
+
+        try {
+            let text: string;
+
+            try {
+                text = await file.text();
+            } catch {
+                throw new Error("无法读取图层文件");
+            }
+
+            let raw: unknown;
+
+            try {
+                raw = JSON.parse(text);
+            } catch {
+                throw new Error("文件不是有效的 JSON");
+            }
+
+            const parsedLayer = parseOverlayGeoJson(
+                raw,
+                file.name,
+            );
+
+            setOverlayLayers((previous) => {
+                const layerName = getUniqueOverlayLayerName(
+                    parsedLayer.name,
+                    previous,
+                );
+
+                return [
+                    ...previous,
+                    {
+                        ...parsedLayer,
+                        name: layerName,
+                        style: createDefaultOverlayLayerStyle(
+                            previous.length,
+                            parsedLayer.geometryKind,
+                        ),
+                    },
+                ];
+            });
+            setActivePanel("layers");
+        } catch (error) {
+            setOverlayImportError(
+                error instanceof Error
+                    ? error.message
+                    : "添加图层失败",
+            );
+        } finally {
+            setOverlayImporting(false);
+        }
+    }
+
+    function handleRemoveOverlayLayer(
+        layerId: string,
+    ) {
+        setOverlayLayers(
+            (previous) => previous.filter(
+                (layer) => layer.id !== layerId,
+            ),
+        );
+    }
+
+    function handleToggleOverlayLayer(
+        layerId: string,
+        visible: boolean,
+    ) {
+        setOverlayLayers(
+            (previous) => previous.map(
+                (layer) =>
+                    layer.id === layerId
+                        ? {
+                            ...layer,
+                            style: {
+                                ...layer.style,
+                                visible,
+                            },
+                        }
+                        : layer,
+            ),
+        );
+    }
+
+    function handleOverlayOpacityChange(
+        layerId: string,
+        opacity: number,
+    ) {
+        const normalizedOpacity = Math.min(
+            1,
+            Math.max(0, opacity),
+        );
+
+        setOverlayLayers(
+            (previous) => previous.map(
+                (layer) =>
+                    layer.id === layerId
+                        ? {
+                            ...layer,
+                            style: {
+                                ...layer.style,
+                                opacity: normalizedOpacity,
+                            },
+                        }
+                        : layer,
+            ),
+        );
+    }
+
+    function handleOverlayStyleChange(
+        layerId: string,
+        style: Partial<OverlayLayerStyle>,
+    ) {
+        setOverlayLayers(
+            (previous) => previous.map(
+                (layer) =>
+                    layer.id === layerId
+                        ? {
+                            ...layer,
+                            style: {
+                                ...layer.style,
+                                ...style,
+                            },
+                        }
+                        : layer,
+            ),
+        );
+    }
+
+    function moveOverlayLayer(
+        layerId: string,
+        offset: -1 | 1,
+    ) {
+        setOverlayLayers((previous) => {
+            const currentIndex = previous.findIndex(
+                (layer) => layer.id === layerId,
+            );
+            const nextIndex = currentIndex + offset;
+
+            if (
+                currentIndex < 0 ||
+                nextIndex < 0 ||
+                nextIndex >= previous.length
+            ) {
+                return previous;
+            }
+
+            const nextLayers = [...previous];
+            const currentLayer = nextLayers[currentIndex];
+
+            nextLayers[currentIndex] = nextLayers[nextIndex];
+            nextLayers[nextIndex] = currentLayer;
+
+            return nextLayers;
+        });
+    }
+
+    function handleMoveOverlayLayerUp(
+        layerId: string,
+    ) {
+        moveOverlayLayer(layerId, -1);
+    }
+
+    function handleMoveOverlayLayerDown(
+        layerId: string,
+    ) {
+        moveOverlayLayer(layerId, 1);
+    }
+
+    function handleFitOverlayLayer(
+        layerId: string,
+    ) {
+        setMapViewCommand((previous) => ({
+            type: "fit-overlay",
+            layerId,
+            requestId: (previous?.requestId ?? 0) + 1,
+        }));
+    }
+
+    function handleExportOverlayLayer(
+        layerId: string,
+    ) {
+        const layer = overlayLayers.find(
+            (item) => item.id === layerId,
+        );
+
+        if (!layer) {
+            return;
+        }
+
+        const safeName = layer.name
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+            .replace(/^-|-$/g, "") || "overlay";
+
+        exportFeatureCollection(
+            layer.collection,
+            `geoinsight-${safeName}-${Date.now()}.geojson`,
         );
     }
 
@@ -1069,6 +1337,10 @@ export function WorkspacePage() {
                 onMeasureChange={(mode)=>{
                     startMeasure(mode);
                 }}
+                onAddOverlayLayer={(file) => {
+                    void handleAddOverlayLayer(file);
+                }}
+                overlayImporting={overlayImporting}
             />
 
             <main className="workspace-map-area">
@@ -1124,6 +1396,8 @@ export function WorkspacePage() {
 
                         analysisResultLayers={analysisResultLayers}
 
+                        overlayLayers={overlayLayers}
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -1145,6 +1419,24 @@ export function WorkspacePage() {
 
                         onAoiComplete={completeAoi}
                     />
+
+                    {overlayImportError && (
+                        <div
+                            className="overlay-import-error"
+                            role="alert"
+                        >
+                            <span>{overlayImportError}</span>
+                            <button
+                                type="button"
+                                aria-label="关闭导入错误"
+                                onClick={() => {
+                                    setOverlayImportError(null);
+                                }}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
 
                     <MeasureResult
 
@@ -1189,6 +1481,7 @@ export function WorkspacePage() {
             {activePanel === "layers" && (
                 <LayerPanel
                     layerStyle={thematicLayerStyle}
+                    overlayLayers={overlayLayers}
                     analysisResultLayers={analysisResultLayers}
                     onLayerStyleChange={(nextStyle) => {
                         setLayerStyle({
@@ -1205,17 +1498,30 @@ export function WorkspacePage() {
                     onExportAnalysisLayer={
                         handleExportAnalysisLayer
                     }
-                    onMoveUp={() => {
-                        requestMapView(
-                            "layer-up",
-                        );
-                    }}
-                    onMoveDown={() => {
-                        requestMapView
-                            (
-                                "layer-down",
-                            );
-                    }}
+                    onOverlayVisibilityChange={
+                        handleToggleOverlayLayer
+                    }
+                    onOverlayOpacityChange={
+                        handleOverlayOpacityChange
+                    }
+                    onOverlayStyleChange={
+                        handleOverlayStyleChange
+                    }
+                    onMoveOverlayLayerUp={
+                        handleMoveOverlayLayerUp
+                    }
+                    onMoveOverlayLayerDown={
+                        handleMoveOverlayLayerDown
+                    }
+                    onFitOverlayLayer={
+                        handleFitOverlayLayer
+                    }
+                    onExportOverlayLayer={
+                        handleExportOverlayLayer
+                    }
+                    onRemoveOverlayLayer={
+                        handleRemoveOverlayLayer
+                    }
                     onClose={() => {
                         setActivePanel(null,);
                     }}

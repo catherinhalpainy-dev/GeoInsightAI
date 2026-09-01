@@ -19,13 +19,23 @@ export type MapViewCommandType =
     | "fit-all"
     | "fit-current"
     | "fit-selected"
+    | "fit-overlay"
     | "layer-up"
     | "layer-down";
 
-export interface MapViewCommand {
-    type: MapViewCommandType;
-    requestId: number;
-}
+export type MapViewCommand =
+    | {
+        type: Exclude<
+            MapViewCommandType,
+            "fit-overlay"
+        >;
+        requestId: number;
+    }
+    | {
+        type: "fit-overlay";
+        requestId: number;
+        layerId: string;
+    };
 
 export type BasemapType =
     | "dark"

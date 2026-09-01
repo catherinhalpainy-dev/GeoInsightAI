@@ -1,7 +1,9 @@
 import {
+  FilePlus2,
   SquareDashed,
   Workflow,
 } from "lucide-react";
+import { useRef } from "react";
 
 import type { WorkspacePanel, WorkspaceTool } from "../../types/workspace";
 
@@ -43,6 +45,11 @@ interface WorkspaceToolbarProps {
       "area"
   ) =>
     void;
+
+  onAddOverlayLayer: (
+    file: File,
+  ) => void;
+  overlayImporting: boolean;
 }
 
 export function WorkspaceToolbar({
@@ -55,7 +62,12 @@ export function WorkspaceToolbar({
   canFitSelected,
   measureMode,
   onMeasureChange,
+  onAddOverlayLayer,
+  overlayImporting,
 }: WorkspaceToolbarProps) {
+  const overlayFileInputRef =
+    useRef<HTMLInputElement | null>(null);
+
   return (
     <aside className="workspace-toolbar">
       <button
@@ -150,6 +162,40 @@ export function WorkspaceToolbar({
         <Workflow size={19} strokeWidth={1.8} aria-hidden="true" />
         <span>地理处理</span>
       </button>
+
+      <button
+        type="button"
+        className="workspace-tool"
+        disabled={overlayImporting}
+        title="向当前地图追加 GeoJSON 图层"
+        onClick={() => {
+          overlayFileInputRef.current?.click();
+        }}
+      >
+        <FilePlus2 size={19} strokeWidth={1.8} aria-hidden="true" />
+        <span>
+          {overlayImporting
+            ? "导入中"
+            : "添加图层"}
+        </span>
+      </button>
+      <input
+        ref={overlayFileInputRef}
+        className="workspace-overlay-file-input"
+        type="file"
+        accept=".geojson,.json,application/geo+json,application/json"
+        aria-label="选择追加的 GeoJSON 图层"
+        disabled={overlayImporting}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+
+          if (file) {
+            onAddOverlayLayer(file);
+          }
+
+          event.currentTarget.value = "";
+        }}
+      />
 
       <button
         type="button"

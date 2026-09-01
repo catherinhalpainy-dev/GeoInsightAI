@@ -35,6 +35,12 @@ import type {
     AoiFeature,
     AoiSketchMode,
 } from "../../types/analysis";
+import type {
+    OverlayFeatureCollection,
+    OverlayLayerStyle,
+    VectorGeometryKind,
+    WorkspaceVectorLayer,
+} from "../../types/mapLayer";
 
 import type {
     LayerStyle,
@@ -52,6 +58,9 @@ import {
 import type { MeasureMode } from "../../types/measure";
 import type { BufferFeature } from "../../services/gis/buffer";
 import { MapLegend } from "./MapLegend";
+import {
+    calculateGeoJsonBounds,
+} from "../../services/gis/calculateGeoJsonBounds";
 
 const BASEMAP_STYLES: Record<
     BasemapType,
@@ -141,6 +150,18 @@ const ANALYSIS_LINE_PREFIX =
 const ANALYSIS_CIRCLE_PREFIX =
     "analysis-circle-";
 
+const OVERLAY_SOURCE_PREFIX =
+    "overlay-source-";
+
+const OVERLAY_FILL_PREFIX =
+    "overlay-fill-";
+
+const OVERLAY_LINE_PREFIX =
+    "overlay-line-";
+
+const OVERLAY_CIRCLE_PREFIX =
+    "overlay-circle-";
+
 
 
 
@@ -197,6 +218,9 @@ interface MapViewProps {
 
     analysisResultLayers?:
     AnalysisResultLayer[];
+
+    overlayLayers?:
+    WorkspaceVectorLayer[];
 
     onFeatureSelect?: (
         feature:
@@ -1318,6 +1342,501 @@ function clearAoiQueryLayers(
     }
 }
 
+function getOverlaySourceId(
+    layerId: string,
+) {
+    return `${OVERLAY_SOURCE_PREFIX}${layerId}`;
+}
+
+function getOverlayFillLayerId(
+    layerId: string,
+) {
+    return `${OVERLAY_FILL_PREFIX}${layerId}`;
+}
+
+function getOverlayLineLayerId(
+    layerId: string,
+) {
+    return `${OVERLAY_LINE_PREFIX}${layerId}`;
+}
+
+function getOverlayCircleLayerId(
+    layerId: string,
+) {
+    return `${OVERLAY_CIRCLE_PREFIX}${layerId}`;
+}
+
+function isManagedOverlayLayerId(
+    layerId: string,
+) {
+    return layerId.startsWith(OVERLAY_FILL_PREFIX) ||
+        layerId.startsWith(OVERLAY_LINE_PREFIX) ||
+        layerId.startsWith(OVERLAY_CIRCLE_PREFIX);
+}
+
+function getOverlayLayerIds(
+    layerId: string,
+    geometryKind: VectorGeometryKind,
+) {
+    switch (geometryKind) {
+        case "point":
+            return [
+                getOverlayCircleLayerId(layerId),
+            ];
+
+        case "line":
+            return [
+                getOverlayLineLayerId(layerId),
+            ];
+
+        case "polygon":
+            return [
+                getOverlayFillLayerId(layerId),
+                getOverlayLineLayerId(layerId),
+            ];
+
+        case "mixed":
+            return [
+                getOverlayFillLayerId(layerId),
+                getOverlayLineLayerId(layerId),
+                getOverlayCircleLayerId(layerId),
+            ];
+    }
+}
+
+function createOverlayGeometryFilter(
+    geometryType: "Point" | "LineString" | "Polygon",
+): FilterSpecification {
+    return [
+        "==",
+        ["geometry-type"],
+        geometryType,
+    ];
+}
+
+function createOverlayLineFilter(
+    geometryKind: VectorGeometryKind,
+): FilterSpecification {
+    if (geometryKind === "mixed") {
+        const lineExpression: ExpressionSpecification = [
+            "==",
+            ["geometry-type"],
+            "LineString",
+        ];
+        const polygonExpression: ExpressionSpecification = [
+            "==",
+            ["geometry-type"],
+            "Polygon",
+        ];
+
+        return [
+            "any",
+            lineExpression,
+            polygonExpression,
+        ];
+    }
+
+    return createOverlayGeometryFilter(
+        geometryKind === "line"
+            ? "LineString"
+            : "Polygon",
+    );
+}
+
+function isOverlayHigherLayer(
+    layerId: string,
+) {
+    return layerId === MEASURE_FILL_LAYER_ID ||
+        layerId === MEASURE_LINE_LAYER_ID ||
+        layerId === MEASURE_POINT_LAYER_ID ||
+        layerId === BUFFER_LAYER_ID ||
+        layerId === BUFFER_OUTLINE_LAYER_ID ||
+        layerId === AOI_FILL_LAYER_ID ||
+        layerId === AOI_LINE_LAYER_ID ||
+        layerId === AOI_POINT_LAYER_ID ||
+        layerId === SPATIAL_QUERY_FILL_LAYER_ID ||
+        layerId === SPATIAL_QUERY_OUTLINE_LAYER_ID ||
+        layerId === AOI_QUERY_FILL_LAYER_ID ||
+        layerId === AOI_QUERY_OUTLINE_LAYER_ID ||
+        layerId === HOVER_OUTLINE_LAYER_ID ||
+        layerId === SELECTED_FILL_LAYER_ID ||
+        layerId === SELECTED_OUTLINE_LAYER_ID ||
+        isManagedAnalysisLayerId(layerId);
+}
+
+function getOverlayBeforeLayerId(
+    map: maplibregl.Map,
+) {
+    const styleLayers = map.getStyle().layers ?? [];
+    const primaryLayerIndex = styleLayers.findIndex(
+        (layer) =>
+            layer.id === LAND_USE_OUTLINE_LAYER_ID,
+    );
+    const candidateLayers = primaryLayerIndex >= 0
+        ? styleLayers.slice(primaryLayerIndex + 1)
+        : styleLayers;
+
+    return candidateLayers.find(
+        (layer) => isOverlayHigherLayer(layer.id),
+    )?.id;
+}
+
+function syncOverlayLayers(
+    map: maplibregl.Map,
+    layers: WorkspaceVectorLayer[],
+    collectionCache: Map<
+        string,
+        OverlayFeatureCollection
+    >,
+    styleCache: Map<
+        string,
+        OverlayLayerStyle
+    >,
+    orderCache: {
+        signature: string;
+    },
+) {
+    const desiredSourceIds = new Set(
+        layers.map(
+            (layer) => getOverlaySourceId(layer.id),
+        ),
+    );
+    const desiredLayerIds = new Set(
+        layers.flatMap(
+            (layer) => getOverlayLayerIds(
+                layer.id,
+                layer.geometryKind,
+            ),
+        ),
+    );
+    const currentStyle = map.getStyle();
+    const obsoleteLayerIds = (
+        currentStyle.layers ?? []
+    )
+        .map((layer) => layer.id)
+        .filter(
+            (layerId) =>
+                isManagedOverlayLayerId(layerId) &&
+                !desiredLayerIds.has(layerId),
+        );
+    let layerStructureChanged =
+        obsoleteLayerIds.length > 0;
+
+    for (const layerId of obsoleteLayerIds) {
+        if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+        }
+    }
+
+    const obsoleteSourceIds = Object.keys(
+        currentStyle.sources ?? {},
+    ).filter(
+        (sourceId) =>
+            sourceId.startsWith(OVERLAY_SOURCE_PREFIX) &&
+            !desiredSourceIds.has(sourceId),
+    );
+
+    if (obsoleteSourceIds.length > 0) {
+        layerStructureChanged = true;
+    }
+
+    for (const sourceId of obsoleteSourceIds) {
+        if (map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+        }
+
+        collectionCache.delete(sourceId);
+        styleCache.delete(sourceId);
+    }
+
+    for (const sourceId of collectionCache.keys()) {
+        if (!desiredSourceIds.has(sourceId)) {
+            collectionCache.delete(sourceId);
+        }
+    }
+
+    for (const sourceId of styleCache.keys()) {
+        if (!desiredSourceIds.has(sourceId)) {
+            styleCache.delete(sourceId);
+        }
+    }
+
+    const beforeLayerId = getOverlayBeforeLayerId(map);
+
+    for (const layer of [...layers].reverse()) {
+        const sourceId = getOverlaySourceId(layer.id);
+        const existingSource = map.getSource(sourceId);
+        const previousCollection =
+            collectionCache.get(sourceId);
+        const previousStyle =
+            styleCache.get(sourceId);
+
+        if (!existingSource) {
+            layerStructureChanged = true;
+            map.addSource(sourceId, {
+                type: "geojson",
+                data: layer.collection,
+            });
+            collectionCache.set(
+                sourceId,
+                layer.collection,
+            );
+        } else if (
+            existingSource.type === "geojson" &&
+            previousCollection !== layer.collection
+        ) {
+            (
+                existingSource as maplibregl.GeoJSONSource
+            ).setData(layer.collection);
+            collectionCache.set(
+                sourceId,
+                layer.collection,
+            );
+        }
+
+        const visibility = layer.style.visible
+            ? "visible"
+            : "none";
+        const layerIds = getOverlayLayerIds(
+            layer.id,
+            layer.geometryKind,
+        );
+        const fillLayerId =
+            getOverlayFillLayerId(layer.id);
+        const lineLayerId =
+            getOverlayLineLayerId(layer.id);
+        const circleLayerId =
+            getOverlayCircleLayerId(layer.id);
+
+        if (
+            layerIds.includes(fillLayerId) &&
+            !map.getLayer(fillLayerId)
+        ) {
+            layerStructureChanged = true;
+            map.addLayer(
+                {
+                    id: fillLayerId,
+                    type: "fill",
+                    source: sourceId,
+                    filter: createOverlayGeometryFilter(
+                        "Polygon",
+                    ),
+                    layout: {
+                        visibility,
+                    },
+                    paint: {
+                        "fill-color": layer.style.fillColor,
+                        "fill-opacity": layer.style.opacity,
+                    },
+                },
+                beforeLayerId,
+            );
+        }
+
+        if (
+            layerIds.includes(lineLayerId) &&
+            !map.getLayer(lineLayerId)
+        ) {
+            layerStructureChanged = true;
+            map.addLayer(
+                {
+                    id: lineLayerId,
+                    type: "line",
+                    source: sourceId,
+                    filter: createOverlayLineFilter(
+                        layer.geometryKind,
+                    ),
+                    layout: {
+                        visibility,
+                        "line-cap": "round",
+                        "line-join": "round",
+                    },
+                    paint: {
+                        "line-color": layer.style.lineColor,
+                        "line-width": layer.style.lineWidth,
+                        "line-opacity": layer.style.opacity,
+                    },
+                },
+                beforeLayerId,
+            );
+        }
+
+        if (
+            layerIds.includes(circleLayerId) &&
+            !map.getLayer(circleLayerId)
+        ) {
+            layerStructureChanged = true;
+            map.addLayer(
+                {
+                    id: circleLayerId,
+                    type: "circle",
+                    source: sourceId,
+                    filter: createOverlayGeometryFilter(
+                        "Point",
+                    ),
+                    layout: {
+                        visibility,
+                    },
+                    paint: {
+                        "circle-color": layer.style.pointColor,
+                        "circle-radius": layer.style.pointRadius,
+                        "circle-opacity": layer.style.opacity,
+                        "circle-stroke-color": "#ffffff",
+                        "circle-stroke-width": 1,
+                    },
+                },
+                beforeLayerId,
+            );
+        }
+
+        if (
+            map.getLayer(fillLayerId) &&
+            previousStyle?.visible !== layer.style.visible
+        ) {
+            map.setLayoutProperty(
+                fillLayerId,
+                "visibility",
+                visibility,
+            );
+        }
+
+        if (
+            map.getLayer(fillLayerId) &&
+            previousStyle?.fillColor !== layer.style.fillColor
+        ) {
+            map.setPaintProperty(
+                fillLayerId,
+                "fill-color",
+                layer.style.fillColor,
+            );
+        }
+
+        if (
+            map.getLayer(fillLayerId) &&
+            previousStyle?.opacity !== layer.style.opacity
+        ) {
+            map.setPaintProperty(
+                fillLayerId,
+                "fill-opacity",
+                layer.style.opacity,
+            );
+        }
+
+        if (
+            map.getLayer(lineLayerId) &&
+            previousStyle?.visible !== layer.style.visible
+        ) {
+            map.setLayoutProperty(
+                lineLayerId,
+                "visibility",
+                visibility,
+            );
+        }
+
+        if (
+            map.getLayer(lineLayerId) &&
+            previousStyle?.lineColor !== layer.style.lineColor
+        ) {
+            map.setPaintProperty(
+                lineLayerId,
+                "line-color",
+                layer.style.lineColor,
+            );
+        }
+
+        if (
+            map.getLayer(lineLayerId) &&
+            previousStyle?.lineWidth !== layer.style.lineWidth
+        ) {
+            map.setPaintProperty(
+                lineLayerId,
+                "line-width",
+                layer.style.lineWidth,
+            );
+        }
+
+        if (
+            map.getLayer(lineLayerId) &&
+            previousStyle?.opacity !== layer.style.opacity
+        ) {
+            map.setPaintProperty(
+                lineLayerId,
+                "line-opacity",
+                layer.style.opacity,
+            );
+        }
+
+        if (
+            map.getLayer(circleLayerId) &&
+            previousStyle?.visible !== layer.style.visible
+        ) {
+            map.setLayoutProperty(
+                circleLayerId,
+                "visibility",
+                visibility,
+            );
+        }
+
+        if (
+            map.getLayer(circleLayerId) &&
+            previousStyle?.pointColor !== layer.style.pointColor
+        ) {
+            map.setPaintProperty(
+                circleLayerId,
+                "circle-color",
+                layer.style.pointColor,
+            );
+        }
+
+        if (
+            map.getLayer(circleLayerId) &&
+            previousStyle?.pointRadius !== layer.style.pointRadius
+        ) {
+            map.setPaintProperty(
+                circleLayerId,
+                "circle-radius",
+                layer.style.pointRadius,
+            );
+        }
+
+        if (
+            map.getLayer(circleLayerId) &&
+            previousStyle?.opacity !== layer.style.opacity
+        ) {
+            map.setPaintProperty(
+                circleLayerId,
+                "circle-opacity",
+                layer.style.opacity,
+            );
+        }
+
+        styleCache.set(sourceId, layer.style);
+    }
+
+    const orderedLayerIds = [...layers]
+        .reverse()
+        .flatMap(
+            (layer) => getOverlayLayerIds(
+                layer.id,
+                layer.geometryKind,
+            ),
+        );
+    const orderSignature = orderedLayerIds.join("|");
+
+    if (
+        layerStructureChanged ||
+        orderCache.signature !== orderSignature
+    ) {
+        for (const layerId of orderedLayerIds) {
+            if (map.getLayer(layerId)) {
+                map.moveLayer(layerId, beforeLayerId);
+            }
+        }
+
+        orderCache.signature = orderSignature;
+    }
+}
+
 function getAnalysisSourceId(
     layerId: string,
 ) {
@@ -1549,6 +2068,7 @@ export function MapView({
     aoiPolygon = null,
     aoiQueryFeatures = [],
     analysisResultLayers = [],
+    overlayLayers = [],
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
@@ -1633,6 +2153,27 @@ export function MapView({
         useRef<AnalysisResultLayer[]>(
             analysisResultLayers,
         );
+
+    const latestOverlayLayersRef =
+        useRef<WorkspaceVectorLayer[]>(overlayLayers);
+
+    const overlayCollectionCacheRef = useRef(
+        new Map<
+            string,
+            OverlayFeatureCollection
+        >(),
+    );
+
+    const overlayStyleCacheRef = useRef(
+        new Map<
+            string,
+            OverlayLayerStyle
+        >(),
+    );
+
+    const overlayOrderCacheRef = useRef({
+        signature: "",
+    });
 
     const latestOnAoiPointAddRef =
         useRef(onAoiPointAdd);
@@ -2090,6 +2631,14 @@ export function MapView({
                     latestLayerStyleRef.current,
                 );
 
+                syncOverlayLayers(
+                    map,
+                    latestOverlayLayersRef.current,
+                    overlayCollectionCacheRef.current,
+                    overlayStyleCacheRef.current,
+                    overlayOrderCacheRef.current,
+                );
+
                 if (latestBufferFeatureRef.current) {
                     showBufferResult(
                         map,
@@ -2355,6 +2904,26 @@ export function MapView({
     ]);
 
     useEffect(() => {
+        latestOverlayLayersRef.current = overlayLayers;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        syncOverlayLayers(
+            map,
+            overlayLayers,
+            overlayCollectionCacheRef.current,
+            overlayStyleCacheRef.current,
+            overlayOrderCacheRef.current,
+        );
+    }, [
+        overlayLayers,
+    ]);
+
+    useEffect(() => {
         latestAnalysisResultLayersRef.current =
             analysisResultLayers;
 
@@ -2408,6 +2977,14 @@ export function MapView({
                         collection,
                     );
 
+                    syncOverlayLayers(
+                        map,
+                        latestOverlayLayersRef.current,
+                        overlayCollectionCacheRef.current,
+                        overlayStyleCacheRef.current,
+                        overlayOrderCacheRef.current,
+                    );
+
                     syncAnalysisResultLayers(
                         map,
                         latestAnalysisResultLayersRef.current,
@@ -2421,6 +2998,14 @@ export function MapView({
                     map,
                     collection,
                     latestLayerStyleRef.current,
+                );
+
+                syncOverlayLayers(
+                    map,
+                    latestOverlayLayersRef.current,
+                    overlayCollectionCacheRef.current,
+                    overlayStyleCacheRef.current,
+                    overlayOrderCacheRef.current,
                 );
 
                 syncAnalysisResultLayers(
@@ -2723,6 +3308,48 @@ export function MapView({
                 map,
                 [selected],
                 17,
+            );
+
+            return;
+        }
+
+        if (
+            viewCommand.type === "fit-overlay"
+        ) {
+            const overlayLayer =
+                latestOverlayLayersRef.current.find(
+                (layer) =>
+                    layer.id === viewCommand.layerId,
+            );
+
+            if (!overlayLayer) {
+                return;
+            }
+
+            const bounds = calculateGeoJsonBounds(
+                overlayLayer.collection,
+            );
+
+            if (!bounds) {
+                return;
+            }
+
+            map.fitBounds(
+                [
+                    [
+                        bounds.minLongitude,
+                        bounds.minLatitude,
+                    ],
+                    [
+                        bounds.maxLongitude,
+                        bounds.maxLatitude,
+                    ],
+                ],
+                {
+                    padding: 72,
+                    duration: 650,
+                    maxZoom: 17,
+                },
             );
 
             return;
