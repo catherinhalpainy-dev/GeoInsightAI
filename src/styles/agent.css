@@ -679,6 +679,11 @@
     #047857;
 }
 
+.agent-risk.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .agent-plan {
   margin-top: 14px;
 
@@ -771,4 +776,106 @@
   min-height: 38px;
 
   font-size: 12px;
+}
+
+/* Day9 execution log */
+
+.agent-execution-log {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.agent-execution-log > header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.agent-execution-log > header span {
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.agent-execution-log > header strong {
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.agent-execution-log ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.agent-execution-log li {
+  display: flex;
+  gap: 9px;
+  padding: 9px 0;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.agent-execution-log li:last-child {
+  border-bottom: 0;
+}
+
+.agent-log-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.agent-execution-log li.error .agent-log-icon {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.agent-execution-log li > div {
+  min-width: 0;
+}
+
+.agent-execution-log li strong {
+  display: block;
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.agent-execution-log li p {
+  margin: 2px 0;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.agent-execution-log li.error p {
+  color: #991b1b;
+}
+
+.agent-execution-log time {
+  color: var(--color-text-tertiary);
+  font-size: 9px;
+}
+
+.agent-result-card.failed {
+  border-top-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 100%);
+}
+
+.agent-result-card.failed .agent-result-icon {
+  background: #fee2e2;
+  color: #b91c1c;
 }

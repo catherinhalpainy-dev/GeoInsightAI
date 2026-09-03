@@ -135,15 +135,15 @@ export function WorkspaceToolbar({
         type="button"
         className={
           activePanel === "aoi-analysis"
-            ? "workspace-tool active"
-            : "workspace-tool"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
         }
         onClick={() => {
           onPanelToggle("aoi-analysis");
         }}
         title="绘制 AOI 并执行空间查询"
       >
-        <SquareDashed size={19} strokeWidth={1.8} aria-hidden="true" />
+        <SquareDashed size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>范围分析</span>
       </button>
 
@@ -151,28 +151,28 @@ export function WorkspaceToolbar({
         type="button"
         className={
           activePanel === "geoprocessing"
-            ? "workspace-tool active"
-            : "workspace-tool"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
         }
         onClick={() => {
           onPanelToggle("geoprocessing");
         }}
         title="运行叠加、融合与中心点工具"
       >
-        <Workflow size={19} strokeWidth={1.8} aria-hidden="true" />
+        <Workflow size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>地理处理</span>
       </button>
 
       <button
         type="button"
-        className="workspace-tool"
+        className="workspace-tool workspace-tool-module"
         disabled={overlayImporting}
         title="向当前地图追加 GeoJSON 图层"
         onClick={() => {
           overlayFileInputRef.current?.click();
         }}
       >
-        <FilePlus2 size={19} strokeWidth={1.8} aria-hidden="true" />
+        <FilePlus2 size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>
           {overlayImporting
             ? "导入中"

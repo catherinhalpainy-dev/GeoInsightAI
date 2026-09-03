@@ -16,7 +16,13 @@ import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
 import { LayerStylePanel } from "../components/layers/LayerStylePanel";
 
 import { AgentPanel } from "../components/agent/AgentPanel";
-import type { AgentContext, AgentPlan } from "../types/agent";
+import type {
+    AgentCommand,
+    AgentContext,
+    AgentExecutionEvent,
+    AgentPlan,
+    AgentPlanExecutionResult,
+} from "../types/agent";
 import type { LandUseFilters } from "../app/appTypes";
 import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
@@ -75,12 +81,54 @@ import type {
     OverlayLayerStyle,
     WorkspaceVectorLayer,
 } from "../types/mapLayer";
+import { applyLandUseFilters } from "../utils/applyLandUseFilters";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
-    filters: LandUseFilters,
-    layerStyle: LayerStyle,
+    filters: LandUseFilters;
+    layerStyle: LayerStyle;
+    bufferFeature: BufferFeature | null;
+    bufferResult: BufferAnalysisResult | null;
+    bufferError: string | null;
+    spatialQueryFeatures: LandUseFeature[];
+    spatialQueryResult: SpatialQueryResult | null;
+    spatialQueryError: string | null;
+    aoiRelation: AoiQueryRelation;
+    aoiQueryFeatures: LandUseFeature[];
+    aoiAnalysisResult: AoiAnalysisResult | null;
+    aoiQueryError: string | null;
+    analysisResultLayers: AnalysisResultLayer[];
+    geoprocessingSummary: GeoprocessingRunSummary | null;
+    geoprocessingError: string | null;
 }
+
+interface AgentExecutionContext {
+    filters: LandUseFilters;
+    filteredCollection: LandUseFeatureCollection;
+    layerStyle: LayerStyle;
+    bufferFeature: BufferFeature | null;
+    bufferResult: BufferAnalysisResult | null;
+    spatialQueryFeatures: LandUseFeature[];
+    spatialQueryResult: SpatialQueryResult | null;
+    aoiQueryFeatures: LandUseFeature[];
+    aoiAnalysisResult: AoiAnalysisResult | null;
+    analysisResultLayers: AnalysisResultLayer[];
+}
+
+interface GeoprocessingExecutionResult {
+    layer: AnalysisResultLayer;
+    summary: GeoprocessingRunSummary;
+}
+
+type AgentCommandExecutionResult =
+    | {
+        success: true;
+        message: string;
+    }
+    | {
+        success: false;
+        message: string;
+    };
 
 
 export function WorkspacePage() {
@@ -186,6 +234,7 @@ export function WorkspacePage() {
     const [geoprocessingError, setGeoprocessingError] =
         useState<string | null>(null);
     const analysisLayerSequenceRef = useRef(0);
+    const agentHandledFilterClearRef = useRef(false);
 
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
@@ -223,6 +272,28 @@ export function WorkspacePage() {
         handleClearAoiQuery();
     }
 
+    function createSpatialQueryExecution(
+        collection: LandUseFeatureCollection,
+        geometry: Parameters<
+            typeof queryFeaturesByGeometry
+        >[1],
+        relation: AoiQueryRelation,
+    ) {
+        const features = queryFeaturesByGeometry(
+            collection,
+            geometry,
+            relation,
+        );
+
+        return {
+            features,
+            result: summarizeSpatialQuery(
+                features,
+                relation,
+            ),
+        };
+    }
+
     function handleRunAoiQuery() {
         if (!aoiPolygon) {
             setAoiQueryError(
@@ -232,20 +303,14 @@ export function WorkspacePage() {
         }
 
         try {
-            const nextFeatures =
-                queryFeaturesByGeometry(
-                    filteredCollection,
-                    aoiPolygon,
-                    aoiRelation,
-                );
-            const nextResult =
-                summarizeSpatialQuery(
-                    nextFeatures,
-                    aoiRelation,
-                );
+            const execution = createSpatialQueryExecution(
+                filteredCollection,
+                aoiPolygon,
+                aoiRelation,
+            );
 
-            setAoiQueryFeatures(nextFeatures);
-            setAoiAnalysisResult(nextResult);
+            setAoiQueryFeatures(execution.features);
+            setAoiAnalysisResult(execution.result);
             setAoiQueryError(null);
         } catch (error) {
             setAoiQueryFeatures([]);
@@ -361,6 +426,30 @@ export function WorkspacePage() {
          */
     }
 
+    function createBufferExecution(
+        feature: LandUseFeature,
+        distance: number,
+    ) {
+        const nextBufferFeature = createBuffer(
+            feature,
+            distance,
+        );
+        const areaM2 = calculateBufferAreaM2(
+            nextBufferFeature,
+        );
+
+        return {
+            feature: nextBufferFeature,
+            result: {
+                distance,
+                unit: "meter" as const,
+                areaM2,
+                areaKm2: areaM2 / 1_000_000,
+                featureCount: 1,
+            },
+        };
+    }
+
     function handleCreateBuffer(
         feature: LandUseFeature,
         distance: number,
@@ -368,19 +457,13 @@ export function WorkspacePage() {
         handleClearSpatialQuery();
 
         try {
-            const nextBufferFeature =
-                createBuffer(feature, distance);
-            const areaM2 =
-                calculateBufferAreaM2(nextBufferFeature);
-
-            setBufferFeature(nextBufferFeature);
-            setBufferResult({
+            const execution = createBufferExecution(
+                feature,
                 distance,
-                unit: "meter",
-                areaM2,
-                areaKm2: areaM2 / 1_000_000,
-                featureCount: 1,
-            });
+            );
+
+            setBufferFeature(execution.feature);
+            setBufferResult(execution.result);
             setBufferError(null);
         } catch (error) {
             setBufferFeature(null);
@@ -403,20 +486,14 @@ export function WorkspacePage() {
 
         try {
             const relation = "intersects" as const;
-            const nextFeatures =
-                queryFeaturesByGeometry(
-                    filteredCollection,
-                    bufferFeature,
-                    relation,
-                );
-
-            setSpatialQueryFeatures(nextFeatures);
-            setSpatialQueryResult(
-                summarizeSpatialQuery(
-                    nextFeatures,
-                    relation,
-                ),
+            const execution = createSpatialQueryExecution(
+                filteredCollection,
+                bufferFeature,
+                relation,
             );
+
+            setSpatialQueryFeatures(execution.features);
+            setSpatialQueryResult(execution.result);
             setSpatialQueryError(null);
         } catch (error) {
             setSpatialQueryFeatures([]);
@@ -470,111 +547,126 @@ export function WorkspacePage() {
         return "Centroids";
     }
 
-    function handleRunGeoprocessing(
+    function createGeoprocessingExecution(
         request: GeoprocessingRunRequest,
-    ) {
-        const startedAt = performance.now();
-        const inputCollection =
-            resolveGeoprocessingInput(
-                request.inputSource,
-            );
-
+        inputCollection: LandUseFeatureCollection,
+        overlays: {
+            aoi: Parameters<
+                typeof intersectFeaturesWithGeometry
+            >[1] | null;
+            buffer: BufferFeature | null;
+        },
+    ): GeoprocessingExecutionResult {
         if (inputCollection.features.length === 0) {
-            setGeoprocessingSummary(null);
-            setGeoprocessingError(
-                "所选输入图层没有可处理的要素",
+            throw new Error(
+                "所选输入图层没有可处理的要素。",
             );
-            return;
         }
 
-        try {
-            let resultCollection:
-                AnalysisResultFeatureCollection;
+        const startedAt = performance.now();
+        let resultCollection:
+            AnalysisResultFeatureCollection;
 
-            if (request.operation === "intersection") {
-                const overlay =
+        if (request.operation === "intersection") {
+            const overlay = request.overlaySource === "aoi"
+                ? overlays.aoi
+                : overlays.buffer;
+
+            if (!overlay) {
+                throw new Error(
                     request.overlaySource === "aoi"
-                        ? aoiPolygon
-                        : bufferFeature;
-
-                if (!overlay) {
-                    throw new Error(
-                        request.overlaySource === "aoi"
-                            ? "请先完成 AOI 绘制"
-                            : "请先创建 Buffer",
-                    );
-                }
-
-                resultCollection =
-                    intersectFeaturesWithGeometry(
-                        inputCollection,
-                        overlay,
-                    );
-
-                if (resultCollection.features.length === 0) {
-                    throw new Error(
-                        "叠加范围与输入图层没有面积交集",
-                    );
-                }
-            } else if (request.operation === "dissolve") {
-                resultCollection = dissolveFeatures(
-                    inputCollection,
-                    request.dissolveField,
-                );
-            } else {
-                resultCollection = createCentroids(
-                    inputCollection,
+                        ? "请先完成 AOI 绘制。"
+                        : "请先创建 Buffer。",
                 );
             }
 
-            const createdAt = Date.now();
-
-            analysisLayerSequenceRef.current += 1;
-
-            const layerId = [
-                "analysis",
-                request.operation,
-                createdAt,
-                analysisLayerSequenceRef.current,
-            ].join("-");
-            const nextLayer: AnalysisResultLayer = {
-                id: layerId,
-                name: getGeoprocessingLayerName(request),
-                operation: request.operation,
-                geometryType:
-                    getAnalysisGeometryType(
-                        resultCollection,
-                    ),
-                visible: true,
-                createdAt,
-                featureCount:
-                    resultCollection.features.length,
-                collection: resultCollection,
-            };
-            const elapsedMs =
-                performance.now() - startedAt;
-
-            setAnalysisResultLayers(
-                (previous) => [
-                    ...previous,
-                    nextLayer,
-                ],
+            resultCollection = intersectFeaturesWithGeometry(
+                inputCollection,
+                overlay,
             );
-            setGeoprocessingSummary({
+
+            if (resultCollection.features.length === 0) {
+                throw new Error(
+                    "叠加范围与输入图层没有面积交集。",
+                );
+            }
+        } else if (request.operation === "dissolve") {
+            resultCollection = dissolveFeatures(
+                inputCollection,
+                request.dissolveField,
+            );
+        } else {
+            resultCollection = createCentroids(
+                inputCollection,
+            );
+        }
+
+        const createdAt = Date.now();
+
+        analysisLayerSequenceRef.current += 1;
+
+        const layerId = [
+            "analysis",
+            request.operation,
+            createdAt,
+            analysisLayerSequenceRef.current,
+        ].join("-");
+        const layer: AnalysisResultLayer = {
+            id: layerId,
+            name: getGeoprocessingLayerName(request),
+            operation: request.operation,
+            geometryType: getAnalysisGeometryType(
+                resultCollection,
+            ),
+            visible: true,
+            createdAt,
+            featureCount: resultCollection.features.length,
+            collection: resultCollection,
+        };
+
+        return {
+            layer,
+            summary: {
                 layerId,
                 operation: request.operation,
-                inputCount:
-                    inputCollection.features.length,
-                outputCount:
-                    resultCollection.features.length,
+                inputCount: inputCollection.features.length,
+                outputCount: resultCollection.features.length,
                 totalAreaM2:
                     request.operation === "intersection"
                         ? calculateAnalysisAreaM2(
                             resultCollection,
                         )
                         : undefined,
-                elapsedMs,
-            });
+                elapsedMs: performance.now() - startedAt,
+            },
+        };
+    }
+
+    function handleRunGeoprocessing(
+        request: GeoprocessingRunRequest,
+    ) {
+        const inputCollection =
+            resolveGeoprocessingInput(
+                request.inputSource,
+            );
+
+        try {
+            const execution = createGeoprocessingExecution(
+                request,
+                inputCollection,
+                {
+                    aoi: aoiPolygon,
+                    buffer: bufferFeature,
+                },
+            );
+
+            setAnalysisResultLayers(
+                (previous) => [
+                    ...previous,
+                    execution.layer,
+                ],
+            );
+            setGeoprocessingSummary(execution.summary);
             setGeoprocessingError(null);
         } catch (error) {
             setGeoprocessingSummary(null);
@@ -921,6 +1013,11 @@ export function WorkspacePage() {
     ]);
 
     useEffect(() => {
+        if (agentHandledFilterClearRef.current) {
+            agentHandledFilterClearRef.current = false;
+            return;
+        }
+
         setSpatialQueryFeatures([]);
         setSpatialQueryResult(null);
         setSpatialQueryError(null);
@@ -953,7 +1050,10 @@ export function WorkspacePage() {
         shouldFitSelected,
     ]);
 
-    const [lastAgentSnapshot, setlastAgentSnapshot] = useState<AgentSnapshot | null>(null,);
+    const [lastAgentSnapshot, setLastAgentSnapshot] =
+        useState<AgentSnapshot | null>(null);
+    const [agentExecutionEvents, setAgentExecutionEvents] =
+        useState<AgentExecutionEvent[]>([]);
 
     const requestedPanel = searchParams.get("panel");
 
@@ -1189,105 +1289,637 @@ export function WorkspacePage() {
 
     const agentContext: AgentContext = {
         datasetName: dataset.name,
-        featureCount: filteredFeatures.length,
+        featureCount: totalFeatureCount,
+        filteredFeatureCount: filteredFeatures.length,
         currentFilters: {
-            landUseTypes: state.filters.landUseTypes,
+            landUseTypes: [
+                ...state.filters.landUseTypes,
+            ],
             minimumBuiltYear: state.filters.minimumBuiltYear,
             districtCode: state.filters.districtCode,
         },
-        currentLayerStyle: layerStyle,
+        currentLayerStyle: {
+            layerVisible: layerStyle.layerVisible,
+            fillVisible: layerStyle.fillVisible,
+            fillColor: layerStyle.fillColor,
+            fillOpacity: layerStyle.fillOpacity,
+            outlineVisible: layerStyle.outlineVisible,
+            outlineColor: layerStyle.outlineColor,
+            outlineWidth: layerStyle.outlineWidth,
+            outlineOpacity: layerStyle.outlineOpacity,
+            symbologyMode: layerStyle.symbologyMode,
+        },
+        selectedFeature: selectedFeature
+            ? {
+                id: selectedFeature.properties.id,
+                landUseType:
+                    selectedFeature.properties.landUseType,
+            }
+            : null,
+        hasBuffer: bufferFeature !== null,
+        bufferDistanceM: bufferResult?.distance ?? null,
+        hasAoi: aoiPolygon !== null,
+        aoiCompleted:
+            aoiMode === "completed" && aoiPolygon !== null,
+        bufferQueryFeatureCount: spatialQueryFeatures.length,
+        aoiQueryFeatureCount: aoiQueryFeatures.length,
+        analysisLayers: analysisResultLayers.map(
+            (layer) => ({
+                id: layer.id,
+                name: layer.name,
+                operation: layer.operation,
+                featureCount: layer.featureCount,
+                visible: layer.visible,
+            }),
+        ),
+        overlayLayers: overlayLayers.map(
+            (layer) => ({
+                id: layer.id,
+                name: layer.name,
+                geometryKind: layer.geometryKind,
+                featureCount: layer.featureCount,
+                visible: layer.style.visible,
+            }),
+        ),
+        symbology: {
+            mode: layerStyle.symbologyMode,
+            field:
+                layerStyle.symbologyMode === "graduated"
+                    ? layerStyle.graduatedField
+                    : null,
+            method:
+                layerStyle.symbologyMode === "graduated"
+                    ? layerStyle.classificationMethod
+                    : null,
+            classCount:
+                layerStyle.symbologyMode === "graduated"
+                    ? layerStyle.classCount
+                    : null,
+            colorRamp:
+                layerStyle.symbologyMode === "graduated"
+                    ? layerStyle.colorRamp
+                    : null,
+        },
     };
 
-    function handleExecuteAgentPlan(
-        plan: AgentPlan,
-    ) {
-        setlastAgentSnapshot({
+    function createAgentSnapshot(): AgentSnapshot {
+        return {
             filters: {
                 ...state.filters,
-
                 landUseTypes: [
                     ...state.filters.landUseTypes,
                 ],
             },
             layerStyle: {
                 ...layerStyle,
+                graduatedClasses:
+                    layerStyle.graduatedClasses.map(
+                        (item) => ({ ...item }),
+                    ),
             },
-        });
-        for (
-            const command
-            of plan.commands
-        ) {
-            switch (
-            command.type
-            ) {
+            bufferFeature,
+            bufferResult: bufferResult
+                ? { ...bufferResult }
+                : null,
+            bufferError,
+            spatialQueryFeatures: [
+                ...spatialQueryFeatures,
+            ],
+            spatialQueryResult: spatialQueryResult
+                ? {
+                    ...spatialQueryResult,
+                    featureIds: [
+                        ...spatialQueryResult.featureIds,
+                    ],
+                    typeCounts: {
+                        ...spatialQueryResult.typeCounts,
+                    },
+                }
+                : null,
+            spatialQueryError,
+            aoiRelation,
+            aoiQueryFeatures: [...aoiQueryFeatures],
+            aoiAnalysisResult: aoiAnalysisResult
+                ? {
+                    ...aoiAnalysisResult,
+                    featureIds: [
+                        ...aoiAnalysisResult.featureIds,
+                    ],
+                    typeCounts: {
+                        ...aoiAnalysisResult.typeCounts,
+                    },
+                }
+                : null,
+            aoiQueryError,
+            analysisResultLayers:
+                analysisResultLayers.map(
+                    (layer) => ({ ...layer }),
+                ),
+            geoprocessingSummary:
+                geoprocessingSummary
+                    ? { ...geoprocessingSummary }
+                    : null,
+            geoprocessingError,
+        };
+    }
 
+    function createAgentExecutionContext(): AgentExecutionContext {
+        return {
+            filters: {
+                ...state.filters,
+                landUseTypes: [
+                    ...state.filters.landUseTypes,
+                ],
+            },
+            filteredCollection: {
+                type: "FeatureCollection",
+                features: [...filteredFeatures],
+            },
+            layerStyle: {
+                ...layerStyle,
+                graduatedClasses: [
+                    ...layerStyle.graduatedClasses,
+                ],
+            },
+            bufferFeature,
+            bufferResult,
+            spatialQueryFeatures: [
+                ...spatialQueryFeatures,
+            ],
+            spatialQueryResult,
+            aoiQueryFeatures: [...aoiQueryFeatures],
+            aoiAnalysisResult,
+            analysisResultLayers:
+                analysisResultLayers.map(
+                    (layer) => ({ ...layer }),
+                ),
+        };
+    }
+
+    function clearAgentDependentQueries(
+        executionContext: AgentExecutionContext,
+    ) {
+        executionContext.spatialQueryFeatures = [];
+        executionContext.spatialQueryResult = null;
+        executionContext.aoiQueryFeatures = [];
+        executionContext.aoiAnalysisResult = null;
+        handleClearSpatialQuery();
+        handleClearAoiQuery();
+    }
+
+    function updateAgentFilteredCollection(
+        executionContext: AgentExecutionContext,
+    ) {
+        executionContext.filteredCollection = {
+            type: "FeatureCollection",
+            features: applyLandUseFilters(
+                dataset?.collection.features ?? [],
+                executionContext.filters,
+            ),
+        };
+    }
+
+    function resolveAgentGeoprocessingInput(
+        command: Extract<
+            AgentCommand,
+            { type: "run_geoprocessing" }
+        >,
+        executionContext: AgentExecutionContext,
+    ): LandUseFeatureCollection {
+        const features =
+            command.payload.inputSource === "aoi-query"
+                ? executionContext.aoiQueryFeatures
+                : command.payload.inputSource === "buffer-query"
+                    ? executionContext.spatialQueryFeatures
+                    : executionContext.filteredCollection.features;
+
+        return {
+            type: "FeatureCollection",
+            features: [...features],
+        };
+    }
+
+    function createAgentGeoprocessingRequest(
+        command: Extract<
+            AgentCommand,
+            { type: "run_geoprocessing" }
+        >,
+    ): GeoprocessingRunRequest {
+        const inputSource = command.payload.inputSource === "filtered"
+            ? "current-filtered"
+            : command.payload.inputSource;
+
+        if (command.payload.operation === "intersection") {
+            return {
+                operation: "intersection",
+                inputSource,
+                overlaySource: command.payload.overlaySource,
+                dissolveField: "all",
+            };
+        }
+
+        if (command.payload.operation === "dissolve") {
+            return {
+                operation: "dissolve",
+                inputSource,
+                overlaySource: "aoi",
+                dissolveField: command.payload.dissolveField,
+            };
+        }
+
+        return {
+            operation: "centroid",
+            inputSource,
+            overlaySource: "aoi",
+            dissolveField: "all",
+        };
+    }
+
+    function executeAgentCommand(
+        command: AgentCommand,
+        executionContext: AgentExecutionContext,
+    ): AgentCommandExecutionResult {
+        try {
+            switch (command.type) {
                 case "apply_filter": {
+                    const previousCount =
+                        executionContext.filteredCollection.features.length;
+                    executionContext.filters = {
+                        ...executionContext.filters,
+                        ...command.payload,
+                        landUseTypes: command.payload.landUseTypes
+                            ? [...command.payload.landUseTypes]
+                            : [
+                                ...executionContext.filters.landUseTypes,
+                            ],
+                    };
+                    updateAgentFilteredCollection(executionContext);
+                    clearAgentDependentQueries(executionContext);
+                    agentHandledFilterClearRef.current = true;
                     dispatch({
-                        type:
-                            "PATCH_FILTERS",
-
-                        payload:
-                            command.payload,
+                        type: "REPLACE_FILTERS",
+                        payload: executionContext.filters,
                     });
 
-                    break;
+                    return {
+                        success: true,
+                        message: `已应用筛选：${previousCount} → ${executionContext.filteredCollection.features.length} 个要素。`,
+                    };
                 }
-
 
                 case "clear_filters": {
-                    dispatch({
-                        type:
-                            "CLEAR_FILTERS",
-                    });
+                    const previousCount =
+                        executionContext.filteredCollection.features.length;
+                    executionContext.filters = {
+                        landUseTypes: [],
+                        minimumBuiltYear: null,
+                        districtCode: "",
+                    };
+                    updateAgentFilteredCollection(executionContext);
+                    clearAgentDependentQueries(executionContext);
+                    agentHandledFilterClearRef.current = true;
+                    dispatch({ type: "CLEAR_FILTERS" });
 
-                    break;
+                    return {
+                        success: true,
+                        message: `已清除筛选：${previousCount} → ${executionContext.filteredCollection.features.length} 个要素。`,
+                    };
                 }
 
-
                 case "update_layer_style": {
-                    const {
-                        colorMode,
-                        ...styleUpdates
-                    } = command.payload;
+                    const { colorMode, ...styleUpdates } =
+                        command.payload;
+                    const nextStyle: LayerStyle = {
+                        ...executionContext.layerStyle,
+                        ...styleUpdates,
+                        symbologyMode:
+                            colorMode === undefined
+                                ? executionContext.layerStyle.symbologyMode
+                                : colorMode === "classified"
+                                    ? "categorized"
+                                    : "single",
+                    };
 
-                    setLayerStyle(
-                        (previous) => {
-                            return {
-                                ...previous,
-                                ...styleUpdates,
-                                symbologyMode:
-                                    colorMode === undefined
-                                        ? previous.symbologyMode
-                                        : colorMode === "classified"
-                                            ? "categorized"
-                                            : "single",
-                            };
+                    executionContext.layerStyle = nextStyle;
+                    setLayerStyle(nextStyle);
+
+                    return {
+                        success: true,
+                        message: "已更新土地利用图层基础样式。",
+                    };
+                }
+
+                case "fit_map_bounds":
+                    requestMapView("fit-current");
+                    return {
+                        success: true,
+                        message: "地图已定位到当前筛选结果。",
+                    };
+
+                case "navigate_statistics":
+                    navigate("/statistics");
+                    return {
+                        success: true,
+                        message: "已打开统计分析页面。",
+                    };
+
+                case "create_buffer": {
+                    if (!selectedFeature) {
+                        return {
+                            success: false,
+                            message: "请先在地图中选择一个地块。",
+                        };
+                    }
+
+                    const selectedStillVisible =
+                        executionContext.filteredCollection.features.some(
+                            (feature) =>
+                                feature.properties.id ===
+                                selectedFeature.properties.id,
+                        );
+
+                    if (!selectedStillVisible) {
+                        return {
+                            success: false,
+                            message: "当前筛选已排除所选地块，请重新选择地块。",
+                        };
+                    }
+
+                    if (
+                        !Number.isFinite(command.distanceM) ||
+                        command.distanceM <= 0 ||
+                        command.distanceM > 50_000
+                    ) {
+                        return {
+                            success: false,
+                            message: "缓冲距离必须大于 0 且不超过 50,000 米。",
+                        };
+                    }
+
+                    const execution = createBufferExecution(
+                        selectedFeature,
+                        command.distanceM,
+                    );
+
+                    executionContext.bufferFeature = execution.feature;
+                    executionContext.bufferResult = execution.result;
+                    executionContext.spatialQueryFeatures = [];
+                    executionContext.spatialQueryResult = null;
+                    setBufferFeature(execution.feature);
+                    setBufferResult(execution.result);
+                    setBufferError(null);
+                    handleClearSpatialQuery();
+
+                    return {
+                        success: true,
+                        message: `已生成 ${command.distanceM.toLocaleString("zh-CN")} 米缓冲区，面积 ${execution.result.areaKm2.toFixed(3)} km²。`,
+                    };
+                }
+
+                case "query_buffer": {
+                    if (!executionContext.bufferFeature) {
+                        return {
+                            success: false,
+                            message: "请先创建缓冲区。",
+                        };
+                    }
+
+                    const execution = createSpatialQueryExecution(
+                        executionContext.filteredCollection,
+                        executionContext.bufferFeature,
+                        command.relation,
+                    );
+
+                    executionContext.spatialQueryFeatures =
+                        execution.features;
+                    executionContext.spatialQueryResult =
+                        execution.result;
+                    setSpatialQueryFeatures(execution.features);
+                    setSpatialQueryResult(execution.result);
+                    setSpatialQueryError(null);
+
+                    return {
+                        success: true,
+                        message: `Buffer 空间查询完成，共命中 ${execution.result.featureCount} 个地块。`,
+                    };
+                }
+
+                case "query_aoi": {
+                    if (
+                        aoiMode !== "completed" ||
+                        !aoiPolygon
+                    ) {
+                        return {
+                            success: false,
+                            message: "请先在地图中完成 AOI 绘制。",
+                        };
+                    }
+
+                    const execution = createSpatialQueryExecution(
+                        executionContext.filteredCollection,
+                        aoiPolygon,
+                        command.relation,
+                    );
+
+                    executionContext.aoiQueryFeatures =
+                        execution.features;
+                    executionContext.aoiAnalysisResult =
+                        execution.result;
+                    setAoiRelation(command.relation);
+                    setAoiQueryFeatures(execution.features);
+                    setAoiAnalysisResult(execution.result);
+                    setAoiQueryError(null);
+
+                    return {
+                        success: true,
+                        message: `AOI 空间查询完成，共命中 ${execution.result.featureCount} 个地块。`,
+                    };
+                }
+
+                case "run_geoprocessing": {
+                    const request = createAgentGeoprocessingRequest(
+                        command,
+                    );
+                    const inputCollection =
+                        resolveAgentGeoprocessingInput(
+                            command,
+                            executionContext,
+                        );
+                    const execution = createGeoprocessingExecution(
+                        request,
+                        inputCollection,
+                        {
+                            aoi: aoiPolygon,
+                            buffer: executionContext.bufferFeature,
                         },
                     );
 
-                    break;
+                    executionContext.analysisResultLayers = [
+                        ...executionContext.analysisResultLayers,
+                        execution.layer,
+                    ];
+                    setAnalysisResultLayers(
+                        executionContext.analysisResultLayers,
+                    );
+                    setGeoprocessingSummary(execution.summary);
+                    setGeoprocessingError(null);
+
+                    return {
+                        success: true,
+                        message: `${execution.layer.name} 已生成 ${execution.layer.featureCount} 个要素。`,
+                    };
                 }
 
+                case "update_symbology": {
+                    const nextStyle: LayerStyle =
+                        command.payload.mode === "graduated"
+                            ? {
+                                ...executionContext.layerStyle,
+                                symbologyMode: "graduated",
+                                graduatedField:
+                                    command.payload.field,
+                                classificationMethod:
+                                    command.payload.method,
+                                classCount:
+                                    command.payload.classCount,
+                                colorRamp:
+                                    command.payload.colorRamp,
+                                graduatedClasses: [],
+                            }
+                            : {
+                                ...executionContext.layerStyle,
+                                symbologyMode:
+                                    command.payload.mode,
+                                graduatedClasses: [],
+                            };
 
-                case "navigate_statistics": {
-                    navigate(
-                        "/statistics",
-                    );
+                    executionContext.layerStyle = nextStyle;
+                    setLayerStyle(nextStyle);
 
-                    break;
+                    return {
+                        success: true,
+                        message:
+                            command.payload.mode === "graduated"
+                                ? `已按 ${command.payload.field} 应用 ${command.payload.classCount} 级专题制图。`
+                                : `已切换为 ${command.payload.mode === "categorized" ? "唯一值" : "单一符号"} 渲染。`,
+                    };
                 }
 
+                case "set_analysis_layer_visibility": {
+                    const layerExists =
+                        executionContext.analysisResultLayers.some(
+                            (layer) => layer.id === command.layerId,
+                        );
 
-                case "fit_map_bounds": {
-                    requestMapView(
-                        "fit-current",
+                    if (!layerExists) {
+                        return {
+                            success: false,
+                            message: "指定的分析结果图层不存在。",
+                        };
+                    }
+
+                    executionContext.analysisResultLayers =
+                        executionContext.analysisResultLayers.map(
+                            (layer) =>
+                                layer.id === command.layerId
+                                    ? {
+                                        ...layer,
+                                        visible: command.visible,
+                                    }
+                                    : layer,
+                        );
+                    setAnalysisResultLayers(
+                        executionContext.analysisResultLayers,
                     );
 
-                    break;
+                    return {
+                        success: true,
+                        message: command.visible
+                            ? "已显示分析结果图层。"
+                            : "已隐藏分析结果图层。",
+                    };
                 }
             }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error
+                    ? error.message
+                    : "GIS 命令执行失败。",
+            };
         }
-    };
+    }
+
+    function isAgentMutationCommand(
+        command: AgentCommand,
+    ) {
+        return command.type !== "fit_map_bounds" &&
+            command.type !== "navigate_statistics";
+    }
+
+    function handleExecuteAgentPlan(
+        plan: AgentPlan,
+    ): AgentPlanExecutionResult {
+        const snapshot = createAgentSnapshot();
+        const executionContext = createAgentExecutionContext();
+        const events: AgentExecutionEvent[] = [];
+        let snapshotStored = false;
+
+        for (
+            let index = 0;
+            index < plan.commands.length;
+            index += 1
+        ) {
+            const command = plan.commands[index];
+            const result = executeAgentCommand(
+                command,
+                executionContext,
+            );
+            const event: AgentExecutionEvent = {
+                commandType: command.type,
+                status: result.success ? "success" : "error",
+                message: result.message,
+                timestamp: Date.now(),
+                stepIndex: index,
+            };
+
+            events.push(event);
+
+            if (
+                result.success &&
+                isAgentMutationCommand(command) &&
+                !snapshotStored
+            ) {
+                setLastAgentSnapshot(snapshot);
+                snapshotStored = true;
+            }
+
+            if (!result.success) {
+                setAgentExecutionEvents((previous) => [
+                    ...previous,
+                    ...events,
+                ]);
+                return {
+                    events,
+                    completed: false,
+                    stoppedAtStep: index,
+                };
+            }
+        }
+
+        if (events.length > 0) {
+            setAgentExecutionEvents((previous) => [
+                ...previous,
+                ...events,
+            ]);
+        }
+
+        return {
+            events,
+            completed: true,
+            stoppedAtStep: null,
+        };
+    }
 
     function handleUndoAgentAction() {
         if (!lastAgentSnapshot) {
@@ -1297,11 +1929,39 @@ export function WorkspacePage() {
             type: "REPLACE_FILTERS",
             payload: lastAgentSnapshot.filters,
         });
-        setLayerStyle({
-            ...lastAgentSnapshot.layerStyle,
-        });
-        setlastAgentSnapshot(null);
-    };
+        agentHandledFilterClearRef.current = true;
+        setLayerStyle(lastAgentSnapshot.layerStyle);
+        setBufferFeature(lastAgentSnapshot.bufferFeature);
+        setBufferResult(lastAgentSnapshot.bufferResult);
+        setBufferError(lastAgentSnapshot.bufferError);
+        setSpatialQueryFeatures(
+            lastAgentSnapshot.spatialQueryFeatures,
+        );
+        setSpatialQueryResult(
+            lastAgentSnapshot.spatialQueryResult,
+        );
+        setSpatialQueryError(
+            lastAgentSnapshot.spatialQueryError,
+        );
+        setAoiRelation(lastAgentSnapshot.aoiRelation);
+        setAoiQueryFeatures(
+            lastAgentSnapshot.aoiQueryFeatures,
+        );
+        setAoiAnalysisResult(
+            lastAgentSnapshot.aoiAnalysisResult,
+        );
+        setAoiQueryError(lastAgentSnapshot.aoiQueryError);
+        setAnalysisResultLayers(
+            lastAgentSnapshot.analysisResultLayers,
+        );
+        setGeoprocessingSummary(
+            lastAgentSnapshot.geoprocessingSummary,
+        );
+        setGeoprocessingError(
+            lastAgentSnapshot.geoprocessingError,
+        );
+        setLastAgentSnapshot(null);
+    }
 
 
     const workspaceClassName =
@@ -1657,6 +2317,7 @@ export function WorkspacePage() {
                 <AgentPanel
                     context={agentContext}
                     onExecutePlan={handleExecuteAgentPlan}
+                    executionEvents={agentExecutionEvents}
                     onClose={
                         handleCloseAgent
                     }
