@@ -13,6 +13,7 @@ export type WorkspacePanel =
     | "aoi-analysis"
     | "geoprocessing"
     | "data-quality"
+    | "batch-edit"
     | "agent"
     | null;
 
@@ -22,6 +23,7 @@ export type MapViewCommandType =
     | "fit-selected"
     | "fit-overlay"
     | "fit-quality-issue"
+    | "fit-selection"
     | "layer-up"
     | "layer-down";
 

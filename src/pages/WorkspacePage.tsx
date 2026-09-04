@@ -29,6 +29,7 @@ import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
 import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
+import { BatchEditPanel } from "../components/workspace/BatchEditPanel";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -86,6 +87,11 @@ import type {
     WorkspaceVectorLayer,
 } from "../types/mapLayer";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
+import { useEditHistory } from "../hooks/useEditHistory";
+import type {
+    EditTransaction,
+    LandUsePropertyChanges,
+} from "../types/editHistory";
 import type {
     CleanedDatasetResult,
     DataQualityFeatureCollection,
@@ -208,6 +214,10 @@ export function WorkspacePage() {
         useState<LandUseFeature | null>(
             null,
         );
+    const [selectedFeatureIds, setSelectedFeatureIds] =
+        useState<string[]>([]);
+    const [editMessage, setEditMessage] =
+        useState<string | null>(null);
 
     const [bufferFeature, setBufferFeature] =
         useState<BufferFeature | null>(null);
@@ -269,6 +279,7 @@ export function WorkspacePage() {
     const analysisLayerSequenceRef = useRef(0);
     const qualityScanSequenceRef = useRef(0);
     const agentHandledFilterClearRef = useRef(false);
+    const editHistory = useEditHistory(30);
 
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
@@ -372,6 +383,9 @@ export function WorkspacePage() {
 
             fitFeature?:
             boolean;
+
+            multiSelect?:
+            boolean;
         },
     ) {
         if (
@@ -390,6 +404,10 @@ export function WorkspacePage() {
 
 
         if (!feature) {
+            if (!options?.multiSelect) {
+                setSelectedFeatureIds([]);
+            }
+
             setActivePanel(
                 (previous) =>
                     previous ===
@@ -400,6 +418,18 @@ export function WorkspacePage() {
 
             return;
         }
+
+        const featureId = feature.properties.id;
+
+        setSelectedFeatureIds((previous) => {
+            if (!options?.multiSelect) {
+                return [featureId];
+            }
+
+            return previous.includes(featureId)
+                ? previous.filter((id) => id !== featureId)
+                : [...previous, featureId];
+        });
 
 
         if (
@@ -446,6 +476,10 @@ export function WorkspacePage() {
         setSelectedFeature(
             feature,
         );
+
+        setSelectedFeatureIds([
+            feature.properties.id,
+        ]);
 
 
         setShouldFitSelected(
@@ -1052,6 +1086,26 @@ export function WorkspacePage() {
     ]);
 
     useEffect(() => {
+        if (!selectedFeature || !state.dataset) {
+            return;
+        }
+
+        const currentFeature = state.dataset.collection.features.find(
+            (feature) =>
+                feature.properties.id === selectedFeature.properties.id,
+        );
+
+        if (!currentFeature) {
+            setSelectedFeature(null);
+            return;
+        }
+
+        if (currentFeature !== selectedFeature) {
+            setSelectedFeature(currentFeature);
+        }
+    }, [selectedFeature, state.dataset]);
+
+    useEffect(() => {
         if (agentHandledFilterClearRef.current) {
             agentHandledFilterClearRef.current = false;
             return;
@@ -1283,6 +1337,16 @@ export function WorkspacePage() {
             },
             [filteredFeatures],
         );
+    const selectedFeatures = useMemo(
+        () => {
+            const selectedIds = new Set(selectedFeatureIds);
+
+            return state.dataset?.collection.features.filter(
+                (feature) => selectedIds.has(feature.properties.id),
+            ) ?? [];
+        },
+        [selectedFeatureIds, state.dataset],
+    );
 
     const graduatedClasses = useMemo(
         () => {
@@ -1562,6 +1626,196 @@ export function WorkspacePage() {
         } catch {
             setQualityError("无法重新检查清洗结果。");
         }
+    }
+
+    function invalidatePrimaryQualityReport() {
+        if (qualityTargetId !== "primary" || !dataQualityReport) {
+            return;
+        }
+
+        setDataQualityReport(null);
+        setSelectedQualityIssueId(null);
+        setCleanedDataset(null);
+        setCleanedQualityReport(null);
+        setQualityError("数据已发生变化，请重新运行质量检查。");
+    }
+
+    function handleToggleFeatureSelection(featureId: string) {
+        setSelectedFeatureIds((previous) => previous.includes(featureId)
+            ? previous.filter((id) => id !== featureId)
+            : [...previous, featureId],
+        );
+    }
+
+    function handleSelectAllFilteredFeatures() {
+        setSelectedFeatureIds(
+            filteredFeatures.map((feature) => feature.properties.id),
+        );
+    }
+
+    function handleInvertFilteredSelection() {
+        const visibleIds = new Set(
+            filteredFeatures.map((feature) => feature.properties.id),
+        );
+
+        setSelectedFeatureIds((previous) => {
+            const previousSet = new Set(previous);
+            const hiddenIds = previous.filter((id) => !visibleIds.has(id));
+            const invertedVisibleIds = filteredFeatures
+                .map((feature) => feature.properties.id)
+                .filter((id) => !previousSet.has(id));
+
+            return [...hiddenIds, ...invertedVisibleIds];
+        });
+    }
+
+    function handleClearFeatureSelection() {
+        setSelectedFeatureIds([]);
+    }
+
+    function handleFitFeatureSelection() {
+        if (selectedFeatureIds.length > 0) {
+            requestMapView("fit-selection");
+        }
+    }
+
+    function handleExportSelectionGeoJson() {
+        if (selectedFeatures.length === 0) {
+            return;
+        }
+
+        exportFeatureCollection(
+            {
+                type: "FeatureCollection",
+                features: selectedFeatures,
+            },
+            `geoinsight-selection-${Date.now()}.geojson`,
+        );
+    }
+
+    function handleExportSelectionCsv() {
+        if (selectedFeatures.length === 0) {
+            return;
+        }
+
+        downloadLandUseCsv(
+            selectedFeatures,
+            `geoinsight-selection-${Date.now()}.csv`,
+        );
+    }
+
+    function createEditTransaction(
+        changes: LandUsePropertyChanges,
+    ): EditTransaction | null {
+        const patches = selectedFeatures.flatMap((feature) => {
+            const before: LandUsePropertyChanges = {};
+            const after: LandUsePropertyChanges = {};
+
+            if (
+                changes.landUseType !== undefined &&
+                changes.landUseType !== feature.properties.landUseType
+            ) {
+                before.landUseType = feature.properties.landUseType;
+                after.landUseType = changes.landUseType;
+            }
+
+            if (
+                changes.builtYear !== undefined &&
+                changes.builtYear !== feature.properties.builtYear
+            ) {
+                before.builtYear = feature.properties.builtYear;
+                after.builtYear = changes.builtYear;
+            }
+
+            if (
+                changes.districtCode !== undefined &&
+                changes.districtCode !== feature.properties.districtCode
+            ) {
+                before.districtCode = feature.properties.districtCode;
+                after.districtCode = changes.districtCode;
+            }
+
+            return Object.keys(after).length > 0
+                ? [{
+                    featureId: feature.properties.id,
+                    before,
+                    after,
+                }]
+                : [];
+        });
+
+        if (patches.length === 0) {
+            return null;
+        }
+
+        const editedFields = [
+            changes.landUseType !== undefined ? "用地类型" : null,
+            changes.builtYear !== undefined ? "建成年份" : null,
+            changes.districtCode !== undefined ? "行政区代码" : null,
+        ].filter((field): field is string => field !== null);
+
+        return {
+            id: crypto.randomUUID(),
+            type: "batch_attribute_edit",
+            label: `批量修改${editedFields.join("、")}`,
+            timestamp: Date.now(),
+            featureCount: patches.length,
+            patches,
+        };
+    }
+
+    function dispatchTransactionPatches(
+        transaction: EditTransaction,
+        direction: "before" | "after",
+    ) {
+        dispatch({
+            type: "UPDATE_FEATURE_PROPERTIES_BATCH",
+            payload: {
+                updates: transaction.patches.map((patch) => ({
+                    featureId: patch.featureId,
+                    changes: patch[direction],
+                })),
+            },
+        });
+        invalidatePrimaryQualityReport();
+        setSelectedFeatureIds([]);
+    }
+
+    function handleApplyBatchEdit(changes: LandUsePropertyChanges) {
+        const transaction = createEditTransaction(changes);
+
+        if (!transaction) {
+            setEditMessage("所选要素已经具有目标属性值。");
+            setActivePanel("table");
+            return;
+        }
+
+        dispatchTransactionPatches(transaction, "after");
+        editHistory.pushTransaction(transaction);
+        setEditMessage(`已修改 ${transaction.featureCount} 个地块。`);
+        setActivePanel("table");
+    }
+
+    function handleUndoEdit() {
+        const transaction = editHistory.undo();
+
+        if (!transaction) {
+            return;
+        }
+
+        dispatchTransactionPatches(transaction, "before");
+        setEditMessage(`已撤销：${transaction.label}。`);
+    }
+
+    function handleRedoEdit() {
+        const transaction = editHistory.redo();
+
+        if (!transaction) {
+            return;
+        }
+
+        dispatchTransactionPatches(transaction, "after");
+        setEditMessage(`已重做：${transaction.label}。`);
     }
 
     const agentContext: AgentContext = {
@@ -2311,6 +2565,7 @@ export function WorkspacePage() {
                                 ?.properties.id ??
                             null
                         }
+                        selectedFeatureIds={selectedFeatureIds}
                         viewCommand={
                             mapViewCommand
                         }
@@ -2493,9 +2748,37 @@ export function WorkspacePage() {
                             null
                         }
 
+                        selectedFeatureIds={selectedFeatureIds}
+
+                        editMessage={editMessage}
+
+                        canUndo={editHistory.canUndo}
+
+                        canRedo={editHistory.canRedo}
+
                         onFeatureSelect={
                             handleTableFeatureSelect
                         }
+
+                        onToggleSelection={handleToggleFeatureSelection}
+
+                        onSelectAll={handleSelectAllFilteredFeatures}
+
+                        onInvertSelection={handleInvertFilteredSelection}
+
+                        onClearSelection={handleClearFeatureSelection}
+
+                        onBatchEdit={() => setActivePanel("batch-edit")}
+
+                        onFitSelection={handleFitFeatureSelection}
+
+                        onExportSelectionGeoJson={handleExportSelectionGeoJson}
+
+                        onExportSelectionCsv={handleExportSelectionCsv}
+
+                        onUndo={handleUndoEdit}
+
+                        onRedo={handleRedoEdit}
 
                         onExport={
                             handleExportGeoJSON
@@ -2508,6 +2791,24 @@ export function WorkspacePage() {
                         }}
                     />
                 )}
+
+            {activePanel === "batch-edit" && (
+                <BatchEditPanel
+                    features={selectedFeatures}
+                    history={[
+                        ...editHistory.undoStack,
+                        ...editHistory.redoStack,
+                    ].sort((first, second) =>
+                        first.timestamp - second.timestamp,
+                    )}
+                    canUndo={editHistory.canUndo}
+                    canRedo={editHistory.canRedo}
+                    onApply={handleApplyBatchEdit}
+                    onUndo={handleUndoEdit}
+                    onRedo={handleRedoEdit}
+                    onClose={() => setActivePanel("table")}
+                />
+            )}
             {activePanel === "basemap" && (
                 <BasemapPanel
                     value={

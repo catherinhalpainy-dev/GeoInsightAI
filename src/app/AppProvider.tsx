@@ -3,6 +3,9 @@ import type { AppAction, AppState } from "./appTypes";
 import { appReducer, initialAppState } from "./appReducer";
 import type { LandUseFeature } from "../types/landUse";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
+import {
+    filterFeaturesByQuery,
+} from "../services/gis/attributeQuery";
 
 // interface 和对象类型声明中：写分号
 // 真正对象值中：写逗号
@@ -48,8 +51,27 @@ export function AppProvider({ children }: AppProviderProps) {
     const filteredFeatures =
         useMemo(() => {
             const features = state.dataset?.collection.features ?? [];
-            return applyLandUseFilters(features, state.filters);
-        }, [state.dataset, state.filters]);
+            const basicFilteredFeatures = applyLandUseFilters(
+                features,
+                state.filters,
+            );
+
+            if (!state.attributeQuery) {
+                return basicFilteredFeatures;
+            }
+
+            return filterFeaturesByQuery(
+                {
+                    type: "FeatureCollection",
+                    features: basicFilteredFeatures,
+                },
+                state.attributeQuery,
+            );
+        }, [
+            state.attributeQuery,
+            state.dataset,
+            state.filters,
+        ]);
     return (
         <AppContext.Provider
             value={{ state, dispatch, filteredFeatures }}

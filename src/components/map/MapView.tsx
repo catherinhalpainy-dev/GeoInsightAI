@@ -88,6 +88,12 @@ const SELECTED_OUTLINE_LAYER_ID =
 const HOVER_OUTLINE_LAYER_ID =
     "land-use-hover-outline";
 
+const SELECTION_SET_FILL_LAYER_ID =
+    "selection-set-fill";
+
+const SELECTION_SET_OUTLINE_LAYER_ID =
+    "selection-set-outline";
+
 const MEASURE_SOURCE_ID =
     "measure-source";
 
@@ -200,6 +206,9 @@ interface MapViewProps {
     selectedFeatureId?:
     string | null;
 
+    selectedFeatureIds?:
+    string[];
+
     viewCommand?:
     MapViewCommand | null;
 
@@ -247,6 +256,9 @@ interface MapViewProps {
     onFeatureSelect?: (
         feature:
             LandUseFeature | null,
+        options?: {
+            multiSelect?: boolean;
+        },
     ) => void;
 
     onMeasurePointAdd?:
@@ -505,6 +517,19 @@ function applyLayerStyle(
             selectionVisible,
         );
     }
+
+    for (const layerId of [
+        SELECTION_SET_FILL_LAYER_ID,
+        SELECTION_SET_OUTLINE_LAYER_ID,
+    ]) {
+        if (map.getLayer(layerId)) {
+            map.setLayoutProperty(
+                layerId,
+                "visibility",
+                selectionVisible,
+            );
+        }
+    }
 }
 
 
@@ -515,6 +540,20 @@ function createEmptySelectionFilter():
         "==",
         ["get", "id"],
         "__no_selected_feature__",
+    ];
+}
+
+function createSelectionSetFilter(
+    featureIds: string[],
+): FilterSpecification {
+    if (featureIds.length === 0) {
+        return createEmptySelectionFilter();
+    }
+
+    return [
+        "in",
+        ["get", "id"],
+        ["literal", featureIds],
     ];
 }
 function fitMapToFeatures(
@@ -650,6 +689,33 @@ function ensureLandUseLayers(
 
                 "line-opacity":
                     0.8,
+            },
+        });
+    }
+
+    if (!map.getLayer(SELECTION_SET_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: SELECTION_SET_FILL_LAYER_ID,
+            type: "fill",
+            source: LAND_USE_SOURCE_ID,
+            filter: createEmptySelectionFilter(),
+            paint: {
+                "fill-color": "#6366f1",
+                "fill-opacity": 0.08,
+            },
+        });
+    }
+
+    if (!map.getLayer(SELECTION_SET_OUTLINE_LAYER_ID)) {
+        map.addLayer({
+            id: SELECTION_SET_OUTLINE_LAYER_ID,
+            type: "line",
+            source: LAND_USE_SOURCE_ID,
+            filter: createEmptySelectionFilter(),
+            paint: {
+                "line-color": "#4f46e5",
+                "line-width": 1.5,
+                "line-opacity": 0.75,
             },
         });
     }
@@ -1466,8 +1532,10 @@ function ensureDataQualityLayers(
             ? SPATIAL_QUERY_FILL_LAYER_ID
             : map.getLayer(AOI_QUERY_FILL_LAYER_ID)
                 ? AOI_QUERY_FILL_LAYER_ID
-                : map.getLayer(HOVER_OUTLINE_LAYER_ID)
-                    ? HOVER_OUTLINE_LAYER_ID
+                : map.getLayer(SELECTION_SET_FILL_LAYER_ID)
+                    ? SELECTION_SET_FILL_LAYER_ID
+                    : map.getLayer(HOVER_OUTLINE_LAYER_ID)
+                        ? HOVER_OUTLINE_LAYER_ID
                     : map.getLayer(SELECTED_FILL_LAYER_ID)
                         ? SELECTED_FILL_LAYER_ID
                         : undefined;
@@ -1635,6 +1703,8 @@ function isOverlayHigherLayer(
         layerId === SPATIAL_QUERY_OUTLINE_LAYER_ID ||
         layerId === AOI_QUERY_FILL_LAYER_ID ||
         layerId === AOI_QUERY_OUTLINE_LAYER_ID ||
+        layerId === SELECTION_SET_FILL_LAYER_ID ||
+        layerId === SELECTION_SET_OUTLINE_LAYER_ID ||
         layerId === DATA_QUALITY_FILL_LAYER_ID ||
         layerId === DATA_QUALITY_LINE_LAYER_ID ||
         layerId === DATA_QUALITY_CIRCLE_LAYER_ID ||
@@ -2108,7 +2178,9 @@ function syncAnalysisResultLayers(
     }
 
     const beforeLayerId =
-        map.getLayer(DATA_QUALITY_FILL_LAYER_ID)
+        map.getLayer(SELECTION_SET_FILL_LAYER_ID)
+            ? SELECTION_SET_FILL_LAYER_ID
+            : map.getLayer(DATA_QUALITY_FILL_LAYER_ID)
             ? DATA_QUALITY_FILL_LAYER_ID
             : map.getLayer(HOVER_OUTLINE_LAYER_ID)
             ? HOVER_OUTLINE_LAYER_ID
@@ -2241,6 +2313,7 @@ export function MapView({
     layerStyle,
     basemap = "dark",
     selectedFeatureId = null,
+    selectedFeatureIds = [],
     viewCommand = null,
     measureMode = "none",
     measurePoints = [],
@@ -2298,6 +2371,9 @@ export function MapView({
 
     const latestSelectedFeatureIdRef =
         useRef(selectedFeatureId);
+
+    const latestSelectedFeatureIdsRef =
+        useRef<string[]>(selectedFeatureIds);
 
     const latestOnMeasurePointAddRef =
         useRef(onMeasurePointAdd);
@@ -2609,6 +2685,13 @@ export function MapView({
             if (
                 features.length === 0
             ) {
+                if (
+                    event.originalEvent.ctrlKey ||
+                    event.originalEvent.metaKey
+                ) {
+                    return;
+                }
+
                 latestOnFeatureSelectRef
                     .current?.(
                         null,
@@ -2644,6 +2727,11 @@ export function MapView({
             latestOnFeatureSelectRef
                 .current?.(
                     selected ?? null,
+                    {
+                        multiSelect:
+                            event.originalEvent.ctrlKey ||
+                            event.originalEvent.metaKey,
+                    },
                 );
         };
 
@@ -2761,6 +2849,8 @@ export function MapView({
 
         latestSelectedFeatureIdRef.current =
             selectedFeatureId;
+        latestSelectedFeatureIdsRef.current =
+            selectedFeatureIds;
     }, [
         onFeatureSelect,
         onMeasurePointAdd,
@@ -2768,6 +2858,7 @@ export function MapView({
         onAoiPointAdd,
         onAoiComplete,
         selectedFeatureId,
+        selectedFeatureIds,
     ]);
 
     const previousBasemapRef =
@@ -2923,6 +3014,19 @@ export function MapView({
                         filter,
                     );
                 }
+
+                const selectionSetFilter = createSelectionSetFilter(
+                    latestSelectedFeatureIdsRef.current,
+                );
+
+                map.setFilter(
+                    SELECTION_SET_FILL_LAYER_ID,
+                    selectionSetFilter,
+                );
+                map.setFilter(
+                    SELECTION_SET_OUTLINE_LAYER_ID,
+                    selectionSetFilter,
+                );
             };
 
 
@@ -3433,6 +3537,26 @@ export function MapView({
         collection,
     ]);
 
+    useEffect(() => {
+        latestSelectedFeatureIdsRef.current = selectedFeatureIds;
+        const map = mapRef.current;
+
+        if (
+            !map ||
+            !map.getLayer(SELECTION_SET_FILL_LAYER_ID) ||
+            !map.getLayer(SELECTION_SET_OUTLINE_LAYER_ID)
+        ) {
+            return;
+        }
+
+        const filter = createSelectionSetFilter(selectedFeatureIds);
+        map.setFilter(SELECTION_SET_FILL_LAYER_ID, filter);
+        map.setFilter(SELECTION_SET_OUTLINE_LAYER_ID, filter);
+    }, [
+        selectedFeatureIds,
+        collection,
+    ]);
+
     /*
     * Map View Command
     *
@@ -3550,6 +3674,22 @@ export function MapView({
             return;
         }
 
+        if (viewCommand.type === "fit-selection") {
+            const selectedIds = new Set(selectedFeatureIds);
+            const selected = (
+                allCollection?.features ?? collection?.features ?? []
+            ).filter((feature) =>
+                selectedIds.has(feature.properties.id),
+            );
+
+            if (selected.length === 0) {
+                return;
+            }
+
+            fitMapToFeatures(map, selected, 17);
+            return;
+        }
+
         if (
             viewCommand.type === "fit-overlay"
         ) {
@@ -3659,6 +3799,11 @@ export function MapView({
                     SELECTED_FILL_LAYER_ID,
                 )
             ) {
+                const beforeLayerId = map.getLayer(
+                    SELECTION_SET_FILL_LAYER_ID,
+                )
+                    ? SELECTION_SET_FILL_LAYER_ID
+                    : SELECTED_FILL_LAYER_ID;
                 /*
                  * 把普通业务图层移动到
                  * selection layer 的下面。
@@ -3667,12 +3812,12 @@ export function MapView({
                  */
                 map.moveLayer(
                     LAND_USE_FILL_LAYER_ID,
-                    SELECTED_FILL_LAYER_ID,
+                    beforeLayerId,
                 );
 
                 map.moveLayer(
                     LAND_USE_OUTLINE_LAYER_ID,
-                    SELECTED_FILL_LAYER_ID,
+                    beforeLayerId,
                 );
             }
 
@@ -3710,6 +3855,7 @@ export function MapView({
         collection,
         allCollection,
         selectedFeatureId,
+        selectedFeatureIds,
         qualityIssueFeatures,
     ]);
 

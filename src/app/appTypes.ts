@@ -1,4 +1,10 @@
 import type { LandUseDataset, LandUseType } from "../types/landUse";
+import type {
+    LandUsePropertyChanges,
+} from "../types/editHistory";
+import type {
+    AttributeQuery,
+} from "../types/query";
 
 // 联合类型:限制状态取值
 // idle：空闲
@@ -17,6 +23,7 @@ export interface AppState {
     importWarnings: string[];
 
     filters: LandUseFilters;
+    attributeQuery: AttributeQuery | null;
 }
 
 // 可辨识联合：多个联合类型成员共享一个字面量字段，通过该字段进行类型收窄
@@ -69,6 +76,22 @@ export type AppAction =
     |{
         type:"REPLACE_FILTERS";
         payload:LandUseFilters;
+    }
+    | {
+        type: "SET_ATTRIBUTE_QUERY";
+        payload: AttributeQuery;
+    }
+    | {
+        type: "CLEAR_ATTRIBUTE_QUERY";
+    }
+    | {
+        type: "UPDATE_FEATURE_PROPERTIES_BATCH";
+        payload: {
+            updates: {
+                featureId: string;
+                changes: LandUsePropertyChanges;
+            }[];
+        };
     };
 
 

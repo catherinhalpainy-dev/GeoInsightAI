@@ -15,6 +15,7 @@ export function createInitialAppState(): AppState {
     importWarnings: [],
     // 保证react不改变状态更新
     filters: { ...initialFilters },
+    attributeQuery: null,
   };
 };
 
@@ -52,7 +53,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         importWarnings: action.payload.warnings,
         filters: {
           ...initialFilters,
-        }
+        },
+        attributeQuery: null,
       };
 
     case "LOAD_DATASET":
@@ -141,6 +143,63 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ],
         },
       };
+
+    case "SET_ATTRIBUTE_QUERY":
+      return {
+        ...state,
+        attributeQuery: action.payload,
+      };
+
+    case "CLEAR_ATTRIBUTE_QUERY":
+      return {
+        ...state,
+        attributeQuery: null,
+      };
+
+    case "UPDATE_FEATURE_PROPERTIES_BATCH": {
+      if (!state.dataset || action.payload.updates.length === 0) {
+        return state;
+      }
+
+      const updatesById = new Map(
+        action.payload.updates.map((update) => [
+          update.featureId,
+          update.changes,
+        ]),
+      );
+      let changed = false;
+      const features = state.dataset.collection.features.map((feature) => {
+        const changes = updatesById.get(feature.properties.id);
+
+        if (!changes) {
+          return feature;
+        }
+
+        changed = true;
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            ...changes,
+          },
+        };
+      });
+
+      if (!changed) {
+        return state;
+      }
+
+      return {
+        ...state,
+        dataset: {
+          ...state.dataset,
+          collection: {
+            ...state.dataset.collection,
+            features,
+          },
+        },
+      };
+    }
 
     default:
       return state;
