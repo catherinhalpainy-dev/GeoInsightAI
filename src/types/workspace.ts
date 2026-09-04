@@ -12,6 +12,7 @@ export type WorkspacePanel =
     | "basemap"
     | "aoi-analysis"
     | "geoprocessing"
+    | "data-quality"
     | "agent"
     | null;
 
@@ -20,6 +21,7 @@ export type MapViewCommandType =
     | "fit-current"
     | "fit-selected"
     | "fit-overlay"
+    | "fit-quality-issue"
     | "layer-up"
     | "layer-down";
 
@@ -27,7 +29,7 @@ export type MapViewCommand =
     | {
         type: Exclude<
             MapViewCommandType,
-            "fit-overlay"
+            "fit-overlay" | "fit-quality-issue"
         >;
         requestId: number;
     }
@@ -35,6 +37,11 @@ export type MapViewCommand =
         type: "fit-overlay";
         requestId: number;
         layerId: string;
+    }
+    | {
+        type: "fit-quality-issue";
+        requestId: number;
+        issueId: string;
     };
 
 export type BasemapType =

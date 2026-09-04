@@ -2,10 +2,10 @@ import type {
     LandUseFeature,
 } from "../../types/landUse";
 
-type CsvField =
+export type CsvField =
     string | number | null;
 
-function escapeCsvField(
+export function escapeCsvField(
     value: CsvField,
 ) {
     const text = value === null
@@ -17,6 +17,39 @@ function escapeCsvField(
     }
 
     return `"${text.replaceAll('"', '""')}"`;
+}
+
+export function createCsv(
+    rows: CsvField[][],
+) {
+    return rows
+        .map((row) =>
+            row.map(escapeCsvField).join(","),
+        )
+        .join("\r\n");
+}
+
+export function downloadCsv(
+    csv: string,
+    fileName: string,
+) {
+    const blob = new Blob(
+        ["\uFEFF", csv],
+        {
+            type: "text/csv;charset=utf-8",
+        },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = fileName;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+
+    URL.revokeObjectURL(url);
 }
 
 export function createLandUseCsv(
@@ -43,11 +76,7 @@ export function createLandUseCsv(
         }),
     ];
 
-    return rows
-        .map((row) =>
-            row.map(escapeCsvField).join(","),
-        )
-        .join("\r\n");
+    return createCsv(rows);
 }
 
 export function downloadLandUseCsv(
@@ -55,21 +84,5 @@ export function downloadLandUseCsv(
     fileName: string,
 ) {
     const csv = createLandUseCsv(features);
-    const blob = new Blob(
-        ["\uFEFF", csv],
-        {
-            type: "text/csv;charset=utf-8",
-        },
-    );
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-
-    anchor.href = url;
-    anchor.download = fileName;
-
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-
-    URL.revokeObjectURL(url);
+    downloadCsv(csv, fileName);
 }

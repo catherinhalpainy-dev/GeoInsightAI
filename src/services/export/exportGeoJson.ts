@@ -5,7 +5,7 @@ import type {
 } from "geojson";
 
 export function exportFeatureCollection<
-    GeometryType extends Geometry,
+    GeometryType extends Geometry | null,
     Properties extends GeoJsonProperties,
 >(
     collection: FeatureCollection<

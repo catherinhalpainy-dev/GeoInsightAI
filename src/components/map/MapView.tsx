@@ -41,6 +41,9 @@ import type {
     VectorGeometryKind,
     WorkspaceVectorLayer,
 } from "../../types/mapLayer";
+import type {
+    DataQualityMapFeatureCollection,
+} from "../../types/dataQuality";
 
 import type {
     LayerStyle,
@@ -162,6 +165,19 @@ const OVERLAY_LINE_PREFIX =
 const OVERLAY_CIRCLE_PREFIX =
     "overlay-circle-";
 
+const DATA_QUALITY_SOURCE_ID =
+    "data-quality-source";
+const DATA_QUALITY_FILL_LAYER_ID =
+    "data-quality-fill";
+const DATA_QUALITY_LINE_LAYER_ID =
+    "data-quality-line";
+const DATA_QUALITY_CIRCLE_LAYER_ID =
+    "data-quality-circle";
+const DATA_QUALITY_SELECTED_LINE_LAYER_ID =
+    "data-quality-selected-line";
+const DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID =
+    "data-quality-selected-circle";
+
 
 
 
@@ -221,6 +237,12 @@ interface MapViewProps {
 
     overlayLayers?:
     WorkspaceVectorLayer[];
+
+    qualityIssueFeatures?:
+    DataQualityMapFeatureCollection;
+
+    selectedQualityIssueId?:
+    string | null;
 
     onFeatureSelect?: (
         feature:
@@ -1414,6 +1436,161 @@ function createOverlayGeometryFilter(
     ];
 }
 
+function createQualitySeverityColor(): ExpressionSpecification {
+    return [
+        "match",
+        ["get", "severity"],
+        "error",
+        "#dc2626",
+        "warning",
+        "#d97706",
+        "#64748b",
+    ];
+}
+
+function ensureDataQualityLayers(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(DATA_QUALITY_SOURCE_ID)) {
+        map.addSource(DATA_QUALITY_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    const beforeLayerId =
+        map.getLayer(SPATIAL_QUERY_FILL_LAYER_ID)
+            ? SPATIAL_QUERY_FILL_LAYER_ID
+            : map.getLayer(AOI_QUERY_FILL_LAYER_ID)
+                ? AOI_QUERY_FILL_LAYER_ID
+                : map.getLayer(HOVER_OUTLINE_LAYER_ID)
+                    ? HOVER_OUTLINE_LAYER_ID
+                    : map.getLayer(SELECTED_FILL_LAYER_ID)
+                        ? SELECTED_FILL_LAYER_ID
+                        : undefined;
+    const polygonFilter = createOverlayGeometryFilter("Polygon");
+    const pointFilter = createOverlayGeometryFilter("Point");
+    const lineFilter = createOverlayLineFilter("mixed");
+    const severityColor = createQualitySeverityColor();
+
+    if (!map.getLayer(DATA_QUALITY_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: DATA_QUALITY_FILL_LAYER_ID,
+            type: "fill",
+            source: DATA_QUALITY_SOURCE_ID,
+            filter: polygonFilter,
+            paint: {
+                "fill-color": severityColor,
+                "fill-opacity": [
+                    "match",
+                    ["get", "severity"],
+                    "error",
+                    0.11,
+                    "warning",
+                    0.08,
+                    0.07,
+                ],
+            },
+        }, beforeLayerId);
+    }
+
+    if (!map.getLayer(DATA_QUALITY_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: DATA_QUALITY_LINE_LAYER_ID,
+            type: "line",
+            source: DATA_QUALITY_SOURCE_ID,
+            filter: lineFilter,
+            paint: {
+                "line-color": severityColor,
+                "line-width": 1.75,
+                "line-opacity": 0.82,
+            },
+        }, beforeLayerId);
+    }
+
+    if (!map.getLayer(DATA_QUALITY_CIRCLE_LAYER_ID)) {
+        map.addLayer({
+            id: DATA_QUALITY_CIRCLE_LAYER_ID,
+            type: "circle",
+            source: DATA_QUALITY_SOURCE_ID,
+            filter: pointFilter,
+            paint: {
+                "circle-color": severityColor,
+                "circle-radius": 5,
+                "circle-opacity": 0.86,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1.25,
+            },
+        }, beforeLayerId);
+    }
+
+    if (!map.getLayer(DATA_QUALITY_SELECTED_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: DATA_QUALITY_SELECTED_LINE_LAYER_ID,
+            type: "line",
+            source: DATA_QUALITY_SOURCE_ID,
+            filter: createEmptySelectionFilter(),
+            paint: {
+                "line-color": [
+                    "match",
+                    ["get", "severity"],
+                    "warning",
+                    "#b45309",
+                    "#b91c1c",
+                ],
+                "line-width": 3,
+                "line-opacity": 1,
+            },
+        }, beforeLayerId);
+    }
+
+    if (!map.getLayer(DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID)) {
+        map.addLayer({
+            id: DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID,
+            type: "circle",
+            source: DATA_QUALITY_SOURCE_ID,
+            filter: createEmptySelectionFilter(),
+            paint: {
+                "circle-color": "#ffffff",
+                "circle-radius": 7,
+                "circle-opacity": 0.2,
+                "circle-stroke-color": [
+                    "match",
+                    ["get", "severity"],
+                    "warning",
+                    "#b45309",
+                    "#b91c1c",
+                ],
+                "circle-stroke-width": 3,
+            },
+        }, beforeLayerId);
+    }
+}
+
+function updateDataQualityLayers(
+    map: maplibregl.Map,
+    collection: DataQualityMapFeatureCollection,
+    selectedIssueId: string | null,
+) {
+    ensureDataQualityLayers(map);
+
+    const source = map.getSource(DATA_QUALITY_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData(collection);
+    }
+
+    const selectedFilter: FilterSpecification = selectedIssueId
+        ? ["==", ["get", "issueId"], selectedIssueId]
+        : createEmptySelectionFilter();
+
+    map.setFilter(DATA_QUALITY_SELECTED_LINE_LAYER_ID, selectedFilter);
+    map.setFilter(DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID, selectedFilter);
+}
+
 function createOverlayLineFilter(
     geometryKind: VectorGeometryKind,
 ): FilterSpecification {
@@ -1458,6 +1635,11 @@ function isOverlayHigherLayer(
         layerId === SPATIAL_QUERY_OUTLINE_LAYER_ID ||
         layerId === AOI_QUERY_FILL_LAYER_ID ||
         layerId === AOI_QUERY_OUTLINE_LAYER_ID ||
+        layerId === DATA_QUALITY_FILL_LAYER_ID ||
+        layerId === DATA_QUALITY_LINE_LAYER_ID ||
+        layerId === DATA_QUALITY_CIRCLE_LAYER_ID ||
+        layerId === DATA_QUALITY_SELECTED_LINE_LAYER_ID ||
+        layerId === DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID ||
         layerId === HOVER_OUTLINE_LAYER_ID ||
         layerId === SELECTED_FILL_LAYER_ID ||
         layerId === SELECTED_OUTLINE_LAYER_ID ||
@@ -1926,7 +2108,9 @@ function syncAnalysisResultLayers(
     }
 
     const beforeLayerId =
-        map.getLayer(HOVER_OUTLINE_LAYER_ID)
+        map.getLayer(DATA_QUALITY_FILL_LAYER_ID)
+            ? DATA_QUALITY_FILL_LAYER_ID
+            : map.getLayer(HOVER_OUTLINE_LAYER_ID)
             ? HOVER_OUTLINE_LAYER_ID
             : map.getLayer(SELECTED_FILL_LAYER_ID)
                 ? SELECTED_FILL_LAYER_ID
@@ -2069,6 +2253,11 @@ export function MapView({
     aoiQueryFeatures = [],
     analysisResultLayers = [],
     overlayLayers = [],
+    qualityIssueFeatures = {
+        type: "FeatureCollection",
+        features: [],
+    },
+    selectedQualityIssueId = null,
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
@@ -2156,6 +2345,14 @@ export function MapView({
 
     const latestOverlayLayersRef =
         useRef<WorkspaceVectorLayer[]>(overlayLayers);
+
+    const latestQualityIssueFeaturesRef =
+        useRef<DataQualityMapFeatureCollection>(
+            qualityIssueFeatures,
+        );
+
+    const latestSelectedQualityIssueIdRef =
+        useRef<string | null>(selectedQualityIssueId);
 
     const overlayCollectionCacheRef = useRef(
         new Map<
@@ -2681,6 +2878,12 @@ export function MapView({
                     latestAnalysisResultLayersRef.current,
                 );
 
+                updateDataQualityLayers(
+                    map,
+                    latestQualityIssueFeaturesRef.current,
+                    latestSelectedQualityIssueIdRef.current,
+                );
+
                 /*
                  * 恢复当前选中地块
                  */
@@ -2941,6 +3144,28 @@ export function MapView({
         analysisResultLayers,
     ]);
 
+    useEffect(() => {
+        latestQualityIssueFeaturesRef.current =
+            qualityIssueFeatures;
+        latestSelectedQualityIssueIdRef.current =
+            selectedQualityIssueId;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        updateDataQualityLayers(
+            map,
+            qualityIssueFeatures,
+            selectedQualityIssueId,
+        );
+    }, [
+        qualityIssueFeatures,
+        selectedQualityIssueId,
+    ]);
+
     /*
      * collection → MapLibre Source
      */
@@ -2990,6 +3215,12 @@ export function MapView({
                         latestAnalysisResultLayersRef.current,
                     );
 
+                    updateDataQualityLayers(
+                        map,
+                        latestQualityIssueFeaturesRef.current,
+                        latestSelectedQualityIssueIdRef.current,
+                    );
+
                     return;
                 }
 
@@ -3011,6 +3242,12 @@ export function MapView({
                 syncAnalysisResultLayers(
                     map,
                     latestAnalysisResultLayersRef.current,
+                );
+
+                updateDataQualityLayers(
+                    map,
+                    latestQualityIssueFeaturesRef.current,
+                    latestSelectedQualityIssueIdRef.current,
                 );
 
 
@@ -3355,6 +3592,53 @@ export function MapView({
             return;
         }
 
+        if (
+            viewCommand.type === "fit-quality-issue"
+        ) {
+            const issueFeature = qualityIssueFeatures.features.find(
+                (feature) =>
+                    feature.properties.issueId === viewCommand.issueId,
+            );
+
+            if (!issueFeature) {
+                return;
+            }
+
+            if (issueFeature.geometry.type === "Point") {
+                map.easeTo({
+                    center: [
+                        issueFeature.geometry.coordinates[0],
+                        issueFeature.geometry.coordinates[1],
+                    ],
+                    zoom: Math.max(map.getZoom(), 16),
+                    duration: 650,
+                });
+                return;
+            }
+
+            const bounds = calculateGeoJsonBounds({
+                type: "FeatureCollection",
+                features: [issueFeature],
+            });
+
+            if (!bounds) {
+                return;
+            }
+
+            map.fitBounds(
+                [
+                    [bounds.minLongitude, bounds.minLatitude],
+                    [bounds.maxLongitude, bounds.maxLatitude],
+                ],
+                {
+                    padding: 86,
+                    duration: 650,
+                    maxZoom: 17,
+                },
+            );
+            return;
+        }
+
 
         /*
          * Day 4：
@@ -3426,6 +3710,7 @@ export function MapView({
         collection,
         allCollection,
         selectedFeatureId,
+        qualityIssueFeatures,
     ]);
 
     return (

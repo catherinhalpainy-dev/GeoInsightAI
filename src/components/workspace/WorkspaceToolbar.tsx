@@ -1,5 +1,6 @@
 import {
   FilePlus2,
+  ShieldCheck,
   SquareDashed,
   Workflow,
 } from "lucide-react";
@@ -196,6 +197,22 @@ export function WorkspaceToolbar({
           event.currentTarget.value = "";
         }}
       />
+
+      <button
+        type="button"
+        className={
+          activePanel === "data-quality"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => {
+          onPanelToggle("data-quality");
+        }}
+        title="检查空间结构、几何与属性质量"
+      >
+        <ShieldCheck size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>数据质量</span>
+      </button>
 
       <button
         type="button"

@@ -29,6 +29,10 @@ import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
 import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
+import {
+    DataQualityPanel,
+    type DataQualityTargetOption,
+} from "../components/workspace/DataQualityPanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
@@ -82,6 +86,21 @@ import type {
     WorkspaceVectorLayer,
 } from "../types/mapLayer";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
+import type {
+    CleanedDatasetResult,
+    DataQualityFeatureCollection,
+    DataQualityIssue,
+    DataQualityMapFeatureCollection,
+    DataQualityReport,
+} from "../types/dataQuality";
+import {
+    createCleanedDataset,
+    createDataQualityMapCollection,
+    scanFeatureCollection,
+} from "../services/gis/dataQuality";
+import {
+    exportDataQualityReport,
+} from "../services/export/exportDataQualityReport";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -167,7 +186,7 @@ export function WorkspacePage() {
     function requestMapView(
         type: Exclude<
             MapViewCommandType,
-            "fit-overlay"
+            "fit-overlay" | "fit-quality-issue"
         >,
     ) {
         setMapViewCommand(
@@ -229,11 +248,26 @@ export function WorkspacePage() {
         useState<string | null>(null);
     const [overlayImporting, setOverlayImporting] =
         useState(false);
+    const [qualityTargetId, setQualityTargetId] =
+        useState("primary");
+    const [dataQualityReport, setDataQualityReport] =
+        useState<DataQualityReport | null>(null);
+    const [selectedQualityIssueId, setSelectedQualityIssueId] =
+        useState<string | null>(null);
+    const [qualityScanning, setQualityScanning] =
+        useState(false);
+    const [qualityError, setQualityError] =
+        useState<string | null>(null);
+    const [cleanedDataset, setCleanedDataset] =
+        useState<CleanedDatasetResult | null>(null);
+    const [cleanedQualityReport, setCleanedQualityReport] =
+        useState<DataQualityReport | null>(null);
     const [geoprocessingSummary, setGeoprocessingSummary] =
         useState<GeoprocessingRunSummary | null>(null);
     const [geoprocessingError, setGeoprocessingError] =
         useState<string | null>(null);
     const analysisLayerSequenceRef = useRef(0);
+    const qualityScanSequenceRef = useRef(0);
     const agentHandledFilterClearRef = useRef(false);
 
     function handleClearSpatialQuery() {
@@ -835,6 +869,11 @@ export function WorkspacePage() {
                 (layer) => layer.id !== layerId,
             ),
         );
+
+        if (qualityTargetId === layerId) {
+            setQualityTargetId("primary");
+            resetQualityResults();
+        }
     }
 
     function handleToggleOverlayLayer(
@@ -1202,6 +1241,38 @@ export function WorkspacePage() {
 
 
     const dataset = state.dataset;
+    const qualitySourceCollection = useMemo<
+        DataQualityFeatureCollection | null
+    >(
+        () => {
+            if (qualityTargetId === "primary") {
+                return state.dataset?.collection ?? null;
+            }
+
+            return overlayLayers.find(
+                (layer) => layer.id === qualityTargetId,
+            )?.collection ?? null;
+        },
+        [overlayLayers, qualityTargetId, state.dataset],
+    );
+    const qualityIssueFeatures = useMemo<
+        DataQualityMapFeatureCollection
+    >(
+        () => {
+            if (!qualitySourceCollection || !dataQualityReport) {
+                return {
+                    type: "FeatureCollection",
+                    features: [],
+                };
+            }
+
+            return createDataQualityMapCollection(
+                qualitySourceCollection,
+                dataQualityReport,
+            );
+        },
+        [dataQualityReport, qualitySourceCollection],
+    );
     const filteredCollection =
         useMemo<LandUseFeatureCollection>(
             () => {
@@ -1286,6 +1357,212 @@ export function WorkspacePage() {
 
     const totalFeatureCount =
         dataset.collection.features.length;
+    const loadedDataset = dataset;
+
+    const qualityTargets: DataQualityTargetOption[] = [
+        {
+            id: "primary",
+            name: loadedDataset.name,
+            featureCount: loadedDataset.collection.features.length,
+        },
+        ...overlayLayers.map((layer) => ({
+            id: layer.id,
+            name: layer.name,
+            featureCount: layer.featureCount,
+        })),
+    ];
+
+    function resetQualityResults() {
+        qualityScanSequenceRef.current += 1;
+        setDataQualityReport(null);
+        setSelectedQualityIssueId(null);
+        setQualityError(null);
+        setCleanedDataset(null);
+        setCleanedQualityReport(null);
+        setQualityScanning(false);
+    }
+
+    function handleQualityTargetChange(targetId: string) {
+        setQualityTargetId(targetId);
+        resetQualityResults();
+    }
+
+    function getQualityTarget() {
+        if (qualityTargetId === "primary") {
+            return {
+                id: "primary",
+                name: loadedDataset.name,
+                kind: "primary" as const,
+                collection: loadedDataset.collection,
+            };
+        }
+
+        const layer = overlayLayers.find(
+            (item) => item.id === qualityTargetId,
+        );
+
+        return layer
+            ? {
+                id: layer.id,
+                name: layer.name,
+                kind: "overlay" as const,
+                collection: layer.collection,
+            }
+            : null;
+    }
+
+    function handleRunQualityScan() {
+        const target = getQualityTarget();
+
+        if (!target) {
+            setQualityError("检查图层已不存在，请重新选择。");
+            return;
+        }
+
+        setQualityScanning(true);
+        setQualityError(null);
+        setSelectedQualityIssueId(null);
+        setCleanedDataset(null);
+        setCleanedQualityReport(null);
+
+        const scanSequence = qualityScanSequenceRef.current + 1;
+        qualityScanSequenceRef.current = scanSequence;
+
+        window.requestAnimationFrame(() => {
+            if (qualityScanSequenceRef.current !== scanSequence) {
+                return;
+            }
+
+            try {
+                setDataQualityReport(scanFeatureCollection(
+                    target.collection,
+                    {
+                        targetId: target.id,
+                        targetName: target.name,
+                        targetKind: target.kind,
+                    },
+                ));
+            } catch (error) {
+                setDataQualityReport(null);
+                setQualityError(
+                    error instanceof Error
+                        ? error.message
+                        : "无法完成数据质量检查，请检查数据格式。",
+                );
+            } finally {
+                if (qualityScanSequenceRef.current === scanSequence) {
+                    setQualityScanning(false);
+                }
+            }
+        });
+    }
+
+    function handleSelectQualityIssue(issue: DataQualityIssue) {
+        setSelectedQualityIssueId(issue.id);
+
+        if (!issue.locatable) {
+            return;
+        }
+
+        setMapViewCommand((previous) => ({
+            type: "fit-quality-issue",
+            issueId: issue.id,
+            requestId: (previous?.requestId ?? 0) + 1,
+        }));
+    }
+
+    function handleCreateCleanedDataset() {
+        if (!qualitySourceCollection || !dataQualityReport) {
+            return;
+        }
+
+        setCleanedDataset(createCleanedDataset(
+            qualitySourceCollection,
+            dataQualityReport,
+        ));
+        setCleanedQualityReport(null);
+    }
+
+    function handleAddCleanedLayer() {
+        if (!cleanedDataset) {
+            return;
+        }
+
+        try {
+            const parsedLayer = parseOverlayGeoJson(
+                cleanedDataset.collection,
+                `${cleanedDataset.targetName}.geojson`,
+            );
+
+            setOverlayLayers((previous) => {
+                const name = getUniqueOverlayLayerName(
+                    cleanedDataset.targetName,
+                    previous,
+                );
+
+                return [
+                    ...previous,
+                    {
+                        ...parsedLayer,
+                        name,
+                        style: createDefaultOverlayLayerStyle(
+                            previous.length,
+                            parsedLayer.geometryKind,
+                        ),
+                    },
+                ];
+            });
+            setQualityError(null);
+        } catch (error) {
+            setQualityError(
+                error instanceof Error
+                    ? error.message
+                    : "清洗副本无法添加为图层。",
+            );
+        }
+    }
+
+    function handleExportCleanedDataset() {
+        if (!cleanedDataset) {
+            return;
+        }
+
+        exportFeatureCollection(
+            cleanedDataset.collection,
+            `geoinsight-cleaned-${cleanedDataset.targetName}-${Date.now()}.geojson`,
+        );
+    }
+
+    function handleExportQualityReport() {
+        if (!dataQualityReport) {
+            return;
+        }
+
+        exportDataQualityReport(
+            dataQualityReport,
+            `geoinsight-data-quality-report-${Date.now()}.csv`,
+        );
+    }
+
+    function handleRescanCleanedDataset() {
+        if (!cleanedDataset) {
+            return;
+        }
+
+        try {
+            setCleanedQualityReport(scanFeatureCollection(
+                cleanedDataset.collection,
+                {
+                    targetId: `${cleanedDataset.targetId}-cleaned`,
+                    targetName: cleanedDataset.targetName,
+                    targetKind: cleanedDataset.targetKind,
+                },
+            ));
+            setQualityError(null);
+        } catch {
+            setQualityError("无法重新检查清洗结果。");
+        }
+    }
 
     const agentContext: AgentContext = {
         datasetName: dataset.name,
@@ -2058,6 +2335,10 @@ export function WorkspacePage() {
 
                         overlayLayers={overlayLayers}
 
+                        qualityIssueFeatures={qualityIssueFeatures}
+
+                        selectedQualityIssueId={selectedQualityIssueId}
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -2295,6 +2576,28 @@ export function WorkspacePage() {
                     onClose={() => {
                         setActivePanel(null);
                     }}
+                />
+            )}
+
+            {activePanel === "data-quality" && (
+                <DataQualityPanel
+                    targets={qualityTargets}
+                    targetId={qualityTargetId}
+                    report={dataQualityReport}
+                    selectedIssueId={selectedQualityIssueId}
+                    scanning={qualityScanning}
+                    error={qualityError}
+                    cleanedDataset={cleanedDataset}
+                    cleanedReport={cleanedQualityReport}
+                    onTargetChange={handleQualityTargetChange}
+                    onRunScan={handleRunQualityScan}
+                    onSelectIssue={handleSelectQualityIssue}
+                    onCreateCleanedDataset={handleCreateCleanedDataset}
+                    onAddCleanedLayer={handleAddCleanedLayer}
+                    onExportCleaned={handleExportCleanedDataset}
+                    onExportReport={handleExportQualityReport}
+                    onRescanCleaned={handleRescanCleanedDataset}
+                    onClose={() => setActivePanel(null)}
                 />
             )}
 
