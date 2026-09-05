@@ -14,6 +14,7 @@ export type WorkspacePanel =
     | "geoprocessing"
     | "data-quality"
     | "batch-edit"
+    | "geometry-edit"
     | "agent"
     | null;
 

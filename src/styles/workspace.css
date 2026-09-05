@@ -3331,3 +3331,336 @@
   color: #334155;
   font-size: 9px;
 }
+
+/* ==============================
+   Geometry Editing Workspace
+   ============================== */
+
+.feature-geometry-actions {
+  padding: 14px 18px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.feature-geometry-actions > span,
+.geometry-edit-eyebrow,
+.geometry-edit-header span {
+  color: #0f766e;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.feature-geometry-actions > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.feature-geometry-actions button,
+.geometry-edit-row-actions button,
+.geometry-edit-ghost,
+.geometry-history-actions button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.feature-geometry-actions .feature-geometry-delete,
+.geometry-edit-row-actions .geometry-delete-action {
+  border-color: transparent;
+  color: #b91c1c;
+}
+
+.geometry-edit-panel {
+  position: relative;
+  min-width: 0;
+  overflow-y: auto;
+  border-left: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: var(--shadow-panel);
+}
+
+.geometry-edit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.geometry-edit-header h2 {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.geometry-edit-header > button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.geometry-edit-section {
+  padding: 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.geometry-edit-section h3 {
+  margin: 5px 0 0;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.geometry-edit-section > p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.geometry-edit-primary {
+  display: inline-flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 13px;
+  border: 1px solid #0f766e;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #ffffff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.geometry-current-feature {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.geometry-current-feature strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 10px;
+}
+
+.geometry-current-feature span {
+  color: #64748b;
+  font-size: 9px;
+}
+
+.geometry-edit-row-actions,
+.geometry-edit-submit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.geometry-edit-progress dl,
+.geometry-draft-metrics {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+}
+
+.geometry-edit-progress dl > div,
+.geometry-draft-metrics > div {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.geometry-edit-progress dt,
+.geometry-draft-metrics dt {
+  color: #64748b;
+  font-size: 9px;
+}
+
+.geometry-edit-progress dd,
+.geometry-draft-metrics dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.geometry-snap-toggle {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  color: #334155;
+  font-size: 9px;
+}
+
+.geometry-snap-toggle input {
+  margin: 0;
+  accent-color: #0f766e;
+}
+
+.geometry-edit-field {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #f1f5f9;
+  color: #475569;
+  font-size: 9px;
+}
+
+.geometry-edit-field input,
+.geometry-edit-field select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 9px;
+}
+
+.geometry-edit-error {
+  margin: 9px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid #dc2626;
+  color: #b91c1c;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.geometry-edit-ghost {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.geometry-edit-ghost:disabled,
+.geometry-edit-row-actions button:disabled,
+.geometry-history-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.geometry-edit-submit-row button {
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #475569;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.geometry-edit-submit-row button:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.geometry-history-actions > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.geometry-delete-confirmation {
+  position: absolute;
+  z-index: 4;
+  inset: 70px 14px auto;
+  padding: 16px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.geometry-delete-confirmation > strong {
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.geometry-delete-confirmation > p,
+.geometry-delete-confirmation > span {
+  display: block;
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.geometry-delete-confirmation > code {
+  display: block;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 9px;
+}
+
+.geometry-delete-confirmation > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.geometry-delete-confirmation button {
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #475569;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.geometry-delete-confirmation button:last-child {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+}

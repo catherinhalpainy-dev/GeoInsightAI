@@ -44,6 +44,10 @@ import type {
 import type {
     DataQualityMapFeatureCollection,
 } from "../../types/dataQuality";
+import type {
+    GeometryEditorMode,
+    GeometrySnapCandidate,
+} from "../../types/geometryEditing";
 
 import type {
     LayerStyle,
@@ -184,6 +188,19 @@ const DATA_QUALITY_SELECTED_LINE_LAYER_ID =
 const DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID =
     "data-quality-selected-circle";
 
+const GEOMETRY_EDIT_SOURCE_ID =
+    "geometry-edit-source";
+const GEOMETRY_EDIT_FILL_LAYER_ID =
+    "geometry-edit-fill";
+const GEOMETRY_EDIT_LINE_LAYER_ID =
+    "geometry-edit-line";
+const GEOMETRY_EDIT_VERTEX_LAYER_ID =
+    "geometry-edit-vertices";
+const GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID =
+    "geometry-edit-active-vertex";
+const GEOMETRY_EDIT_SNAP_TARGET_LAYER_ID =
+    "geometry-edit-snap-target";
+
 
 
 
@@ -253,6 +270,16 @@ interface MapViewProps {
     selectedQualityIssueId?:
     string | null;
 
+    geometryEditMode?: GeometryEditorMode;
+
+    geometryDraftCoordinates?: Position[];
+
+    geometryActiveVertexIndex?: number | null;
+
+    geometrySnapCandidates?: GeometrySnapCandidate[];
+
+    geometrySnappingEnabled?: boolean;
+
     onFeatureSelect?: (
         feature:
             LandUseFeature | null,
@@ -275,6 +302,19 @@ interface MapViewProps {
 
     onAoiComplete?:
     () => void;
+
+    onGeometryVertexAdd?: (point: Position) => void;
+
+    onGeometryDrawingComplete?: () => void;
+
+    onGeometryVertexMove?: (
+        vertexIndex: number,
+        point: Position,
+    ) => void;
+
+    onGeometryActiveVertexChange?: (
+        vertexIndex: number | null,
+    ) => void;
 }
 
 interface MapRuntimeInfo {
@@ -2306,6 +2346,187 @@ function syncAnalysisResultLayers(
     }
 }
 
+interface GeometryEditRenderProperties {
+    kind: "shape" | "vertex" | "snap-target";
+    vertexIndex?: number;
+}
+
+type GeometryEditRenderFeature = Feature<
+    Point | LineString | Polygon,
+    GeometryEditRenderProperties
+>;
+
+function ensureGeometryEditLayers(
+    map: maplibregl.Map,
+) {
+    if (!map.getSource(GEOMETRY_EDIT_SOURCE_ID)) {
+        map.addSource(GEOMETRY_EDIT_SOURCE_ID, {
+            type: "geojson",
+            data: {
+                type: "FeatureCollection",
+                features: [],
+            },
+        });
+    }
+
+    const vertexFilter: FilterSpecification = [
+        "==",
+        ["get", "kind"],
+        "vertex",
+    ];
+    const snapFilter: FilterSpecification = [
+        "==",
+        ["get", "kind"],
+        "snap-target",
+    ];
+
+    if (!map.getLayer(GEOMETRY_EDIT_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: GEOMETRY_EDIT_FILL_LAYER_ID,
+            type: "fill",
+            source: GEOMETRY_EDIT_SOURCE_ID,
+            paint: {
+                "fill-color": "#14b8a6",
+                "fill-opacity": 0.08,
+            },
+        });
+    }
+
+    if (!map.getLayer(GEOMETRY_EDIT_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: GEOMETRY_EDIT_LINE_LAYER_ID,
+            type: "line",
+            source: GEOMETRY_EDIT_SOURCE_ID,
+            paint: {
+                "line-color": "#0f766e",
+                "line-width": 2,
+                "line-opacity": 0.9,
+            },
+        });
+    }
+
+    if (!map.getLayer(GEOMETRY_EDIT_VERTEX_LAYER_ID)) {
+        map.addLayer({
+            id: GEOMETRY_EDIT_VERTEX_LAYER_ID,
+            type: "circle",
+            source: GEOMETRY_EDIT_SOURCE_ID,
+            filter: vertexFilter,
+            paint: {
+                "circle-color": "#0f766e",
+                "circle-radius": 5,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+
+    if (!map.getLayer(GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID)) {
+        map.addLayer({
+            id: GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID,
+            type: "circle",
+            source: GEOMETRY_EDIT_SOURCE_ID,
+            filter: createEmptySelectionFilter(),
+            paint: {
+                "circle-color": "#2563eb",
+                "circle-radius": 6,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+
+    if (!map.getLayer(GEOMETRY_EDIT_SNAP_TARGET_LAYER_ID)) {
+        map.addLayer({
+            id: GEOMETRY_EDIT_SNAP_TARGET_LAYER_ID,
+            type: "circle",
+            source: GEOMETRY_EDIT_SOURCE_ID,
+            filter: snapFilter,
+            paint: {
+                "circle-color": "#f59e0b",
+                "circle-radius": 6,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+}
+
+function updateGeometryEditLayers(
+    map: maplibregl.Map,
+    mode: GeometryEditorMode,
+    coordinates: Position[],
+    activeVertexIndex: number | null,
+    snapTarget: Position | null,
+) {
+    ensureGeometryEditLayers(map);
+
+    const pointFeatures: GeometryEditRenderFeature[] = coordinates.map(
+        (coordinate, vertexIndex) => ({
+            type: "Feature",
+            properties: {
+                kind: "vertex",
+                vertexIndex,
+            },
+            geometry: {
+                type: "Point",
+                coordinates: coordinate,
+            },
+        }),
+    );
+    const shapeFeatures: GeometryEditRenderFeature[] = coordinates.length >= 3
+        ? [{
+            type: "Feature",
+            properties: { kind: "shape" },
+            geometry: {
+                type: "Polygon",
+                coordinates: [[
+                    ...coordinates,
+                    coordinates[0],
+                ]],
+            },
+        }]
+        : coordinates.length >= 2
+            ? [{
+                type: "Feature",
+                properties: { kind: "shape" },
+                geometry: {
+                    type: "LineString",
+                    coordinates,
+                },
+            }]
+            : [];
+    const snapFeatures: GeometryEditRenderFeature[] = snapTarget
+        ? [{
+            type: "Feature",
+            properties: { kind: "snap-target" },
+            geometry: {
+                type: "Point",
+                coordinates: snapTarget,
+            },
+        }]
+        : [];
+    const source = map.getSource(GEOMETRY_EDIT_SOURCE_ID);
+
+    if (source?.type === "geojson") {
+        (source as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: mode === "idle"
+                ? []
+                : [...shapeFeatures, ...pointFeatures, ...snapFeatures],
+        });
+    }
+
+    const activeFilter: FilterSpecification = activeVertexIndex === null
+        ? createEmptySelectionFilter()
+        : [
+            "all",
+            ["==", ["get", "kind"], "vertex"],
+            ["==", ["get", "vertexIndex"], activeVertexIndex],
+        ];
+
+    map.setFilter(GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID, activeFilter);
+}
+
 export function MapView({
     collection,
     allCollection,
@@ -2331,11 +2552,20 @@ export function MapView({
         features: [],
     },
     selectedQualityIssueId = null,
+    geometryEditMode = "idle",
+    geometryDraftCoordinates = [],
+    geometryActiveVertexIndex = null,
+    geometrySnapCandidates = [],
+    geometrySnappingEnabled = true,
     onFeatureSelect,
     onMeasurePointAdd,
     onMeasureComplete,
     onAoiPointAdd,
     onAoiComplete,
+    onGeometryVertexAdd,
+    onGeometryDrawingComplete,
+    onGeometryVertexMove,
+    onGeometryActiveVertexChange,
 }: MapViewProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
@@ -2454,6 +2684,29 @@ export function MapView({
     const latestOnAoiCompleteRef =
         useRef(onAoiComplete);
 
+    const latestGeometryEditModeRef =
+        useRef<GeometryEditorMode>(geometryEditMode);
+    const latestGeometryDraftCoordinatesRef =
+        useRef<Position[]>(geometryDraftCoordinates);
+    const latestGeometryActiveVertexIndexRef =
+        useRef<number | null>(geometryActiveVertexIndex);
+    const latestGeometrySnapCandidatesRef =
+        useRef<GeometrySnapCandidate[]>(geometrySnapCandidates);
+    const latestGeometrySnappingEnabledRef =
+        useRef(geometrySnappingEnabled);
+    const latestOnGeometryVertexAddRef =
+        useRef(onGeometryVertexAdd);
+    const latestOnGeometryDrawingCompleteRef =
+        useRef(onGeometryDrawingComplete);
+    const latestOnGeometryVertexMoveRef =
+        useRef(onGeometryVertexMove);
+    const latestOnGeometryActiveVertexChangeRef =
+        useRef(onGeometryActiveVertexChange);
+    const draggingGeometryVertexRef =
+        useRef<number | null>(null);
+    const geometrySnapTargetRef =
+        useRef<Position | null>(null);
+
     const [
         runtimeInfo,
         setRuntimeInfo,
@@ -2506,6 +2759,16 @@ export function MapView({
                 latestMeasureModeRef.current,
                 latestMeasurePointsRef.current,
             );
+
+            if (latestGeometryEditModeRef.current !== "idle") {
+                updateGeometryEditLayers(
+                    map,
+                    latestGeometryEditModeRef.current,
+                    latestGeometryDraftCoordinatesRef.current,
+                    latestGeometryActiveVertexIndexRef.current,
+                    geometrySnapTargetRef.current,
+                );
+            }
         };
 
         map.on("load", handleMapLoad);
@@ -2539,6 +2802,86 @@ export function MapView({
             }
         };
 
+        const findGeometrySnapTarget = (
+            pointer: Position,
+        ): Position | null => {
+            if (!latestGeometrySnappingEnabledRef.current) {
+                return null;
+            }
+
+            const pointerPixel = map.project(pointer);
+            let nearest: Position | null = null;
+            let nearestDistance = 10;
+
+            for (const candidate of latestGeometrySnapCandidatesRef.current) {
+                const candidatePixel = map.project(candidate.coordinate);
+                const distance = Math.hypot(
+                    candidatePixel.x - pointerPixel.x,
+                    candidatePixel.y - pointerPixel.y,
+                );
+
+                if (distance <= nearestDistance) {
+                    nearestDistance = distance;
+                    nearest = candidate.coordinate;
+                }
+            }
+
+            return nearest ? [...nearest] : null;
+        };
+
+        const handleGeometryMouseDown = (
+            event: maplibregl.MapMouseEvent,
+        ) => {
+            if (
+                (
+                    latestGeometryEditModeRef.current !== "editing" &&
+                    latestGeometryEditModeRef.current !== "creating"
+                ) ||
+                !map.getLayer(GEOMETRY_EDIT_VERTEX_LAYER_ID)
+            ) {
+                return;
+            }
+
+            const vertex = map.queryRenderedFeatures(event.point, {
+                layers: [GEOMETRY_EDIT_VERTEX_LAYER_ID],
+            })[0];
+            const vertexIndex = vertex?.properties?.vertexIndex;
+
+            if (typeof vertexIndex !== "number") {
+                return;
+            }
+
+            event.preventDefault();
+            draggingGeometryVertexRef.current = vertexIndex;
+            latestOnGeometryActiveVertexChangeRef.current?.(vertexIndex);
+            map.dragPan.disable();
+            map.getCanvas().style.cursor = "grabbing";
+        };
+
+        const finishGeometryDrag = () => {
+            if (draggingGeometryVertexRef.current === null) {
+                return;
+            }
+
+            draggingGeometryVertexRef.current = null;
+            geometrySnapTargetRef.current = null;
+            if (latestInteractionModeRef.current === "pan") {
+                map.dragPan.enable();
+            } else {
+                map.dragPan.disable();
+            }
+            map.getCanvas().style.cursor = latestInteractionModeRef.current === "pan"
+                ? "grab"
+                : "crosshair";
+            updateGeometryEditLayers(
+                map,
+                latestGeometryEditModeRef.current,
+                latestGeometryDraftCoordinatesRef.current,
+                latestGeometryActiveVertexIndexRef.current,
+                null,
+            );
+        };
+
 
         const handleMouseMove = (
             event:
@@ -2555,6 +2898,78 @@ export function MapView({
                         event.lngLat.lat,
                 }),
             );
+
+            if (latestGeometryEditModeRef.current !== "idle") {
+                clearHover();
+
+                const draggingVertexIndex = draggingGeometryVertexRef.current;
+
+                if (draggingVertexIndex !== null) {
+                    const pointer: Position = [
+                        event.lngLat.lng,
+                        event.lngLat.lat,
+                    ];
+                    const snapTarget = findGeometrySnapTarget(pointer);
+                    const nextCoordinate = snapTarget ?? pointer;
+                    const nextCoordinates = latestGeometryDraftCoordinatesRef.current.map(
+                        (coordinate, index) => index === draggingVertexIndex
+                            ? nextCoordinate
+                            : coordinate,
+                    );
+
+                    geometrySnapTargetRef.current = snapTarget;
+                    latestGeometryDraftCoordinatesRef.current = nextCoordinates;
+                    latestOnGeometryVertexMoveRef.current?.(
+                        draggingVertexIndex,
+                        nextCoordinate,
+                    );
+                    updateGeometryEditLayers(
+                        map,
+                        latestGeometryEditModeRef.current,
+                        nextCoordinates,
+                        draggingVertexIndex,
+                        snapTarget,
+                    );
+                    return;
+                }
+
+                if (
+                    (
+                        latestGeometryEditModeRef.current === "editing" ||
+                        latestGeometryEditModeRef.current === "creating"
+                    ) &&
+                    map.getLayer(GEOMETRY_EDIT_VERTEX_LAYER_ID)
+                ) {
+                    const hoveredVertex = map.queryRenderedFeatures(event.point, {
+                        layers: [GEOMETRY_EDIT_VERTEX_LAYER_ID],
+                    })[0];
+                    map.getCanvas().style.cursor = hoveredVertex
+                        ? "grab"
+                        : "default";
+                } else {
+                    if (latestGeometryEditModeRef.current === "drawing") {
+                        const pointer: Position = [
+                            event.lngLat.lng,
+                            event.lngLat.lat,
+                        ];
+                        const snapTarget = findGeometrySnapTarget(pointer);
+
+                        geometrySnapTargetRef.current = snapTarget;
+                        updateGeometryEditLayers(
+                            map,
+                            latestGeometryEditModeRef.current,
+                            latestGeometryDraftCoordinatesRef.current,
+                            latestGeometryActiveVertexIndexRef.current,
+                            snapTarget,
+                        );
+                        map.getCanvas().style.cursor = "crosshair";
+                    } else {
+                        map.getCanvas().style.cursor = "default";
+                    }
+                }
+
+                return;
+            }
 
             if (
                 latestAoiModeRef.current === "drawing" ||
@@ -2614,6 +3029,44 @@ export function MapView({
             event:
                 maplibregl.MapMouseEvent,
         ) => {
+            if (latestGeometryEditModeRef.current !== "idle") {
+                if (
+                    latestGeometryEditModeRef.current === "drawing" &&
+                    event.originalEvent.detail < 2
+                ) {
+                    const pointer: Position = [
+                        event.lngLat.lng,
+                        event.lngLat.lat,
+                    ];
+                    const coordinate = findGeometrySnapTarget(pointer) ?? pointer;
+
+                    latestOnGeometryVertexAddRef.current?.(
+                        coordinate,
+                    );
+                } else if (
+                    (
+                        latestGeometryEditModeRef.current === "editing" ||
+                        latestGeometryEditModeRef.current === "creating"
+                    ) &&
+                    draggingGeometryVertexRef.current === null
+                ) {
+                    const vertex = map.getLayer(GEOMETRY_EDIT_VERTEX_LAYER_ID)
+                        ? map.queryRenderedFeatures(event.point, {
+                            layers: [GEOMETRY_EDIT_VERTEX_LAYER_ID],
+                        })[0]
+                        : null;
+                    const vertexIndex = vertex?.properties?.vertexIndex;
+
+                    latestOnGeometryActiveVertexChangeRef.current?.(
+                        typeof vertexIndex === "number"
+                            ? vertexIndex
+                            : null,
+                    );
+                }
+
+                return;
+            }
+
             if (
                 latestAoiModeRef.current === "drawing"
             ) {
@@ -2738,6 +3191,16 @@ export function MapView({
         const handleMapDoubleClick = (
             event: maplibregl.MapMouseEvent,
         ) => {
+            if (latestGeometryEditModeRef.current !== "idle") {
+                event.preventDefault();
+
+                if (latestGeometryEditModeRef.current === "drawing") {
+                    latestOnGeometryDrawingCompleteRef.current?.();
+                }
+
+                return;
+            }
+
             if (
                 latestAoiModeRef.current === "drawing"
             ) {
@@ -2761,6 +3224,21 @@ export function MapView({
         map.on(
             "mousemove",
             handleMouseMove,
+        );
+
+        map.on(
+            "mousedown",
+            handleGeometryMouseDown,
+        );
+
+        map.on(
+            "mouseup",
+            finishGeometryDrag,
+        );
+
+        window.addEventListener(
+            "mouseup",
+            finishGeometryDrag,
         );
 
         map.on(
@@ -2790,6 +3268,21 @@ export function MapView({
             );
 
             map.off(
+                "mousedown",
+                handleGeometryMouseDown,
+            );
+
+            map.off(
+                "mouseup",
+                finishGeometryDrag,
+            );
+
+            window.removeEventListener(
+                "mouseup",
+                finishGeometryDrag,
+            );
+
+            map.off(
                 "zoomend",
                 handleZoomEnd,
             );
@@ -2815,6 +3308,14 @@ export function MapView({
             );
 
             resizeObserver.disconnect();
+
+            if (!map.dragPan.isEnabled()) {
+                map.dragPan.enable();
+            }
+
+            if (!map.doubleClickZoom.isEnabled()) {
+                map.doubleClickZoom.enable();
+            }
 
             map.remove();
 
@@ -2847,6 +3348,15 @@ export function MapView({
         latestOnAoiCompleteRef.current =
             onAoiComplete;
 
+        latestOnGeometryVertexAddRef.current =
+            onGeometryVertexAdd;
+        latestOnGeometryDrawingCompleteRef.current =
+            onGeometryDrawingComplete;
+        latestOnGeometryVertexMoveRef.current =
+            onGeometryVertexMove;
+        latestOnGeometryActiveVertexChangeRef.current =
+            onGeometryActiveVertexChange;
+
         latestSelectedFeatureIdRef.current =
             selectedFeatureId;
         latestSelectedFeatureIdsRef.current =
@@ -2857,6 +3367,10 @@ export function MapView({
         onMeasureComplete,
         onAoiPointAdd,
         onAoiComplete,
+        onGeometryVertexAdd,
+        onGeometryDrawingComplete,
+        onGeometryVertexMove,
+        onGeometryActiveVertexChange,
         selectedFeatureId,
         selectedFeatureIds,
     ]);
@@ -2974,6 +3488,16 @@ export function MapView({
                     latestQualityIssueFeaturesRef.current,
                     latestSelectedQualityIssueIdRef.current,
                 );
+
+                if (latestGeometryEditModeRef.current !== "idle") {
+                    updateGeometryEditLayers(
+                        map,
+                        latestGeometryEditModeRef.current,
+                        latestGeometryDraftCoordinatesRef.current,
+                        latestGeometryActiveVertexIndexRef.current,
+                        geometrySnapTargetRef.current,
+                    );
+                }
 
                 /*
                  * 恢复当前选中地块
@@ -3268,6 +3792,75 @@ export function MapView({
     }, [
         qualityIssueFeatures,
         selectedQualityIssueId,
+    ]);
+
+    useEffect(() => {
+        latestGeometryEditModeRef.current = geometryEditMode;
+        latestGeometryDraftCoordinatesRef.current = geometryDraftCoordinates;
+        latestGeometryActiveVertexIndexRef.current = geometryActiveVertexIndex;
+        latestGeometrySnapCandidatesRef.current = geometrySnapCandidates;
+        latestGeometrySnappingEnabledRef.current = geometrySnappingEnabled;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        if (geometryEditMode === "idle") {
+            geometrySnapTargetRef.current = null;
+        }
+
+        updateGeometryEditLayers(
+            map,
+            geometryEditMode,
+            geometryDraftCoordinates,
+            geometryActiveVertexIndex,
+            geometrySnapTargetRef.current,
+        );
+
+        if (geometryEditMode === "drawing") {
+            map.dragPan.disable();
+            map.doubleClickZoom.disable();
+            map.getCanvas().style.cursor = "crosshair";
+        } else {
+            if (!map.doubleClickZoom.isEnabled()) {
+                map.doubleClickZoom.enable();
+            }
+
+            if (
+                geometryEditMode === "idle" &&
+                latestInteractionModeRef.current === "pan"
+            ) {
+                map.dragPan.enable();
+                map.getCanvas().style.cursor = "grab";
+            } else if (geometryEditMode === "idle") {
+                map.dragPan.disable();
+                map.getCanvas().style.cursor = "crosshair";
+            } else if (draggingGeometryVertexRef.current === null) {
+                map.getCanvas().style.cursor = "default";
+            }
+        }
+
+        if (
+            geometryEditMode !== "editing" &&
+            geometryEditMode !== "creating" &&
+            draggingGeometryVertexRef.current !== null
+        ) {
+            draggingGeometryVertexRef.current = null;
+
+            if (latestInteractionModeRef.current === "pan") {
+                map.dragPan.enable();
+            } else {
+                map.dragPan.disable();
+            }
+        }
+    }, [
+        geometryEditMode,
+        geometryDraftCoordinates,
+        geometryActiveVertexIndex,
+        geometrySnapCandidates,
+        geometrySnappingEnabled,
     ]);
 
     /*

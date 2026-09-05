@@ -1,4 +1,8 @@
 // 要素信息板
+import {
+    Pencil,
+    Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -38,6 +42,10 @@ interface FeatureInfoPanelProps {
     onRunSpatialQuery: () => void;
 
     onClearSpatialQuery: () => void;
+
+    onEditGeometry: (feature: LandUseFeature) => void;
+
+    onDeleteFeature: (feature: LandUseFeature) => void;
 }
 
 
@@ -52,6 +60,8 @@ export function FeatureInfoPanel({
     spatialQueryError,
     onRunSpatialQuery,
     onClearSpatialQuery,
+    onEditGeometry,
+    onDeleteFeature,
 }: FeatureInfoPanelProps) {
     const [bufferDistance, setBufferDistance] =
         useState("500");
@@ -218,6 +228,22 @@ export function FeatureInfoPanel({
                     </dd>
                 </div>
             </dl>
+
+            <section className="feature-geometry-actions">
+                <span>GEOMETRY</span>
+                <div>
+                    <button type="button" onClick={() => onEditGeometry(feature)}>
+                        <Pencil size={13} />编辑几何
+                    </button>
+                    <button
+                        type="button"
+                        className="feature-geometry-delete"
+                        onClick={() => onDeleteFeature(feature)}
+                    >
+                        <Trash2 size={13} />删除
+                    </button>
+                </div>
+            </section>
 
             <section className="feature-spatial-analysis">
                 <header>

@@ -201,6 +201,106 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case "ADD_FEATURE": {
+      if (!state.dataset) {
+        return state;
+      }
+
+      const featureId = action.payload.feature.properties.id;
+
+      if (state.dataset.collection.features.some(
+        (feature) => feature.properties.id === featureId,
+      )) {
+        return state;
+      }
+
+      const previousFeatures = state.dataset.collection.features;
+      const requestedIndex = action.payload.index ?? previousFeatures.length;
+      const index = Math.max(
+        0,
+        Math.min(requestedIndex, previousFeatures.length),
+      );
+      const features = [
+        ...previousFeatures.slice(0, index),
+        action.payload.feature,
+        ...previousFeatures.slice(index),
+      ];
+
+      return {
+        ...state,
+        dataset: {
+          ...state.dataset,
+          collection: {
+            ...state.dataset.collection,
+            features,
+          },
+        },
+      };
+    }
+
+    case "UPDATE_FEATURE_GEOMETRY": {
+      if (!state.dataset) {
+        return state;
+      }
+
+      let changed = false;
+      const features = state.dataset.collection.features.map((feature) => {
+        if (feature.properties.id !== action.payload.featureId) {
+          return feature;
+        }
+
+        changed = true;
+        return {
+          ...feature,
+          geometry: action.payload.geometry,
+          properties: {
+            ...feature.properties,
+            areaM2: action.payload.areaM2,
+          },
+        };
+      });
+
+      if (!changed) {
+        return state;
+      }
+
+      return {
+        ...state,
+        dataset: {
+          ...state.dataset,
+          collection: {
+            ...state.dataset.collection,
+            features,
+          },
+        },
+      };
+    }
+
+    case "DELETE_FEATURE": {
+      if (!state.dataset) {
+        return state;
+      }
+
+      const features = state.dataset.collection.features.filter(
+        (feature) => feature.properties.id !== action.payload.featureId,
+      );
+
+      if (features.length === state.dataset.collection.features.length) {
+        return state;
+      }
+
+      return {
+        ...state,
+        dataset: {
+          ...state.dataset,
+          collection: {
+            ...state.dataset.collection,
+            features,
+          },
+        },
+      };
+    }
+
     default:
       return state;
   }

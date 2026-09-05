@@ -30,6 +30,7 @@ import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
 import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
 import { BatchEditPanel } from "../components/workspace/BatchEditPanel";
+import { GeometryEditPanel } from "../components/workspace/GeometryEditPanel";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -88,6 +89,7 @@ import type {
 } from "../types/mapLayer";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
 import { useEditHistory } from "../hooks/useEditHistory";
+import { useGeometryEditor } from "../hooks/useGeometryEditor";
 import type {
     EditTransaction,
     LandUsePropertyChanges,
@@ -103,10 +105,19 @@ import {
     createCleanedDataset,
     createDataQualityMapCollection,
     scanFeatureCollection,
+    validateEditablePolygonGeometry,
 } from "../services/gis/dataQuality";
 import {
     exportDataQualityReport,
 } from "../services/export/exportDataQualityReport";
+import {
+    calculateEditedGeometryAreaM2,
+    createClosedPolygonGeometry,
+    extractPolygonVertices,
+} from "../services/gis/geometryEditing";
+import type {
+    NewLandUseProperties,
+} from "../types/geometryEditing";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -280,6 +291,15 @@ export function WorkspacePage() {
     const qualityScanSequenceRef = useRef(0);
     const agentHandledFilterClearRef = useRef(false);
     const editHistory = useEditHistory(30);
+    const geometryEditor = useGeometryEditor();
+    const [pendingFeatureId, setPendingFeatureId] =
+        useState<string | null>(null);
+    const [geometryValidationError, setGeometryValidationError] =
+        useState<string | null>(null);
+    const [geometryDeleteConfirmationOpen, setGeometryDeleteConfirmationOpen] =
+        useState(false);
+    const [geometryAbandonConfirmationOpen, setGeometryAbandonConfirmationOpen] =
+        useState(false);
 
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
@@ -1216,6 +1236,11 @@ export function WorkspacePage() {
         );
     }
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
+        if (geometryEditor.mode !== "idle") {
+            setGeometryAbandonConfirmationOpen(true);
+            return;
+        }
+
         setActivePanel(
             // 新值依赖于旧值
             (previousPanel) => {
@@ -1337,6 +1362,30 @@ export function WorkspacePage() {
             },
             [filteredFeatures],
         );
+    const geometryDraft = useMemo(
+        () => createClosedPolygonGeometry(
+            geometryEditor.draftCoordinates,
+        ),
+        [geometryEditor.draftCoordinates],
+    );
+    const geometryDraftAreaM2 = useMemo(
+        () => geometryDraft
+            ? calculateEditedGeometryAreaM2(geometryDraft)
+            : null,
+        [geometryDraft],
+    );
+    const geometrySnapCandidates = useMemo(
+        () => extractPolygonVertices(filteredCollection, {
+            excludeFeatureId: geometryEditor.mode === "editing"
+                ? geometryEditor.editingFeatureId
+                : null,
+        }),
+        [
+            filteredCollection,
+            geometryEditor.editingFeatureId,
+            geometryEditor.mode,
+        ],
+    );
     const selectedFeatures = useMemo(
         () => {
             const selectedIds = new Set(selectedFeatureIds);
@@ -1405,6 +1454,45 @@ export function WorkspacePage() {
         clear: clearMeasure,
         result: measureValue,
     } = useMeasure();
+
+    useEffect(() => {
+        if (geometryEditor.mode === "idle") {
+            return;
+        }
+
+        const handleGeometryShortcut = (event: KeyboardEvent) => {
+            const target = event.target;
+
+            if (
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target instanceof HTMLSelectElement
+            ) {
+                return;
+            }
+
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setGeometryAbandonConfirmationOpen(true);
+                return;
+            }
+
+            if (
+                (event.key === "Delete" || event.key === "Backspace") &&
+                geometryEditor.activeVertexIndex !== null
+            ) {
+                event.preventDefault();
+                geometryEditor.deleteActiveVertex();
+            }
+        };
+
+        window.addEventListener("keydown", handleGeometryShortcut);
+        return () => {
+            window.removeEventListener("keydown", handleGeometryShortcut);
+        };
+    }, [
+        geometryEditor,
+    ]);
 
     if (!dataset ||
         state.importStatus !== "loaded") {
@@ -1640,6 +1728,250 @@ export function WorkspacePage() {
         setQualityError("数据已发生变化，请重新运行质量检查。");
     }
 
+    function invalidatePrimaryGeometryDependents() {
+        handleClearBuffer();
+        handleClearAoiQuery();
+        invalidatePrimaryQualityReport();
+    }
+
+    function prepareGeometryCommit() {
+        const geometry = createClosedPolygonGeometry(
+            geometryEditor.draftCoordinates,
+        );
+
+        if (!geometry) {
+            setGeometryValidationError("Polygon 至少需要 3 个不同顶点。");
+            return null;
+        }
+
+        const validation = validateEditablePolygonGeometry(geometry);
+
+        if (!validation.valid) {
+            setGeometryValidationError(
+                validation.message ?? "当前 Polygon 无法保存。",
+            );
+            return null;
+        }
+
+        const areaM2 = calculateEditedGeometryAreaM2(geometry);
+
+        if (areaM2 === null) {
+            setGeometryValidationError("无法计算有效面积，请检查 Polygon 顶点。");
+            return null;
+        }
+
+        setGeometryValidationError(null);
+        return { geometry, areaM2 };
+    }
+
+    function handleStartGeometryCreate() {
+        clearMeasure();
+
+        if (aoiMode === "drawing") {
+            handleClearAoiAnalysis();
+        }
+
+        setPendingFeatureId(crypto.randomUUID());
+        setGeometryValidationError(null);
+        setGeometryDeleteConfirmationOpen(false);
+        setGeometryAbandonConfirmationOpen(false);
+        geometryEditor.startCreate();
+        setActivePanel("geometry-edit");
+    }
+
+    function handleStartGeometryEdit(feature: LandUseFeature) {
+        if (feature.geometry.coordinates.length !== 1) {
+            setSelectedFeature(feature);
+            setSelectedFeatureIds([feature.properties.id]);
+            setGeometryValidationError(
+                "当前版本暂不支持含内环的 Polygon 几何编辑。",
+            );
+            setActivePanel("geometry-edit");
+            return;
+        }
+
+        clearMeasure();
+
+        if (aoiMode === "drawing") {
+            handleClearAoiAnalysis();
+        }
+
+        setSelectedFeature(feature);
+        setSelectedFeatureIds([feature.properties.id]);
+        setPendingFeatureId(null);
+        setGeometryValidationError(null);
+        setGeometryDeleteConfirmationOpen(false);
+        setGeometryAbandonConfirmationOpen(false);
+        geometryEditor.startEdit(feature);
+        setActivePanel("geometry-edit");
+    }
+
+    function handleCompleteGeometryDrawing() {
+        if (!geometryEditor.completeDrawing()) {
+            setGeometryValidationError("至少添加 3 个不同顶点后才能完成 Polygon。");
+            return;
+        }
+
+        setGeometryValidationError(null);
+    }
+
+    function handleCreateGeometryFeature(
+        properties: NewLandUseProperties,
+    ) {
+        const currentDataset = state.dataset;
+        const prepared = prepareGeometryCommit();
+
+        if (!currentDataset || !prepared || !pendingFeatureId) {
+            return;
+        }
+
+        const feature: LandUseFeature = {
+            type: "Feature",
+            geometry: prepared.geometry,
+            properties: {
+                id: pendingFeatureId,
+                ...properties,
+                areaM2: prepared.areaM2,
+            },
+        };
+        const transaction: EditTransaction = {
+            id: crypto.randomUUID(),
+            type: "feature_create",
+            label: "新建地块",
+            timestamp: Date.now(),
+            featureCount: 1,
+            createdFeature: feature,
+            featureIndex: currentDataset.collection.features.length,
+        };
+
+        dispatch({
+            type: "ADD_FEATURE",
+            payload: { feature },
+        });
+        editHistory.pushTransaction(transaction);
+        invalidatePrimaryGeometryDependents();
+        setSelectedFeature(feature);
+        setSelectedFeatureIds([feature.properties.id]);
+        setEditMessage(`已创建地块 ${feature.properties.id}。`);
+        setPendingFeatureId(null);
+        geometryEditor.reset();
+        setActivePanel("feature");
+    }
+
+    function handleSaveGeometryEdit() {
+        const currentDataset = state.dataset;
+        const featureId = geometryEditor.editingFeatureId;
+        const sourceFeature = currentDataset?.collection.features.find(
+            (feature) => feature.properties.id === featureId,
+        );
+        const prepared = prepareGeometryCommit();
+
+        if (!featureId || !sourceFeature || !prepared) {
+            if (!sourceFeature) {
+                setGeometryValidationError("找不到正在编辑的地块，无法保存。 ");
+            }
+            return;
+        }
+
+        const transaction: EditTransaction = {
+            id: crypto.randomUUID(),
+            type: "geometry_update",
+            label: "修改地块几何",
+            timestamp: Date.now(),
+            featureCount: 1,
+            featureId,
+            beforeGeometry: sourceFeature.geometry,
+            afterGeometry: prepared.geometry,
+            beforeAreaM2: sourceFeature.properties.areaM2,
+            afterAreaM2: prepared.areaM2,
+        };
+        const updatedFeature: LandUseFeature = {
+            ...sourceFeature,
+            geometry: prepared.geometry,
+            properties: {
+                ...sourceFeature.properties,
+                areaM2: prepared.areaM2,
+            },
+        };
+
+        dispatch({
+            type: "UPDATE_FEATURE_GEOMETRY",
+            payload: {
+                featureId,
+                geometry: prepared.geometry,
+                areaM2: prepared.areaM2,
+            },
+        });
+        editHistory.pushTransaction(transaction);
+        invalidatePrimaryGeometryDependents();
+        setSelectedFeature(updatedFeature);
+        setSelectedFeatureIds([featureId]);
+        setEditMessage(`已更新地块 ${featureId} 的几何与面积。`);
+        geometryEditor.reset();
+        setActivePanel("feature");
+    }
+
+    function handleCancelGeometryDraft() {
+        geometryEditor.cancel();
+        setPendingFeatureId(null);
+        setGeometryValidationError(null);
+        setGeometryDeleteConfirmationOpen(false);
+        setGeometryAbandonConfirmationOpen(false);
+    }
+
+    function handleRequestGeometryDelete(feature?: LandUseFeature) {
+        if (feature) {
+            setSelectedFeature(feature);
+            setSelectedFeatureIds([feature.properties.id]);
+        }
+
+        setGeometryDeleteConfirmationOpen(true);
+        setActivePanel("geometry-edit");
+    }
+
+    function handleConfirmGeometryDelete() {
+        const currentDataset = state.dataset;
+
+        if (!selectedFeature || !currentDataset) {
+            setGeometryDeleteConfirmationOpen(false);
+            return;
+        }
+
+        const featureId = selectedFeature.properties.id;
+        const featureIndex = currentDataset.collection.features.findIndex(
+            (feature) => feature.properties.id === featureId,
+        );
+
+        if (featureIndex < 0) {
+            setGeometryValidationError("找不到需要删除的地块。 ");
+            return;
+        }
+
+        const transaction: EditTransaction = {
+            id: crypto.randomUUID(),
+            type: "feature_delete",
+            label: "删除地块",
+            timestamp: Date.now(),
+            featureCount: 1,
+            deletedFeature: selectedFeature,
+            featureIndex,
+        };
+
+        dispatch({
+            type: "DELETE_FEATURE",
+            payload: { featureId },
+        });
+        editHistory.pushTransaction(transaction);
+        invalidatePrimaryGeometryDependents();
+        setSelectedFeature(null);
+        setSelectedFeatureIds((previous) => previous.filter(
+            (id) => id !== featureId,
+        ));
+        setEditMessage(`已删除地块 ${featureId}，可通过撤销恢复。`);
+        setGeometryDeleteConfirmationOpen(false);
+        geometryEditor.reset();
+    }
+
     function handleToggleFeatureSelection(featureId: string) {
         setSelectedFeatureIds((previous) => previous.includes(featureId)
             ? previous.filter((id) => id !== featureId)
@@ -1764,21 +2096,77 @@ export function WorkspacePage() {
         };
     }
 
-    function dispatchTransactionPatches(
+    function applyEditTransaction(
         transaction: EditTransaction,
         direction: "before" | "after",
     ) {
-        dispatch({
-            type: "UPDATE_FEATURE_PROPERTIES_BATCH",
-            payload: {
-                updates: transaction.patches.map((patch) => ({
-                    featureId: patch.featureId,
-                    changes: patch[direction],
-                })),
-            },
-        });
-        invalidatePrimaryQualityReport();
-        setSelectedFeatureIds([]);
+        if (transaction.type === "batch_attribute_edit") {
+            dispatch({
+                type: "UPDATE_FEATURE_PROPERTIES_BATCH",
+                payload: {
+                    updates: transaction.patches.map((patch) => ({
+                        featureId: patch.featureId,
+                        changes: patch[direction],
+                    })),
+                },
+            });
+            invalidatePrimaryQualityReport();
+            setSelectedFeatureIds([]);
+            return;
+        }
+
+        invalidatePrimaryGeometryDependents();
+
+        if (transaction.type === "geometry_update") {
+            const useBefore = direction === "before";
+
+            dispatch({
+                type: "UPDATE_FEATURE_GEOMETRY",
+                payload: {
+                    featureId: transaction.featureId,
+                    geometry: useBefore
+                        ? transaction.beforeGeometry
+                        : transaction.afterGeometry,
+                    areaM2: useBefore
+                        ? transaction.beforeAreaM2
+                        : transaction.afterAreaM2,
+                },
+            });
+            setSelectedFeatureIds([transaction.featureId]);
+            return;
+        }
+
+        const shouldAdd = (
+            transaction.type === "feature_create" && direction === "after"
+        ) || (
+            transaction.type === "feature_delete" && direction === "before"
+        );
+        const feature = transaction.type === "feature_create"
+            ? transaction.createdFeature
+            : transaction.deletedFeature;
+
+        if (shouldAdd) {
+            dispatch({
+                type: "ADD_FEATURE",
+                payload: {
+                    feature,
+                    index: transaction.featureIndex,
+                },
+            });
+            setSelectedFeature(feature);
+            setSelectedFeatureIds([feature.properties.id]);
+        } else {
+            dispatch({
+                type: "DELETE_FEATURE",
+                payload: {
+                    featureId: feature.properties.id,
+                },
+            });
+            setSelectedFeature(null);
+            setSelectedFeatureIds((previous) => previous.filter(
+                (id) => id !== feature.properties.id,
+            ));
+        }
     }
 
     function handleApplyBatchEdit(changes: LandUsePropertyChanges) {
@@ -1790,7 +2178,7 @@ export function WorkspacePage() {
             return;
         }
 
-        dispatchTransactionPatches(transaction, "after");
+        applyEditTransaction(transaction, "after");
         editHistory.pushTransaction(transaction);
         setEditMessage(`已修改 ${transaction.featureCount} 个地块。`);
         setActivePanel("table");
@@ -1803,7 +2191,7 @@ export function WorkspacePage() {
             return;
         }
 
-        dispatchTransactionPatches(transaction, "before");
+        applyEditTransaction(transaction, "before");
         setEditMessage(`已撤销：${transaction.label}。`);
     }
 
@@ -1814,7 +2202,7 @@ export function WorkspacePage() {
             return;
         }
 
-        dispatchTransactionPatches(transaction, "after");
+        applyEditTransaction(transaction, "after");
         setEditMessage(`已重做：${transaction.label}。`);
     }
 
@@ -2508,7 +2896,14 @@ export function WorkspacePage() {
             <WorkspaceToolbar
                 activeTool={activeTool}
                 activePanel={activePanel}
-                onToolChange={setActiveTool}
+                onToolChange={(tool) => {
+                    if (geometryEditor.mode !== "idle") {
+                        setGeometryAbandonConfirmationOpen(true);
+                        return;
+                    }
+
+                    setActiveTool(tool);
+                }}
                 onPanelToggle={handlePanelToggle}
                 onFitAll={() => {
                     requestMapView(
@@ -2526,6 +2921,11 @@ export function WorkspacePage() {
                 measureMode={measureMode}
 
                 onMeasureChange={(mode)=>{
+                    if (geometryEditor.mode !== "idle") {
+                        setGeometryAbandonConfirmationOpen(true);
+                        return;
+                    }
+
                     startMeasure(mode);
                 }}
                 onAddOverlayLayer={(file) => {
@@ -2561,11 +2961,15 @@ export function WorkspacePage() {
                         layerStyle={thematicLayerStyle}
                         basemap={basemap}
                         selectedFeatureId={
-                            selectedFeature
-                                ?.properties.id ??
-                            null
+                            geometryEditor.mode === "idle"
+                                ? selectedFeature?.properties.id ?? null
+                                : null
                         }
-                        selectedFeatureIds={selectedFeatureIds}
+                        selectedFeatureIds={
+                            geometryEditor.mode === "idle"
+                                ? selectedFeatureIds
+                                : []
+                        }
                         viewCommand={
                             mapViewCommand
                         }
@@ -2594,6 +2998,16 @@ export function WorkspacePage() {
 
                         selectedQualityIssueId={selectedQualityIssueId}
 
+                        geometryEditMode={geometryEditor.mode}
+
+                        geometryDraftCoordinates={geometryEditor.draftCoordinates}
+
+                        geometryActiveVertexIndex={geometryEditor.activeVertexIndex}
+
+                        geometrySnapCandidates={geometrySnapCandidates}
+
+                        geometrySnappingEnabled={geometryEditor.snappingEnabled}
+
                         onFeatureSelect={handleFeatureSelect}
                         measureMode={
                             measureMode
@@ -2614,6 +3028,14 @@ export function WorkspacePage() {
                         onAoiPointAdd={addAoiPoint}
 
                         onAoiComplete={completeAoi}
+
+                        onGeometryVertexAdd={geometryEditor.addVertex}
+
+                        onGeometryDrawingComplete={handleCompleteGeometryDrawing}
+
+                        onGeometryVertexMove={geometryEditor.moveVertex}
+
+                        onGeometryActiveVertexChange={geometryEditor.setActiveVertex}
                     />
 
                     {overlayImportError && (
@@ -2902,6 +3324,42 @@ export function WorkspacePage() {
                 />
             )}
 
+            {activePanel === "geometry-edit" && (
+                <GeometryEditPanel
+                    mode={geometryEditor.mode}
+                    selectedFeature={selectedFeature}
+                    editingFeatureId={geometryEditor.editingFeatureId}
+                    pendingFeatureId={pendingFeatureId}
+                    vertexCount={geometryEditor.draftCoordinates.length}
+                    activeVertexIndex={geometryEditor.activeVertexIndex}
+                    snappingEnabled={geometryEditor.snappingEnabled}
+                    draftAreaM2={geometryDraftAreaM2}
+                    validationError={geometryValidationError}
+                    deleteConfirmationOpen={geometryDeleteConfirmationOpen}
+                    abandonConfirmationOpen={geometryAbandonConfirmationOpen}
+                    canUndo={editHistory.canUndo}
+                    canRedo={editHistory.canRedo}
+                    onStartCreate={handleStartGeometryCreate}
+                    onStartEdit={handleStartGeometryEdit}
+                    onCompleteCreate={handleCreateGeometryFeature}
+                    onSaveEdit={handleSaveGeometryEdit}
+                    onDeleteActiveVertex={geometryEditor.deleteActiveVertex}
+                    onToggleSnapping={geometryEditor.toggleSnapping}
+                    onRequestDelete={() => handleRequestGeometryDelete()}
+                    onCancelDelete={() => setGeometryDeleteConfirmationOpen(false)}
+                    onConfirmDelete={handleConfirmGeometryDelete}
+                    onCancelDraft={handleCancelGeometryDraft}
+                    onRequestAbandon={() => setGeometryAbandonConfirmationOpen(true)}
+                    onCancelAbandon={() => setGeometryAbandonConfirmationOpen(false)}
+                    onUndo={handleUndoEdit}
+                    onRedo={handleRedoEdit}
+                    onClose={() => {
+                        setGeometryDeleteConfirmationOpen(false);
+                        setActivePanel(null);
+                    }}
+                />
+            )}
+
             {activePanel === "feature" && selectedFeature && (
                 <FeatureInfoPanel
                     feature={selectedFeature}
@@ -2914,6 +3372,8 @@ export function WorkspacePage() {
                     spatialQueryError={spatialQueryError}
                     onRunSpatialQuery={handleRunSpatialQuery}
                     onClearSpatialQuery={handleClearSpatialQuery}
+                    onEditGeometry={handleStartGeometryEdit}
+                    onDeleteFeature={handleRequestGeometryDelete}
                 />
             )}
 

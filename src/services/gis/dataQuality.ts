@@ -22,6 +22,9 @@ import type {
     DataQualityReport,
     DataQualityScanOptions,
 } from "../../types/dataQuality";
+import type {
+    GeometryValidationResult,
+} from "../../types/geometryEditing";
 
 const SUPPORTED_GEOMETRY_TYPES = new Set([
     "Point",
@@ -381,6 +384,52 @@ function calculatePolygonArea(
     } catch {
         return null;
     }
+}
+
+export function validateEditablePolygonGeometry(
+    geometry: Polygon,
+): GeometryValidationResult {
+    const geometryRecord = geometry as unknown;
+
+    if (
+        !isRecord(geometryRecord) ||
+        !hasValidCoordinateStructure(geometryRecord)
+    ) {
+        return {
+            valid: false,
+            message: "几何包含非有限、越界或结构错误的 EPSG:4326 坐标。",
+        };
+    }
+
+    const ringProblems = inspectPolygonRings(geometryRecord);
+
+    if (ringProblems.length > 0) {
+        return {
+            valid: false,
+            message: ringProblems.some((problem) => problem.fixable)
+                ? "Polygon 环未闭合，请完成闭合后再保存。"
+                : "Polygon 至少需要 3 个不同顶点。",
+        };
+    }
+
+    try {
+        if (kinks(geometry).features.length > 0) {
+            return {
+                valid: false,
+                message: "检测到 Polygon 自相交，请调整顶点后重新保存。",
+            };
+        }
+    } catch {
+        return {
+            valid: false,
+            message: "无法验证当前 Polygon，请检查顶点位置。",
+        };
+    }
+
+    return {
+        valid: true,
+        message: null,
+    };
 }
 
 function formatArea(

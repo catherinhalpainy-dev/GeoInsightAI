@@ -1,5 +1,6 @@
 import {
   FilePlus2,
+  SquarePen,
   ShieldCheck,
   SquareDashed,
   Workflow,
@@ -71,6 +72,22 @@ export function WorkspaceToolbar({
 
   return (
     <aside className="workspace-toolbar">
+      <button
+        type="button"
+        className={
+          activePanel === "geometry-edit"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => {
+          onPanelToggle("geometry-edit");
+        }}
+        title="新建、编辑或删除主土地利用地块"
+      >
+        <SquarePen size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>几何编辑</span>
+      </button>
+
       <button
         type="button"
         className={

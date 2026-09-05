@@ -1,4 +1,9 @@
-import type { LandUseDataset, LandUseType } from "../types/landUse";
+import type {
+    LandUseDataset,
+    LandUseFeature,
+    LandUseType,
+    PolygonGeometry,
+} from "../types/landUse";
 import type {
     LandUsePropertyChanges,
 } from "../types/editHistory";
@@ -91,6 +96,27 @@ export type AppAction =
                 featureId: string;
                 changes: LandUsePropertyChanges;
             }[];
+        };
+    }
+    | {
+        type: "ADD_FEATURE";
+        payload: {
+            feature: LandUseFeature;
+            index?: number;
+        };
+    }
+    | {
+        type: "UPDATE_FEATURE_GEOMETRY";
+        payload: {
+            featureId: string;
+            geometry: PolygonGeometry;
+            areaM2: number;
+        };
+    }
+    | {
+        type: "DELETE_FEATURE";
+        payload: {
+            featureId: string;
         };
     };
 
