@@ -81,6 +81,7 @@ export function AppProvider({ children }: AppProviderProps) {
     );
 }
 
+// oxlint-disable-next-line react/only-export-components
 export function useAppContext() {
     const context = useContext(AppContext);
 

@@ -76,6 +76,28 @@ export function useAoiSketch() {
         setPoints([]);
     }
 
+    function restore(feature: AoiFeature | null) {
+        if (!feature) {
+            clear();
+            return;
+        }
+
+        const outerRing = feature.geometry.coordinates[0] ?? [];
+        const restoredPoints = outerRing.length > 1
+            ? outerRing.slice(0, -1).map(
+                (point) => [...point] as Position,
+            )
+            : [];
+
+        if (restoredPoints.length < 3) {
+            clear();
+            return;
+        }
+
+        setPoints(restoredPoints);
+        setMode("completed");
+    }
+
     const polygon = useMemo<AoiFeature | null>(
         () => {
             if (
@@ -109,5 +131,6 @@ export function useAoiSketch() {
         complete,
         restart,
         clear,
+        restore,
     };
 }

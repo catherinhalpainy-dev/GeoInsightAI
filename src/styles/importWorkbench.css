@@ -140,6 +140,159 @@
     var(--shadow-card);
 }
 
+.recent-projects {
+  margin-top: 16px;
+
+  padding-top: 15px;
+
+  border-top: 1px solid var(--color-border);
+}
+
+.recent-projects > header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-bottom: 10px;
+}
+
+.recent-projects > header span {
+  color: var(--color-primary);
+
+  font-size: 10px;
+  font-weight: 750;
+
+  letter-spacing: 0.08em;
+}
+
+.recent-projects > header h2 {
+  margin: 2px 0 0;
+
+  font-size: 14px;
+}
+
+.recent-projects > header button,
+.continue-project-button {
+  min-height: 31px;
+
+  padding: 0 9px;
+
+  border-color: #bde9e4;
+
+  color: var(--color-primary);
+
+  font-size: 11px;
+}
+
+.continue-project-button {
+  width: 100%;
+
+  margin-bottom: 8px;
+
+  background: var(--color-primary-softer);
+}
+
+.recent-project-list {
+  display: grid;
+
+  gap: 6px;
+}
+
+.recent-project-list article {
+  display: grid;
+
+  grid-template-columns: minmax(0, 1fr) 30px;
+
+  align-items: center;
+
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+
+  background: white;
+}
+
+.recent-project-list article:hover {
+  border-color: #bde9e4;
+
+  background: #fbfefd;
+}
+
+.recent-project-main {
+  display: grid;
+
+  min-width: 0;
+
+  gap: 2px;
+
+  padding: 9px 10px;
+
+  border: 0;
+
+  background: transparent;
+
+  text-align: left;
+}
+
+.recent-project-main strong,
+.recent-project-main span,
+.recent-project-main time {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-project-main strong {
+  color: var(--color-text);
+
+  font-size: 12px;
+}
+
+.recent-project-main span,
+.recent-project-main time {
+  color: var(--color-text-secondary);
+
+  font-size: 10px;
+}
+
+.recent-project-delete {
+  width: 26px;
+  height: 26px;
+
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #98a2b3;
+
+  font-size: 15px;
+}
+
+.recent-project-delete:hover {
+  background: #fff1f0;
+
+  color: #b42318;
+}
+
+.recent-project-list > p,
+.recent-project-error {
+  margin: 7px 0 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.recent-project-error {
+  color: #b42318;
+}
+
 .import-source-tabs {
   display: grid;
 

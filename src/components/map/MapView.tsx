@@ -45,6 +45,9 @@ import type {
     DataQualityMapFeatureCollection,
 } from "../../types/dataQuality";
 import type {
+    ProjectMapState,
+} from "../../types/project";
+import type {
     GeometryEditorMode,
     GeometrySnapCandidate,
 } from "../../types/geometryEditing";
@@ -228,6 +231,13 @@ interface MapViewProps {
 
     viewCommand?:
     MapViewCommand | null;
+
+    restoreViewState?: {
+        requestId: number;
+        state: ProjectMapState;
+    } | null;
+
+    onViewStateChange?: (state: ProjectMapState) => void;
 
 
     measureMode?:
@@ -2536,6 +2546,7 @@ export function MapView({
     selectedFeatureId = null,
     selectedFeatureIds = [],
     viewCommand = null,
+    restoreViewState = null,
     measureMode = "none",
     measurePoints = [],
     measureCompleted = false,
@@ -2566,6 +2577,7 @@ export function MapView({
     onGeometryDrawingComplete,
     onGeometryVertexMove,
     onGeometryActiveVertexChange,
+    onViewStateChange,
 }: MapViewProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
@@ -2578,6 +2590,15 @@ export function MapView({
         );
 
     const initialBasemapRef =
+        useRef(basemap);
+    const initialRestoreViewStateRef =
+        useRef(restoreViewState?.state ?? null);
+    const hasReceivedRestoreViewStateRef =
+        useRef(Boolean(restoreViewState));
+    if (restoreViewState) {
+        hasReceivedRestoreViewStateRef.current = true;
+    }
+    const latestBasemapRef =
         useRef(basemap);
 
     const [
@@ -2598,6 +2619,9 @@ export function MapView({
 
     const latestOnFeatureSelectRef =
         useRef(onFeatureSelect);
+
+    const latestOnViewStateChangeRef =
+        useRef(onViewStateChange);
 
     const latestSelectedFeatureIdRef =
         useRef(selectedFeatureId);
@@ -2740,12 +2764,14 @@ export function MapView({
                 style:
                     BASEMAP_STYLES[initialBasemapRef.current],
 
-                center: [
+                center: initialRestoreViewStateRef.current?.center ?? [
                     116.40,
                     39.93,
                 ],
 
-                zoom: 10,
+                zoom: initialRestoreViewStateRef.current?.zoom ?? 10,
+                bearing: initialRestoreViewStateRef.current?.bearing ?? 0,
+                pitch: initialRestoreViewStateRef.current?.pitch ?? 0,
             });
 
 
@@ -3019,6 +3045,18 @@ export function MapView({
                 );
             };
 
+        const handleMoveEnd = () => {
+            const center = map.getCenter();
+
+            latestOnViewStateChangeRef.current?.({
+                basemap: latestBasemapRef.current,
+                center: [center.lng, center.lat],
+                zoom: map.getZoom(),
+                bearing: map.getBearing(),
+                pitch: map.getPitch(),
+            });
+        };
+
 
         /*
          * Identify / Select Feature
@@ -3247,6 +3285,11 @@ export function MapView({
         );
 
         map.on(
+            "moveend",
+            handleMoveEnd,
+        );
+
+        map.on(
             "click",
             handleMapClick,
         );
@@ -3285,6 +3328,11 @@ export function MapView({
             map.off(
                 "zoomend",
                 handleZoomEnd,
+            );
+
+            map.off(
+                "moveend",
+                handleMoveEnd,
             );
 
             map.off(
@@ -3335,6 +3383,8 @@ export function MapView({
     useEffect(() => {
         latestOnFeatureSelectRef.current =
             onFeatureSelect;
+        latestOnViewStateChangeRef.current =
+            onViewStateChange;
 
         latestOnMeasurePointAddRef.current =
             onMeasurePointAdd;
@@ -3363,6 +3413,7 @@ export function MapView({
             selectedFeatureIds;
     }, [
         onFeatureSelect,
+        onViewStateChange,
         onMeasurePointAdd,
         onMeasureComplete,
         onAoiPointAdd,
@@ -3380,6 +3431,7 @@ export function MapView({
             basemap,
         );
     useEffect(() => {
+        latestBasemapRef.current = basemap;
         const map =
             mapRef.current;
 
@@ -3574,6 +3626,21 @@ export function MapView({
     }, [
         basemap,
     ]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+
+        if (!map || !restoreViewState) {
+            return;
+        }
+
+        map.jumpTo({
+            center: restoreViewState.state.center,
+            zoom: restoreViewState.state.zoom,
+            bearing: restoreViewState.state.bearing,
+            pitch: restoreViewState.state.pitch,
+        });
+    }, [restoreViewState]);
 
     // 测距
     useEffect(() => {
@@ -3954,7 +4021,7 @@ export function MapView({
                     );
 
 
-                if (bounds) {
+                if (bounds && !hasReceivedRestoreViewStateRef.current) {
                     map.fitBounds(
                         [
                             [

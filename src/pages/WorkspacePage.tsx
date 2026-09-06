@@ -41,6 +41,7 @@ import { useMeasure } from "../hooks/useMeasure";
 import { useAoiSketch } from "../hooks/useAoiSketch";
 import type {
     AoiAnalysisResult,
+    AoiFeature,
     AoiQueryRelation,
     AnalysisResultFeatureCollection,
     AnalysisResultLayer,
@@ -118,6 +119,11 @@ import {
 import type {
     NewLandUseProperties,
 } from "../types/geometryEditing";
+import { useProjectContext } from "../project/ProjectProvider";
+import type {
+    ProjectMapState,
+    ProjectSnapshotInput,
+} from "../types/project";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -166,6 +172,24 @@ type AgentCommandExecutionResult =
         message: string;
     };
 
+function areAoiFeaturesEqual(
+    first: AoiFeature | null,
+    second: AoiFeature,
+) {
+    const firstRing = first?.geometry.coordinates[0];
+    const secondRing = second.geometry.coordinates[0];
+
+    return Boolean(
+        firstRing &&
+        secondRing &&
+        firstRing.length === secondRing.length &&
+        firstRing.every((coordinate, index) => (
+            coordinate[0] === secondRing[index][0] &&
+            coordinate[1] === secondRing[index][1]
+        )),
+    );
+}
+
 
 export function WorkspacePage() {
     const navigate = useNavigate();
@@ -178,6 +202,14 @@ export function WorkspacePage() {
     const [searchParams, setSearchParams,] = useSearchParams();
 
     const { state, dispatch, filteredFeatures, } = useAppContext();
+    const {
+        projectMeta,
+        pendingProject,
+        registerWorkspaceController,
+        notifyPersistenceStateChange,
+        markProjectDirty,
+        completeProjectRestore,
+    } = useProjectContext();
 
     const [
         activeTool,
@@ -199,6 +231,23 @@ export function WorkspacePage() {
     ] = useState<MapViewCommand | null>(
         null,
     );
+    const [projectMapState, setProjectMapState] =
+        useState<ProjectMapState>(() => pendingProject?.map ?? ({
+            basemap: "dark",
+            center: [116.40, 39.93],
+            zoom: 10,
+            bearing: 0,
+            pitch: 0,
+        }));
+    const [restoreViewState, setRestoreViewState] = useState<{
+        requestId: number;
+        state: ProjectMapState;
+    } | null>(() => pendingProject
+        ? {
+            requestId: 1,
+            state: pendingProject.map,
+        }
+        : null);
 
     function requestMapView(
         type: Exclude<
@@ -216,6 +265,31 @@ export function WorkspacePage() {
                 }
             ),
         );
+    }
+
+    function handleProjectMapStateChange(nextState: ProjectMapState) {
+        setProjectMapState(nextState);
+
+        if (restoreViewState) {
+            const restored = restoreViewState.state;
+            const cameraMatches =
+                Math.abs(restored.center[0] - nextState.center[0]) < 1e-7 &&
+                Math.abs(restored.center[1] - nextState.center[1]) < 1e-7 &&
+                Math.abs(restored.zoom - nextState.zoom) < 1e-5 &&
+                Math.abs(restored.bearing - nextState.bearing) < 1e-5 &&
+                Math.abs(restored.pitch - nextState.pitch) < 1e-5;
+
+            if (cameraMatches) {
+                setRestoreViewState(null);
+                return;
+            }
+
+            setRestoreViewState(null);
+        }
+
+        if (!pendingProject) {
+            markProjectDirty();
+        }
     }
 
     const [
@@ -252,7 +326,10 @@ export function WorkspacePage() {
         complete: completeAoi,
         restart: restartAoi,
         clear: clearAoi,
+        restore: restoreAoi,
     } = useAoiSketch();
+    const [persistedAoiFeature, setPersistedAoiFeature] =
+        useState<typeof aoiPolygon>(null);
     const [aoiRelation, setAoiRelation] =
         useState<AoiQueryRelation>("intersects");
     const [aoiQueryFeatures, setAoiQueryFeatures] =
@@ -290,8 +367,14 @@ export function WorkspacePage() {
     const analysisLayerSequenceRef = useRef(0);
     const qualityScanSequenceRef = useRef(0);
     const agentHandledFilterClearRef = useRef(false);
+    const skipNextFilterQueryInvalidationRef = useRef(false);
     const editHistory = useEditHistory(30);
     const geometryEditor = useGeometryEditor();
+    const projectSnapshotInputRef =
+        useRef<Omit<ProjectSnapshotInput, "project"> | null>(null);
+    const persistenceBlockerRef = useRef<string | null>(null);
+    const persistentReferencesRef = useRef<readonly unknown[] | null>(null);
+    const skipNextPersistentDirtyRef = useRef(false);
     const [pendingFeatureId, setPendingFeatureId] =
         useState<string | null>(null);
     const [geometryValidationError, setGeometryValidationError] =
@@ -300,6 +383,16 @@ export function WorkspacePage() {
         useState(false);
     const [geometryAbandonConfirmationOpen, setGeometryAbandonConfirmationOpen] =
         useState(false);
+
+    useEffect(() => {
+        if (aoiMode === "completed" && aoiPolygon) {
+            setPersistedAoiFeature((current) =>
+                areAoiFeaturesEqual(current, aoiPolygon)
+                    ? current
+                    : aoiPolygon,
+            );
+        }
+    }, [aoiMode, aoiPolygon]);
 
     function handleClearSpatialQuery() {
         setSpatialQueryFeatures([]);
@@ -326,6 +419,7 @@ export function WorkspacePage() {
 
     function handleClearAoiAnalysis() {
         clearAoi();
+        setPersistedAoiFeature(null);
         handleClearAoiQuery();
         setAoiRelation("intersects");
     }
@@ -1126,6 +1220,15 @@ export function WorkspacePage() {
     }, [selectedFeature, state.dataset]);
 
     useEffect(() => {
+        if (pendingProject) {
+            return;
+        }
+
+        if (skipNextFilterQueryInvalidationRef.current) {
+            skipNextFilterQueryInvalidationRef.current = false;
+            return;
+        }
+
         if (agentHandledFilterClearRef.current) {
             agentHandledFilterClearRef.current = false;
             return;
@@ -1139,6 +1242,7 @@ export function WorkspacePage() {
         setAoiQueryError(null);
     }, [
         filteredFeatures,
+        pendingProject,
     ]);
 
     useEffect(() => {
@@ -1492,6 +1596,225 @@ export function WorkspacePage() {
         };
     }, [
         geometryEditor,
+    ]);
+
+    persistenceBlockerRef.current = geometryEditor.mode === "idle"
+        ? null
+        : "请先保存或取消当前几何编辑，再保存工程。";
+
+    projectSnapshotInputRef.current = dataset
+        ? {
+            data: {
+                primaryDataset: dataset,
+                overlayLayers,
+                analysisResultLayers,
+            },
+            map: {
+                ...projectMapState,
+                basemap,
+            },
+            workspace: {
+                filters: {
+                    ...state.filters,
+                    landUseTypes: [...state.filters.landUseTypes],
+                },
+                attributeQuery: state.attributeQuery,
+                layerStyle: {
+                    layerVisible: layerStyle.layerVisible,
+                    fillVisible: layerStyle.fillVisible,
+                    fillColor: layerStyle.fillColor,
+                    fillOpacity: layerStyle.fillOpacity,
+                    outlineVisible: layerStyle.outlineVisible,
+                    outlineColor: layerStyle.outlineColor,
+                    outlineWidth: layerStyle.outlineWidth,
+                    outlineOpacity: layerStyle.outlineOpacity,
+                    symbologyMode: layerStyle.symbologyMode,
+                    categorizedField: layerStyle.categorizedField,
+                    graduatedField: layerStyle.graduatedField,
+                    classificationMethod: layerStyle.classificationMethod,
+                    classCount: layerStyle.classCount,
+                    colorRamp: layerStyle.colorRamp,
+                },
+                selectedFeatureIds,
+                selectedFeatureId: selectedFeature?.properties.id ?? null,
+                aoiFeature: persistedAoiFeature,
+                aoiRelation,
+                aoiQueryResult: aoiAnalysisResult,
+                bufferFeature,
+                bufferResult,
+                bufferSpatialQueryResult: spatialQueryResult,
+            },
+        }
+        : null;
+
+    useEffect(() => {
+        registerWorkspaceController({
+            createSnapshotInput: (metadata) => {
+                const current = projectSnapshotInputRef.current;
+
+                return current
+                    ? {
+                        project: metadata,
+                        ...current,
+                    }
+                    : null;
+            },
+            getPersistenceBlocker: () => persistenceBlockerRef.current,
+        });
+
+        return () => registerWorkspaceController(null);
+    }, [registerWorkspaceController]);
+
+    useEffect(() => {
+        notifyPersistenceStateChange();
+    }, [geometryEditor.mode, notifyPersistenceStateChange]);
+
+    useEffect(() => {
+        if (!pendingProject) {
+            return;
+        }
+
+        const project = pendingProject;
+        const primaryFeatures = project.data.primaryDataset.collection.features;
+        const featuresById = new Map(
+            primaryFeatures.map((feature) => [feature.properties.id, feature]),
+        );
+        const restoredSelectionIds = project.workspace.selectedFeatureIds.filter(
+            (featureId) => featuresById.has(featureId),
+        );
+        const restoredSelectedFeature = project.workspace.selectedFeatureId
+            ? featuresById.get(project.workspace.selectedFeatureId) ?? null
+            : null;
+        const resolveResultFeatures = (result: SpatialQueryResult | null) =>
+            result?.featureIds.flatMap((featureId) => {
+                const feature = featuresById.get(featureId);
+                return feature ? [feature] : [];
+            }) ?? [];
+        const restoredLayerStyle: LayerStyle = {
+            ...project.workspace.layerStyle,
+            graduatedClasses: [],
+        };
+
+        skipNextFilterQueryInvalidationRef.current = true;
+        skipNextPersistentDirtyRef.current = true;
+        setBasemap(project.map.basemap);
+        setProjectMapState(project.map);
+        setRestoreViewState((previous) => ({
+            requestId: (previous?.requestId ?? 0) + 1,
+            state: project.map,
+        }));
+        setLayerStyle(restoredLayerStyle);
+        setSavedLayerStyle(restoredLayerStyle);
+        setOverlayLayers(project.data.overlayLayers);
+        setAnalysisResultLayers(project.data.analysisResultLayers);
+        setSelectedFeatureIds(restoredSelectionIds);
+        setSelectedFeature(restoredSelectedFeature);
+        setShouldFitSelected(false);
+        restoreAoi(project.workspace.aoiFeature);
+        setPersistedAoiFeature(project.workspace.aoiFeature);
+        setAoiRelation(project.workspace.aoiRelation);
+        setAoiAnalysisResult(project.workspace.aoiQueryResult);
+        setAoiQueryFeatures(resolveResultFeatures(project.workspace.aoiQueryResult));
+        setAoiQueryError(null);
+        setBufferFeature(project.workspace.bufferFeature);
+        setBufferResult(project.workspace.bufferResult);
+        setBufferError(null);
+        setSpatialQueryResult(project.workspace.bufferSpatialQueryResult);
+        setSpatialQueryFeatures(resolveResultFeatures(
+            project.workspace.bufferSpatialQueryResult,
+        ));
+        setSpatialQueryError(null);
+        setActivePanel(null);
+        setActiveTool("select");
+        setMapViewCommand(null);
+        setGeoprocessingSummary(null);
+        setGeoprocessingError(null);
+        setOverlayImportError(null);
+        setEditMessage(null);
+        setLastAgentSnapshot(null);
+        setAgentExecutionEvents([]);
+        setDataQualityReport(null);
+        setSelectedQualityIssueId(null);
+        setQualityError(null);
+        setCleanedDataset(null);
+        setCleanedQualityReport(null);
+        setQualityScanning(false);
+        setPendingFeatureId(null);
+        setGeometryValidationError(null);
+        setGeometryDeleteConfirmationOpen(false);
+        setGeometryAbandonConfirmationOpen(false);
+        clearMeasure();
+        geometryEditor.reset();
+        editHistory.clear();
+        completeProjectRestore(project.project.id);
+    }, [
+        clearMeasure,
+        completeProjectRestore,
+        editHistory,
+        geometryEditor,
+        pendingProject,
+        restoreAoi,
+    ]);
+
+    useEffect(() => {
+        const currentReferences: readonly unknown[] = [
+            state.dataset,
+            state.filters,
+            state.attributeQuery,
+            layerStyle,
+            selectedFeatureIds,
+            selectedFeature?.properties.id ?? null,
+            persistedAoiFeature,
+            aoiRelation,
+            aoiAnalysisResult,
+            bufferFeature,
+            bufferResult,
+            spatialQueryResult,
+            overlayLayers,
+            analysisResultLayers,
+            basemap,
+        ];
+        const previousReferences = persistentReferencesRef.current;
+        const changed = previousReferences !== null &&
+            currentReferences.some(
+                (reference, index) => reference !== previousReferences[index],
+            );
+
+        persistentReferencesRef.current = currentReferences;
+
+        if (
+            !changed ||
+            pendingProject ||
+            !projectMeta
+        ) {
+            return;
+        }
+
+        if (skipNextPersistentDirtyRef.current) {
+            skipNextPersistentDirtyRef.current = false;
+            return;
+        }
+
+        markProjectDirty();
+    }, [
+        analysisResultLayers,
+        aoiAnalysisResult,
+        aoiRelation,
+        basemap,
+        bufferFeature,
+        bufferResult,
+        layerStyle,
+        markProjectDirty,
+        overlayLayers,
+        pendingProject,
+        persistedAoiFeature,
+        projectMeta,
+        selectedFeature,
+        selectedFeatureIds,
+        spatialQueryResult,
+        state.attributeQuery,
+        state.dataset,
+        state.filters,
     ]);
 
     if (!dataset ||
@@ -2960,6 +3283,8 @@ export function WorkspacePage() {
                         interactionMode={activeTool}
                         layerStyle={thematicLayerStyle}
                         basemap={basemap}
+                        restoreViewState={restoreViewState}
+                        onViewStateChange={handleProjectMapStateChange}
                         selectedFeatureId={
                             geometryEditor.mode === "idle"
                                 ? selectedFeature?.properties.id ?? null

@@ -118,6 +118,14 @@ export type AppAction =
         payload: {
             featureId: string;
         };
+    }
+    | {
+        type: "RESTORE_PROJECT_DATA";
+        payload: {
+            dataset: LandUseDataset;
+            filters: LandUseFilters;
+            attributeQuery: AttributeQuery | null;
+        };
     };
 
 

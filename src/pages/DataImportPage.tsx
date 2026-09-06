@@ -1,4 +1,5 @@
 import {
+  useRef,
   useState,
   type DragEvent,
 } from "react";
@@ -36,6 +37,8 @@ import {
 } from "../types/layerStyle";
 
 import "../styles/importWorkbench.css";
+import { useProjectContext } from "../project/ProjectProvider";
+import { deserializeProject } from "../services/project/projectSerializer";
 
 
 const MAX_FILE_SIZE_BYTES =
@@ -87,6 +90,20 @@ export function DataImportPage() {
     state,
     dispatch,
   } = useAppContext();
+  const {
+    recentProjects,
+    lastProjectId,
+    isDirty,
+    projectError,
+    startNewProject,
+    resetProjectForImport,
+    activateProject,
+    openStoredProject,
+    removeStoredProject,
+  } = useProjectContext();
+  const projectFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [projectOpenError, setProjectOpenError] =
+    useState<string | null>(null);
 
   const [
     selectedFile,
@@ -136,6 +153,11 @@ export function DataImportPage() {
   async function processFile(
     file: File,
   ) {
+    if (!canReplaceCurrentProject()) {
+      return;
+    }
+
+    resetProjectForImport();
     setSelectedFile(file);
 
     if (
@@ -259,6 +281,11 @@ export function DataImportPage() {
   }
 
   function handleLoadExample() {
+    if (!canReplaceCurrentProject()) {
+      return;
+    }
+
+    resetProjectForImport();
     setSelectedFile(null);
 
     dispatch({
@@ -282,16 +309,68 @@ export function DataImportPage() {
       type: "LOAD_DATASET",
     });
 
+    startNewProject(dataset.name);
+
     navigate("/workspace");
   }
 
   function handleClearDataset() {
+    if (!canReplaceCurrentProject()) {
+      return;
+    }
+
     dispatch({
       type: "CLEAR_DATASET",
     });
 
+    resetProjectForImport();
+
     setSelectedFile(null);
     setActiveTab("data");
+  }
+
+  function canReplaceCurrentProject() {
+    return !isDirty || window.confirm(
+      "当前工程存在未保存修改。确定放弃修改并打开其他工程？",
+    );
+  }
+
+  async function handleOpenStoredProject(projectId: string) {
+    if (!canReplaceCurrentProject()) {
+      return;
+    }
+
+    setProjectOpenError(null);
+
+    const project = await openStoredProject(projectId);
+
+    if (!project) {
+      setProjectOpenError("无法读取该本地工程。");
+      return;
+    }
+
+    activateProject(project);
+    navigate("/workspace");
+  }
+
+  async function handleOpenProjectFile(file: File) {
+    if (!canReplaceCurrentProject()) {
+      return;
+    }
+
+    setProjectOpenError(null);
+
+    try {
+      const project = deserializeProject(await file.text());
+      activateProject(project);
+      navigate("/workspace");
+    } catch (error) {
+      setProjectOpenError(
+        error instanceof Error
+          ? error.message
+          : "无法打开该工程文件。",
+      );
+    }
   }
 
   function handleDrop(
@@ -543,6 +622,81 @@ export function DataImportPage() {
               </b>
             </div>
           </div>
+
+          <section className="recent-projects">
+            <header>
+              <div>
+                <span>RECENT PROJECTS</span>
+                <h2>最近工程</h2>
+              </div>
+              <button type="button" onClick={() => projectFileInputRef.current?.click()}>
+                打开工程
+              </button>
+            </header>
+
+            <input
+              ref={projectFileInputRef}
+              className="project-file-input"
+              type="file"
+              accept=".geoinsight,application/json"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+
+                if (file) {
+                  void handleOpenProjectFile(file);
+                }
+
+                event.currentTarget.value = "";
+              }}
+            />
+
+            {lastProjectId && recentProjects.some((project) => project.id === lastProjectId) && (
+              <button
+                type="button"
+                className="continue-project-button"
+                onClick={() => void handleOpenStoredProject(lastProjectId)}
+              >继续上次工程</button>
+            )}
+
+            <div className="recent-project-list">
+              {recentProjects.map((project) => (
+                <article key={project.id}>
+                  <button
+                    type="button"
+                    className="recent-project-main"
+                    onClick={() => void handleOpenStoredProject(project.id)}
+                  >
+                    <strong>{project.name}</strong>
+                    <span>
+                      {project.primaryFeatureCount} 主数据 · {project.overlayLayerCount} 图层 · {project.analysisLayerCount} 分析
+                    </span>
+                    <time>{new Date(project.updatedAt).toLocaleString("zh-CN")}</time>
+                  </button>
+                  <button
+                    type="button"
+                    className="recent-project-delete"
+                    aria-label={`删除本地工程 ${project.name}`}
+                    onClick={() => {
+                      if (!window.confirm("仅删除浏览器中的本地工程，不会删除你已经导出的 .geoinsight 文件。确定继续？")) {
+                        return;
+                      }
+
+                      void removeStoredProject(project.id).catch(() => {
+                        setProjectOpenError("删除本地工程失败。");
+                      });
+                    }}
+                  >删除</button>
+                </article>
+              ))}
+              {recentProjects.length === 0 && <p>暂无本地工程记录</p>}
+            </div>
+
+            {(projectOpenError || projectError) && (
+              <p className="recent-project-error" role="alert">
+                {projectOpenError ?? projectError}
+              </p>
+            )}
+          </section>
         </aside>
 
         <main className="import-main-panel">

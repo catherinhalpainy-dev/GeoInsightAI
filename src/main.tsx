@@ -5,12 +5,15 @@ import './index.css'
 import App from './App.tsx'
 import "./styles/tokens.css";
 import { AppProvider } from './app/AppProvider.tsx';
+import { ProjectProvider } from './project/ProjectProvider.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AppProvider>
-        <App />
+        <ProjectProvider>
+          <App />
+        </ProjectProvider>
       </AppProvider>
     </BrowserRouter>
   </StrictMode>,

@@ -301,6 +301,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case "RESTORE_PROJECT_DATA":
+      return {
+        ...state,
+        dataset: action.payload.dataset,
+        importStatus: "loaded",
+        importError: null,
+        importWarnings: [],
+        filters: {
+          ...action.payload.filters,
+          landUseTypes: [...action.payload.filters.landUseTypes],
+        },
+        attributeQuery: action.payload.attributeQuery,
+      };
+
     default:
       return state;
   }

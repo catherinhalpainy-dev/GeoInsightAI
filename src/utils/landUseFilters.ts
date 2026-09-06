@@ -59,12 +59,12 @@ export function findById(features:readonly LandUseFeature[],featureId:string):La
 
 export function hasMissingBuiltYear(features:readonly LandUseFeature[]):boolean{
     return features.some((feature)=>{
-        feature.properties.builtYear===null;
+        return feature.properties.builtYear===null;
     });
 }
 
 export function areAllAreaPositive(features:readonly LandUseFeature[]):boolean{
-    return features.some((feature)=>{
-        feature.properties.areaM2 >0
+    return features.every((feature)=>{
+        return feature.properties.areaM2 >0
     })
 }
