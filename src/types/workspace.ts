@@ -24,6 +24,9 @@ export type MapViewCommandType =
     | "fit-selected"
     | "fit-overlay"
     | "fit-quality-issue"
+    | "fit-search-result"
+    | "fit-search-layer"
+    | "jump-to-coordinate"
     | "fit-selection"
     | "layer-up"
     | "layer-down";
@@ -32,7 +35,10 @@ export type MapViewCommand =
     | {
         type: Exclude<
             MapViewCommandType,
-            "fit-overlay" | "fit-quality-issue"
+            | "fit-overlay"
+            | "fit-quality-issue"
+            | "fit-search-layer"
+            | "jump-to-coordinate"
         >;
         requestId: number;
     }
@@ -45,6 +51,19 @@ export type MapViewCommand =
         type: "fit-quality-issue";
         requestId: number;
         issueId: string;
+    }
+    | {
+        type: "fit-search-layer";
+        requestId: number;
+        layerType: "overlay" | "analysis";
+        layerId: string;
+    }
+    | {
+        type: "jump-to-coordinate";
+        requestId: number;
+        longitude: number;
+        latitude: number;
+        zoom: number;
     };
 
 export type BasemapType =

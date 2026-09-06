@@ -6,6 +6,7 @@ import {
     CloudUpload,
     FolderOpen,
     Save,
+    Search,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ import { useAppContext } from "../../app/AppProvider";
 import { useProjectContext } from "../../project/ProjectProvider";
 import { deserializeProject } from "../../services/project/projectSerializer";
 import type { GeoInsightProject } from "../../types/project";
+import { useGlobalSearch } from "../../search/GlobalSearchProvider";
 
 const navigationItems = [
     { path: "/import", label: "数据导入" },
@@ -47,6 +49,7 @@ export function TopBar() {
         getPersistenceBlocker,
     } = useProjectContext();
     const navigate = useNavigate();
+    const { openSearch } = useGlobalSearch();
     const location = useLocation();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -153,6 +156,17 @@ export function TopBar() {
             </nav>
 
             <div className="topbar-actions">
+                <button
+                    type="button"
+                    className="global-search-trigger"
+                    onClick={openSearch}
+                    aria-label="搜索地块、图层、坐标或命令"
+                >
+                    <Search size={15} aria-hidden="true" />
+                    <span>搜索地块、图层或命令...</span>
+                    <kbd>Ctrl K</kbd>
+                </button>
+
                 {projectMeta && (
                     <div className="project-menu-shell">
                         <button

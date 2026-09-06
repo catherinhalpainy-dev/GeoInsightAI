@@ -6,13 +6,16 @@ import App from './App.tsx'
 import "./styles/tokens.css";
 import { AppProvider } from './app/AppProvider.tsx';
 import { ProjectProvider } from './project/ProjectProvider.tsx';
+import { GlobalSearchProvider } from './search/GlobalSearchProvider.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AppProvider>
         <ProjectProvider>
-          <App />
+          <GlobalSearchProvider>
+            <App />
+          </GlobalSearchProvider>
         </ProjectProvider>
       </AppProvider>
     </BrowserRouter>

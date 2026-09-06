@@ -124,6 +124,21 @@ import type {
     ProjectMapState,
     ProjectSnapshotInput,
 } from "../types/project";
+import {
+    useGlobalSearch,
+    type WorkspaceSearchController,
+} from "../search/GlobalSearchProvider";
+import {
+    buildWorkspaceSearchIndex,
+} from "../services/search/workspaceSearch";
+import {
+    getWorkspaceCommand,
+} from "../constants/workspaceCommands";
+import type {
+    SearchHighlightFeature,
+    WorkspaceCommandId,
+    WorkspaceSearchResult,
+} from "../types/search";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -143,6 +158,11 @@ interface AgentSnapshot {
     geoprocessingSummary: GeoprocessingRunSummary | null;
     geoprocessingError: string | null;
 }
+
+const EMPTY_LAND_USE_COLLECTION: LandUseFeatureCollection = {
+    type: "FeatureCollection",
+    features: [],
+};
 
 interface AgentExecutionContext {
     filters: LandUseFilters;
@@ -200,6 +220,7 @@ export function WorkspacePage() {
         "dark",
     );
     const [searchParams, setSearchParams,] = useSearchParams();
+    const { registerWorkspaceSearch } = useGlobalSearch();
 
     const { state, dispatch, filteredFeatures, } = useAppContext();
     const {
@@ -252,7 +273,10 @@ export function WorkspacePage() {
     function requestMapView(
         type: Exclude<
             MapViewCommandType,
-            "fit-overlay" | "fit-quality-issue"
+            | "fit-overlay"
+            | "fit-quality-issue"
+            | "fit-search-layer"
+            | "jump-to-coordinate"
         >,
     ) {
         setMapViewCommand(
@@ -383,6 +407,12 @@ export function WorkspacePage() {
         useState(false);
     const [geometryAbandonConfirmationOpen, setGeometryAbandonConfirmationOpen] =
         useState(false);
+    const [searchResultFeature, setSearchResultFeature] =
+        useState<SearchHighlightFeature | null>(null);
+    const [searchLocation, setSearchLocation] =
+        useState<[number, number] | null>(null);
+    const [focusedLayerId, setFocusedLayerId] =
+        useState<string | null>(null);
 
     useEffect(() => {
         if (aoiMode === "completed" && aoiPolygon) {
@@ -1547,6 +1577,276 @@ export function WorkspacePage() {
         ],
     );
 
+    const workspaceSearchIndex = useMemo(
+        () => buildWorkspaceSearchIndex(
+            dataset,
+            overlayLayers,
+            analysisResultLayers,
+        ),
+        [analysisResultLayers, dataset, overlayLayers],
+    );
+
+    function openWorkspacePanelFromSearch(
+        panel: Exclude<WorkspacePanel, null>,
+    ) {
+        if (
+            geometryEditor.mode !== "idle" &&
+            panel !== "geometry-edit"
+        ) {
+            return false;
+        }
+
+        setActivePanel(panel);
+        const nextParams = new URLSearchParams(searchParams);
+
+        if (panel === "agent") {
+            nextParams.set("panel", "agent");
+        } else {
+            nextParams.delete("panel");
+        }
+
+        setSearchParams(nextParams, { replace: true });
+        return true;
+    }
+
+    function getWorkspaceCommandDisabledReason(
+        commandId: WorkspaceCommandId,
+    ) {
+        const command = getWorkspaceCommand(commandId);
+
+        if (!command) {
+            return "当前命令不可用";
+        }
+
+        if (command.requiredState === "dataset" && !dataset) {
+            return "请先导入主数据集";
+        }
+
+        if (
+            command.requiredState === "selection" &&
+            selectedFeatureIds.length === 0
+        ) {
+            return "请先选择地块";
+        }
+
+        if (
+            geometryEditor.mode !== "idle" &&
+            commandId !== "open-geometry-editor" &&
+            (commandId.startsWith("open-") ||
+                commandId.startsWith("navigate-"))
+        ) {
+            return "请先保存或取消当前几何编辑";
+        }
+
+        return null;
+    }
+
+    function getWorkspaceSearchDisabledReason(
+        result: WorkspaceSearchResult,
+    ) {
+        if (result.type === "command") {
+            return getWorkspaceCommandDisabledReason(result.commandId);
+        }
+
+        if (result.type === "coordinate") {
+            return null;
+        }
+
+        if (geometryEditor.mode !== "idle") {
+            return "请先保存或取消当前几何编辑";
+        }
+
+        if (!dataset) {
+            return "请先导入主数据集";
+        }
+
+        if (result.type === "layer") {
+            if (result.layerType === "primary") {
+                return result.layerId === dataset.id ? null : "该图层已不存在";
+            }
+
+            const layers = result.layerType === "overlay"
+                ? overlayLayers
+                : analysisResultLayers;
+            return layers.some((layer) => layer.id === result.layerId)
+                ? null
+                : "该图层已不存在";
+        }
+
+        if (result.sourceType === "primary") {
+            return dataset.collection.features.some(
+                (feature) => feature.properties.id === result.featureId,
+            ) ? null : "该要素已不存在";
+        }
+
+        const sourceLayer = result.sourceType === "overlay"
+            ? overlayLayers.find((layer) => layer.id === result.layerId)
+            : analysisResultLayers.find((layer) => layer.id === result.layerId);
+
+        return sourceLayer?.collection.features[result.featureIndex]
+            ? null
+            : "该要素已不存在";
+    }
+
+    function executeWorkspaceCommand(commandId: WorkspaceCommandId) {
+        if (getWorkspaceCommandDisabledReason(commandId)) {
+            return false;
+        }
+
+        switch (commandId) {
+            case "open-filter":
+                return openWorkspacePanelFromSearch("filter");
+            case "open-layers":
+                return openWorkspacePanelFromSearch("layers");
+            case "open-feature-table":
+                return openWorkspacePanelFromSearch("table");
+            case "open-layer-style":
+                return openWorkspacePanelFromSearch("style");
+            case "open-aoi-analysis":
+                return openWorkspacePanelFromSearch("aoi-analysis");
+            case "open-geoprocessing":
+                return openWorkspacePanelFromSearch("geoprocessing");
+            case "open-data-quality":
+                return openWorkspacePanelFromSearch("data-quality");
+            case "open-geometry-editor":
+                return openWorkspacePanelFromSearch("geometry-edit");
+            case "open-agent":
+                return openWorkspacePanelFromSearch("agent");
+            case "open-basemap":
+                return openWorkspacePanelFromSearch("basemap");
+            case "navigate-statistics":
+                navigate("/statistics");
+                return true;
+            case "navigate-report":
+                navigate("/report");
+                return true;
+            case "fit-all":
+                requestMapView("fit-all");
+                return true;
+            case "fit-selection":
+                handleFitFeatureSelection();
+                return true;
+            case "clear-selection":
+                handleClearFeatureSelection();
+                return true;
+        }
+    }
+
+    function executeWorkspaceSearchResult(result: WorkspaceSearchResult) {
+        if (getWorkspaceSearchDisabledReason(result)) {
+            return false;
+        }
+
+        if (result.type === "command") {
+            return executeWorkspaceCommand(result.commandId);
+        }
+
+        if (result.type === "coordinate") {
+            setSearchResultFeature(null);
+            setSearchLocation([result.longitude, result.latitude]);
+            setMapViewCommand((previous) => ({
+                type: "jump-to-coordinate",
+                requestId: (previous?.requestId ?? 0) + 1,
+                longitude: result.longitude,
+                latitude: result.latitude,
+                zoom: 15,
+            }));
+            return true;
+        }
+
+        if (result.type === "layer") {
+            setFocusedLayerId(result.layerId);
+
+            if (!openWorkspacePanelFromSearch("layers")) {
+                return false;
+            }
+
+            if (result.layerType === "primary") {
+                requestMapView("fit-all");
+            } else {
+                setMapViewCommand((previous) => ({
+                    type: "fit-search-layer",
+                    requestId: (previous?.requestId ?? 0) + 1,
+                    layerType: result.layerType === "overlay"
+                        ? "overlay"
+                        : "analysis",
+                    layerId: result.layerId,
+                }));
+            }
+            return true;
+        }
+
+        if (result.sourceType === "primary") {
+            const feature = dataset?.collection.features.find(
+                (item) => item.properties.id === result.featureId,
+            );
+
+            if (!feature) {
+                return false;
+            }
+
+            setSearchResultFeature(null);
+            setSearchLocation(null);
+            handleFeatureSelect(feature, { fitFeature: true });
+            return openWorkspacePanelFromSearch("feature");
+        }
+
+        const sourceLayer = result.sourceType === "overlay"
+            ? overlayLayers.find((layer) => layer.id === result.layerId)
+            : analysisResultLayers.find((layer) => layer.id === result.layerId);
+        const feature = sourceLayer?.collection.features[result.featureIndex];
+
+        if (!feature) {
+            return false;
+        }
+
+        setSearchLocation(null);
+        setSearchResultFeature(feature);
+        setMapViewCommand((previous) => ({
+            type: "fit-search-result",
+            requestId: (previous?.requestId ?? 0) + 1,
+        }));
+        return true;
+    }
+
+    const executeWorkspaceSearchResultRef = useRef(
+        executeWorkspaceSearchResult,
+    );
+    executeWorkspaceSearchResultRef.current = executeWorkspaceSearchResult;
+    const getWorkspaceSearchDisabledReasonRef = useRef(
+        getWorkspaceSearchDisabledReason,
+    );
+    getWorkspaceSearchDisabledReasonRef.current =
+        getWorkspaceSearchDisabledReason;
+
+    useEffect(() => {
+        const controller: WorkspaceSearchController = {
+            index: workspaceSearchIndex,
+            execute: (result) =>
+                executeWorkspaceSearchResultRef.current(result),
+            getDisabledReason: (result) =>
+                getWorkspaceSearchDisabledReasonRef.current(result),
+        };
+
+        registerWorkspaceSearch(controller);
+        return () => registerWorkspaceSearch(null);
+    }, [
+        registerWorkspaceSearch,
+        workspaceSearchIndex,
+    ]);
+
+    useEffect(() => {
+        if (!focusedLayerId) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(
+            () => setFocusedLayerId(null),
+            2800,
+        );
+        return () => window.clearTimeout(timeoutId);
+    }, [focusedLayerId]);
+
     const {
         mode: measureMode,
         points: measurePoints,
@@ -1820,12 +2120,30 @@ export function WorkspacePage() {
     if (!dataset ||
         state.importStatus !== "loaded") {
         return (
-            <section className="page-content">
-                <h1>地图工作台</h1>
-                <p>尚未正式加载空间数据。</p>
-                <Link to="/import">
-                    前往数据导入
-                </Link>
+            <section className="workspace-page workspace-empty-search-map">
+                <main className="workspace-map-area">
+                    <header className="workspace-map-header">
+                        <div>
+                            <h1>地图工作台</h1>
+                            <p>尚未加载主数据，仍可通过全局搜索定位坐标。</p>
+                        </div>
+                        <Link to="/import">前往数据导入</Link>
+                    </header>
+                    <div className="workspace-map-wrapper">
+                        <MapView
+                            collection={EMPTY_LAND_USE_COLLECTION}
+                            allCollection={EMPTY_LAND_USE_COLLECTION}
+                            interactionMode={activeTool}
+                            layerStyle={thematicLayerStyle}
+                            basemap={basemap}
+                            restoreViewState={restoreViewState}
+                            onViewStateChange={handleProjectMapStateChange}
+                            viewCommand={mapViewCommand}
+                            searchResultFeature={searchResultFeature}
+                            searchLocation={searchLocation}
+                        />
+                    </div>
+                </main>
             </section>
         );
     }
@@ -3323,6 +3641,10 @@ export function WorkspacePage() {
 
                         selectedQualityIssueId={selectedQualityIssueId}
 
+                        searchResultFeature={searchResultFeature}
+
+                        searchLocation={searchLocation}
+
                         geometryEditMode={geometryEditor.mode}
 
                         geometryDraftCoordinates={geometryEditor.draftCoordinates}
@@ -3426,6 +3748,7 @@ export function WorkspacePage() {
                     layerStyle={thematicLayerStyle}
                     overlayLayers={overlayLayers}
                     analysisResultLayers={analysisResultLayers}
+                    focusedLayerId={focusedLayerId}
                     onLayerStyleChange={(nextStyle) => {
                         setLayerStyle({
                             ...nextStyle,

@@ -439,6 +439,13 @@
   background: #ffffff;
 }
 
+.workspace-layer-row.search-focused,
+.analysis-layer-list > li.search-focused {
+  border-color: #5eead4;
+  background: #f0fdfa;
+  box-shadow: inset 3px 0 0 #0f766e;
+}
+
 .primary-layer-row {
   border-color: #cbd5e1;
   background: #f8fafc;

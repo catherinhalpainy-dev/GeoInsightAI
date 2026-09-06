@@ -42,6 +42,7 @@ interface LayerPanelProps {
   layerStyle: LayerStyle;
   overlayLayers: WorkspaceVectorLayer[];
   analysisResultLayers: AnalysisResultLayer[];
+  focusedLayerId?: string | null;
   onLayerStyleChange: (
     next: LayerStyle,
   ) => void;
@@ -126,6 +127,7 @@ export function LayerPanel({
   layerStyle,
   overlayLayers,
   analysisResultLayers,
+  focusedLayerId = null,
   onLayerStyleChange,
   onOverlayVisibilityChange,
   onOverlayOpacityChange,
@@ -188,7 +190,9 @@ export function LayerPanel({
         </header>
 
         <ul className="workspace-layer-tree">
-          <li className="workspace-layer-row primary-layer-row">
+          <li className={`workspace-layer-row primary-layer-row${
+            focusedLayerId === state.dataset?.id ? " search-focused" : ""
+          }`}>
             <div className="workspace-layer-main">
               <label>
                 <input
@@ -251,7 +255,9 @@ export function LayerPanel({
             return (
               <li
                 key={layer.id}
-                className="workspace-layer-row overlay-layer-row"
+                className={`workspace-layer-row overlay-layer-row${
+                  focusedLayerId === layer.id ? " search-focused" : ""
+                }`}
               >
                 <div className="workspace-layer-main">
                   <label>
@@ -569,7 +575,10 @@ export function LayerPanel({
         ) : (
           <ul className="analysis-layer-list">
             {analysisResultLayers.map((layer) => (
-              <li key={layer.id}>
+              <li
+                key={layer.id}
+                className={focusedLayerId === layer.id ? "search-focused" : undefined}
+              >
                 <div className="analysis-layer-main">
                   <label>
                     <input

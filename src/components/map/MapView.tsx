@@ -51,6 +51,9 @@ import type {
     GeometryEditorMode,
     GeometrySnapCandidate,
 } from "../../types/geometryEditing";
+import type {
+    SearchHighlightFeature,
+} from "../../types/search";
 
 import type {
     LayerStyle,
@@ -191,6 +194,14 @@ const DATA_QUALITY_SELECTED_LINE_LAYER_ID =
 const DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID =
     "data-quality-selected-circle";
 
+const SEARCH_RESULT_SOURCE_ID = "search-result-source";
+const SEARCH_RESULT_FILL_LAYER_ID = "search-result-fill";
+const SEARCH_RESULT_LINE_LAYER_ID = "search-result-line";
+const SEARCH_RESULT_CIRCLE_LAYER_ID = "search-result-circle";
+const SEARCH_LOCATION_SOURCE_ID = "search-location-source";
+const SEARCH_LOCATION_RING_LAYER_ID = "search-location-ring";
+const SEARCH_LOCATION_POINT_LAYER_ID = "search-location-point";
+
 const GEOMETRY_EDIT_SOURCE_ID =
     "geometry-edit-source";
 const GEOMETRY_EDIT_FILL_LAYER_ID =
@@ -279,6 +290,10 @@ interface MapViewProps {
 
     selectedQualityIssueId?:
     string | null;
+
+    searchResultFeature?: SearchHighlightFeature | null;
+
+    searchLocation?: Position | null;
 
     geometryEditMode?: GeometryEditorMode;
 
@@ -1709,6 +1724,160 @@ function updateDataQualityLayers(
     map.setFilter(DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID, selectedFilter);
 }
 
+function moveInteractionLayersAboveSearch(map: maplibregl.Map) {
+    const layerIds = [
+        SPATIAL_QUERY_FILL_LAYER_ID,
+        SPATIAL_QUERY_OUTLINE_LAYER_ID,
+        AOI_QUERY_FILL_LAYER_ID,
+        AOI_QUERY_OUTLINE_LAYER_ID,
+        SELECTION_SET_FILL_LAYER_ID,
+        SELECTION_SET_OUTLINE_LAYER_ID,
+        HOVER_OUTLINE_LAYER_ID,
+        SELECTED_FILL_LAYER_ID,
+        SELECTED_OUTLINE_LAYER_ID,
+        GEOMETRY_EDIT_FILL_LAYER_ID,
+        GEOMETRY_EDIT_LINE_LAYER_ID,
+        GEOMETRY_EDIT_VERTEX_LAYER_ID,
+        GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID,
+        GEOMETRY_EDIT_SNAP_TARGET_LAYER_ID,
+    ];
+
+    for (const layerId of layerIds) {
+        if (map.getLayer(layerId)) {
+            map.moveLayer(layerId);
+        }
+    }
+}
+
+function ensureSearchLayers(map: maplibregl.Map) {
+    if (!map.getSource(SEARCH_RESULT_SOURCE_ID)) {
+        map.addSource(SEARCH_RESULT_SOURCE_ID, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+        });
+    }
+
+    if (!map.getLayer(SEARCH_RESULT_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: SEARCH_RESULT_FILL_LAYER_ID,
+            type: "fill",
+            source: SEARCH_RESULT_SOURCE_ID,
+            paint: {
+                "fill-color": "#ec4899",
+                "fill-opacity": 0.08,
+            },
+        });
+    }
+
+    if (!map.getLayer(SEARCH_RESULT_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: SEARCH_RESULT_LINE_LAYER_ID,
+            type: "line",
+            source: SEARCH_RESULT_SOURCE_ID,
+            paint: {
+                "line-color": "#be3f78",
+                "line-width": [
+                    "case",
+                    ["==", ["geometry-type"], "LineString"],
+                    3,
+                    2,
+                ],
+                "line-opacity": 0.88,
+            },
+        });
+    }
+
+    if (!map.getLayer(SEARCH_RESULT_CIRCLE_LAYER_ID)) {
+        map.addLayer({
+            id: SEARCH_RESULT_CIRCLE_LAYER_ID,
+            type: "circle",
+            source: SEARCH_RESULT_SOURCE_ID,
+            paint: {
+                "circle-color": "#be3f78",
+                "circle-radius": 6,
+                "circle-opacity": 0.9,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1.5,
+            },
+        });
+    }
+
+    if (!map.getSource(SEARCH_LOCATION_SOURCE_ID)) {
+        map.addSource(SEARCH_LOCATION_SOURCE_ID, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+        });
+    }
+
+    if (!map.getLayer(SEARCH_LOCATION_RING_LAYER_ID)) {
+        map.addLayer({
+            id: SEARCH_LOCATION_RING_LAYER_ID,
+            type: "circle",
+            source: SEARCH_LOCATION_SOURCE_ID,
+            paint: {
+                "circle-color": "#ef4444",
+                "circle-radius": 12,
+                "circle-opacity": 0.15,
+                "circle-stroke-width": 0,
+            },
+        });
+    }
+
+    if (!map.getLayer(SEARCH_LOCATION_POINT_LAYER_ID)) {
+        map.addLayer({
+            id: SEARCH_LOCATION_POINT_LAYER_ID,
+            type: "circle",
+            source: SEARCH_LOCATION_SOURCE_ID,
+            paint: {
+                "circle-color": "#ef4444",
+                "circle-radius": 6,
+                "circle-opacity": 0.95,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+    }
+
+    moveInteractionLayersAboveSearch(map);
+}
+
+function updateSearchLayers(
+    map: maplibregl.Map,
+    resultFeature: SearchHighlightFeature | null,
+    location: Position | null,
+) {
+    ensureSearchLayers(map);
+
+    const resultSource = map.getSource(SEARCH_RESULT_SOURCE_ID);
+
+    if (resultSource?.type === "geojson") {
+        (resultSource as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: resultFeature ? [resultFeature] : [],
+        });
+    }
+
+    const locationSource = map.getSource(SEARCH_LOCATION_SOURCE_ID);
+
+    if (locationSource?.type === "geojson") {
+        (locationSource as maplibregl.GeoJSONSource).setData({
+            type: "FeatureCollection",
+            features: location
+                ? [{
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                        type: "Point",
+                        coordinates: location,
+                    },
+                }]
+                : [],
+        });
+    }
+
+    moveInteractionLayersAboveSearch(map);
+}
+
 function createOverlayLineFilter(
     geometryKind: VectorGeometryKind,
 ): FilterSpecification {
@@ -1760,6 +1929,11 @@ function isOverlayHigherLayer(
         layerId === DATA_QUALITY_CIRCLE_LAYER_ID ||
         layerId === DATA_QUALITY_SELECTED_LINE_LAYER_ID ||
         layerId === DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID ||
+        layerId === SEARCH_RESULT_FILL_LAYER_ID ||
+        layerId === SEARCH_RESULT_LINE_LAYER_ID ||
+        layerId === SEARCH_RESULT_CIRCLE_LAYER_ID ||
+        layerId === SEARCH_LOCATION_RING_LAYER_ID ||
+        layerId === SEARCH_LOCATION_POINT_LAYER_ID ||
         layerId === HOVER_OUTLINE_LAYER_ID ||
         layerId === SELECTED_FILL_LAYER_ID ||
         layerId === SELECTED_OUTLINE_LAYER_ID ||
@@ -2563,6 +2737,8 @@ export function MapView({
         features: [],
     },
     selectedQualityIssueId = null,
+    searchResultFeature = null,
+    searchLocation = null,
     geometryEditMode = "idle",
     geometryDraftCoordinates = [],
     geometryActiveVertexIndex = null,
@@ -2683,6 +2859,12 @@ export function MapView({
 
     const latestSelectedQualityIssueIdRef =
         useRef<string | null>(selectedQualityIssueId);
+
+    const latestSearchResultFeatureRef =
+        useRef<SearchHighlightFeature | null>(searchResultFeature);
+
+    const latestSearchLocationRef =
+        useRef<Position | null>(searchLocation);
 
     const overlayCollectionCacheRef = useRef(
         new Map<
@@ -3541,6 +3723,12 @@ export function MapView({
                     latestSelectedQualityIssueIdRef.current,
                 );
 
+                updateSearchLayers(
+                    map,
+                    latestSearchResultFeatureRef.current,
+                    latestSearchLocationRef.current,
+                );
+
                 if (latestGeometryEditModeRef.current !== "idle") {
                     updateGeometryEditLayers(
                         map,
@@ -3862,6 +4050,19 @@ export function MapView({
     ]);
 
     useEffect(() => {
+        latestSearchResultFeatureRef.current = searchResultFeature;
+        latestSearchLocationRef.current = searchLocation;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        updateSearchLayers(map, searchResultFeature, searchLocation);
+    }, [searchLocation, searchResultFeature]);
+
+    useEffect(() => {
         latestGeometryEditModeRef.current = geometryEditMode;
         latestGeometryDraftCoordinatesRef.current = geometryDraftCoordinates;
         latestGeometryActiveVertexIndexRef.current = geometryActiveVertexIndex;
@@ -3985,6 +4186,12 @@ export function MapView({
                         latestSelectedQualityIssueIdRef.current,
                     );
 
+                    updateSearchLayers(
+                        map,
+                        latestSearchResultFeatureRef.current,
+                        latestSearchLocationRef.current,
+                    );
+
                     return;
                 }
 
@@ -4012,6 +4219,12 @@ export function MapView({
                     map,
                     latestQualityIssueFeaturesRef.current,
                     latestSelectedQualityIssueIdRef.current,
+                );
+
+                updateSearchLayers(
+                    map,
+                    latestSearchResultFeatureRef.current,
+                    latestSearchLocationRef.current,
                 );
 
 
@@ -4389,6 +4602,92 @@ export function MapView({
                 },
             );
 
+            return;
+        }
+
+        if (viewCommand.type === "jump-to-coordinate") {
+            map.easeTo({
+                center: [viewCommand.longitude, viewCommand.latitude],
+                zoom: Math.max(map.getZoom(), viewCommand.zoom),
+                duration: 650,
+            });
+            return;
+        }
+
+        if (viewCommand.type === "fit-search-result") {
+            const feature = latestSearchResultFeatureRef.current;
+
+            if (!feature) {
+                return;
+            }
+
+            if (feature.geometry.type === "Point") {
+                map.easeTo({
+                    center: [
+                        feature.geometry.coordinates[0],
+                        feature.geometry.coordinates[1],
+                    ],
+                    zoom: Math.max(map.getZoom(), 16),
+                    duration: 650,
+                });
+                return;
+            }
+
+            const bounds = calculateGeoJsonBounds({
+                type: "FeatureCollection",
+                features: [feature],
+            });
+
+            if (bounds) {
+                map.fitBounds(
+                    [
+                        [bounds.minLongitude, bounds.minLatitude],
+                        [bounds.maxLongitude, bounds.maxLatitude],
+                    ],
+                    { padding: 86, duration: 650, maxZoom: 17 },
+                );
+            }
+            return;
+        }
+
+        if (viewCommand.type === "fit-search-layer") {
+            const layer = viewCommand.layerType === "overlay"
+                ? latestOverlayLayersRef.current.find(
+                    (item) => item.id === viewCommand.layerId,
+                )
+                : latestAnalysisResultLayersRef.current.find(
+                    (item) => item.id === viewCommand.layerId,
+                );
+
+            if (!layer) {
+                return;
+            }
+
+            const bounds = calculateGeoJsonBounds(layer.collection);
+
+            if (!bounds) {
+                return;
+            }
+
+            const isSingleLocation =
+                bounds.minLongitude === bounds.maxLongitude &&
+                bounds.minLatitude === bounds.maxLatitude;
+
+            if (isSingleLocation) {
+                map.easeTo({
+                    center: [bounds.minLongitude, bounds.minLatitude],
+                    zoom: Math.max(map.getZoom(), 16),
+                    duration: 650,
+                });
+            } else {
+                map.fitBounds(
+                    [
+                        [bounds.minLongitude, bounds.minLatitude],
+                        [bounds.maxLongitude, bounds.maxLatitude],
+                    ],
+                    { padding: 72, duration: 650, maxZoom: 17 },
+                );
+            }
             return;
         }
 
