@@ -15,6 +15,7 @@ export type WorkspacePanel =
     | "data-quality"
     | "batch-edit"
     | "geometry-edit"
+    | "report-builder"
     | "agent"
     | null;
 

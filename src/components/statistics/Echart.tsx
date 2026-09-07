@@ -6,9 +6,14 @@ import { useEffect, useRef } from "react";
 interface EChartProps {
     option: EChartsOption;
     className?: string;
+    renderer?: "canvas" | "svg";
 }
 
-export function EChart({ option, className }: EChartProps) {
+export function EChart({
+    option,
+    className,
+    renderer = "canvas",
+}: EChartProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
             null,
@@ -26,7 +31,11 @@ export function EChart({ option, className }: EChartProps) {
             return;
         }
 
-        const chart = echarts.init(container);
+        const chart = echarts.init(
+            container,
+            undefined,
+            { renderer },
+        );
         chartRef.current = chart;
         const resizeObserver =
             new ResizeObserver(() => {
@@ -43,7 +52,7 @@ export function EChart({ option, className }: EChartProps) {
 
             chartRef.current = null;
         };
-    }, []);
+    }, [renderer]);
     useEffect(() => {
         const chart =
             chartRef.current;

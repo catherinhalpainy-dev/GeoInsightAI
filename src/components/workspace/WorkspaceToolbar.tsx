@@ -1,5 +1,6 @@
 import {
   FilePlus2,
+  FileText,
   SquarePen,
   ShieldCheck,
   SquareDashed,
@@ -229,6 +230,20 @@ export function WorkspaceToolbar({
       >
         <ShieldCheck size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>数据质量</span>
+      </button>
+
+      <button
+        type="button"
+        className={
+          activePanel === "report-builder"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("report-builder")}
+        title="捕获当前工作区并生成分析报告"
+      >
+        <FileText size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>报告中心</span>
       </button>
 
       <button

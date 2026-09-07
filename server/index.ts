@@ -18,6 +18,12 @@ import {
     createAgentPlan,
 } from "./agent/planner";
 import { resumeAgentWorkflow, startAgentWorkflow } from "./agent/graph";
+import {
+    ReportInsightRequestSchema,
+} from "../src/services/report/reportInsightSchema";
+import {
+    createReportInsights,
+} from "./report/insights";
 
 
 // 创建一个express应用（/后端服务器对象）
@@ -359,6 +365,37 @@ app.post(
                     error:
                         errorMessage,
                 });
+        }
+    },
+);
+
+app.post(
+    "/api/report/insights",
+    async (request, response) => {
+        const parsedRequest = ReportInsightRequestSchema.safeParse(request.body);
+
+        if (!parsedRequest.success) {
+            response.status(400).json({
+                ok: false,
+                error: "报告洞察请求参数不合法。",
+                details: parsedRequest.error.flatten(),
+            });
+            return;
+        }
+
+        try {
+            const result = await createReportInsights(
+                parsedRequest.data.context,
+            );
+            response.json({ ok: true, result });
+        } catch (error: unknown) {
+            console.error("Report insight generation error:", error);
+            response.status(500).json({
+                ok: false,
+                error: error instanceof Error
+                    ? error.message
+                    : "生成报告洞察时发生未知错误。",
+            });
         }
     },
 );

@@ -79,6 +79,7 @@ interface ProjectContextValue {
     recentProjects: RecentProjectMetadata[];
     lastProjectId: string | null;
     pendingProject: GeoInsightProject | null;
+    workspaceRevision: number;
     registerWorkspaceController: (
         controller: ProjectWorkspaceController | null,
     ) => void;
@@ -548,6 +549,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         recentProjects,
         lastProjectId,
         pendingProject,
+        workspaceRevision: revision,
         registerWorkspaceController,
         notifyPersistenceStateChange,
         getPersistenceBlocker,
@@ -575,6 +577,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         notifyPersistenceStateChange,
         openStoredProject,
         pendingProject,
+        revision,
         projectError,
         projectMeta,
         recentProjects,

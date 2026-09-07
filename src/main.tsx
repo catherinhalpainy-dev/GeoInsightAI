@@ -7,15 +7,18 @@ import "./styles/tokens.css";
 import { AppProvider } from './app/AppProvider.tsx';
 import { ProjectProvider } from './project/ProjectProvider.tsx';
 import { GlobalSearchProvider } from './search/GlobalSearchProvider.tsx';
+import { ReportProvider } from './report/ReportProvider.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AppProvider>
         <ProjectProvider>
-          <GlobalSearchProvider>
-            <App />
-          </GlobalSearchProvider>
+          <ReportProvider>
+            <GlobalSearchProvider>
+              <App />
+            </GlobalSearchProvider>
+          </ReportProvider>
         </ProjectProvider>
       </AppProvider>
     </BrowserRouter>

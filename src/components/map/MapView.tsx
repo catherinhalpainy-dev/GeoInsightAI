@@ -54,6 +54,9 @@ import type {
 import type {
     SearchHighlightFeature,
 } from "../../types/search";
+import type {
+    MapCaptureResult,
+} from "../../types/report";
 
 import type {
     LayerStyle,
@@ -294,6 +297,10 @@ interface MapViewProps {
     searchResultFeature?: SearchHighlightFeature | null;
 
     searchLocation?: Position | null;
+
+    captureRequestId?: number | null;
+
+    onMapCapture?: (result: MapCaptureResult) => void;
 
     geometryEditMode?: GeometryEditorMode;
 
@@ -2739,6 +2746,7 @@ export function MapView({
     selectedQualityIssueId = null,
     searchResultFeature = null,
     searchLocation = null,
+    captureRequestId = null,
     geometryEditMode = "idle",
     geometryDraftCoordinates = [],
     geometryActiveVertexIndex = null,
@@ -2754,6 +2762,7 @@ export function MapView({
     onGeometryVertexMove,
     onGeometryActiveVertexChange,
     onViewStateChange,
+    onMapCapture,
 }: MapViewProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
@@ -2865,6 +2874,8 @@ export function MapView({
 
     const latestSearchLocationRef =
         useRef<Position | null>(searchLocation);
+
+    const latestOnMapCaptureRef = useRef(onMapCapture);
 
     const overlayCollectionCacheRef = useRef(
         new Map<
@@ -3567,6 +3578,7 @@ export function MapView({
             onFeatureSelect;
         latestOnViewStateChangeRef.current =
             onViewStateChange;
+        latestOnMapCaptureRef.current = onMapCapture;
 
         latestOnMeasurePointAddRef.current =
             onMeasurePointAdd;
@@ -3596,6 +3608,7 @@ export function MapView({
     }, [
         onFeatureSelect,
         onViewStateChange,
+        onMapCapture,
         onMeasurePointAdd,
         onMeasureComplete,
         onAoiPointAdd,
@@ -4061,6 +4074,83 @@ export function MapView({
 
         updateSearchLayers(map, searchResultFeature, searchLocation);
     }, [searchLocation, searchResultFeature]);
+
+    useEffect(() => {
+        if (captureRequestId === null) {
+            return;
+        }
+
+        const map = mapRef.current;
+
+        if (!map) {
+            latestOnMapCaptureRef.current?.({
+                requestId: captureRequestId,
+                dataUrl: null,
+                error: "地图尚未完成初始化。",
+            });
+            return;
+        }
+
+        let settled = false;
+        let timeoutId: number | null = null;
+
+        const finish = (dataUrl: string | null, error: string | null) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+            }
+
+            latestOnMapCaptureRef.current?.({
+                requestId: captureRequestId,
+                dataUrl,
+                error,
+            });
+        };
+
+        const captureAfterRender = () => {
+            try {
+                const canvas = map.getCanvas();
+                const dataUrl = canvas.toDataURL("image/png");
+
+                if (
+                    canvas.width < 1 ||
+                    canvas.height < 1 ||
+                    !dataUrl.startsWith("data:image/png;base64,") ||
+                    dataUrl.length < 100
+                ) {
+                    finish(null, "地图画布未生成有效图像。");
+                    return;
+                }
+
+                finish(dataUrl, null);
+            } catch {
+                finish(
+                    null,
+                    "地图快照受浏览器或底图跨域策略限制，无法生成。",
+                );
+            }
+        };
+
+        map.once("render", captureAfterRender);
+        map.triggerRepaint();
+        timeoutId = window.setTimeout(
+            () => finish(null, "地图快照生成超时，请重试。"),
+            4_000,
+        );
+
+        return () => {
+            map.off("render", captureAfterRender);
+
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+            }
+        };
+    }, [captureRequestId]);
 
     useEffect(() => {
         latestGeometryEditModeRef.current = geometryEditMode;

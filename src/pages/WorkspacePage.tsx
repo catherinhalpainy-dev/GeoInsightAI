@@ -139,6 +139,26 @@ import type {
     WorkspaceCommandId,
     WorkspaceSearchResult,
 } from "../types/search";
+import {
+    ReportBuilderPanel,
+    type ReportBuilderConfig,
+} from "../components/report/ReportBuilderPanel";
+import { useReportContext } from "../report/ReportProvider";
+import {
+    createAIReportContext,
+    createReportSnapshot,
+} from "../services/report/createReportSnapshot";
+import {
+    generateDeterministicInsights,
+} from "../services/report/generateDeterministicInsights";
+import {
+    generateReportInsights,
+} from "../services/report/reportInsightsClient";
+import type {
+    MapCaptureResult,
+    ReportAiStatus,
+    ReportSnapshotStatus,
+} from "../types/report";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -230,7 +250,9 @@ export function WorkspacePage() {
         notifyPersistenceStateChange,
         markProjectDirty,
         completeProjectRestore,
+        workspaceRevision,
     } = useProjectContext();
+    const { reportDraft, setReportDraft } = useReportContext();
 
     const [
         activeTool,
@@ -413,6 +435,18 @@ export function WorkspacePage() {
         useState<[number, number] | null>(null);
     const [focusedLayerId, setFocusedLayerId] =
         useState<string | null>(null);
+    const [mapCaptureRequestId, setMapCaptureRequestId] =
+        useState<number | null>(null);
+    const [reportSnapshotStatus, setReportSnapshotStatus] =
+        useState<ReportSnapshotStatus>("idle");
+    const [reportAiStatus, setReportAiStatus] =
+        useState<ReportAiStatus>("idle");
+    const [reportBuilderMessage, setReportBuilderMessage] =
+        useState<string | null>(null);
+    const mapCaptureSequenceRef = useRef(0);
+    const mapCaptureResolverRef = useRef<
+        ((result: MapCaptureResult) => void) | null
+    >(null);
 
     useEffect(() => {
         if (aoiMode === "completed" && aoiPolygon) {
@@ -1305,12 +1339,12 @@ export function WorkspacePage() {
     const requestedPanel = searchParams.get("panel");
 
     useEffect(() => {
-        if (requestedPanel === "agent") {
-            setActivePanel("agent",);
+        if (requestedPanel === "agent" || requestedPanel === "report-builder") {
+            setActivePanel(requestedPanel);
             return;
         }
         setActivePanel((previousPanel) => {
-            return previousPanel === "agent"
+            return previousPanel === "agent" || previousPanel === "report-builder"
                 ? null
                 : previousPanel;
         });
@@ -1384,7 +1418,7 @@ export function WorkspacePage() {
             },
         );
 
-        if (searchParams.get("panel",) === "agent") {
+        if (searchParams.has("panel")) {
             const nextParams =
                 new URLSearchParams(searchParams,);
 
@@ -1577,6 +1611,143 @@ export function WorkspacePage() {
         ],
     );
 
+    function requestReportMapCapture() {
+        return new Promise<MapCaptureResult>((resolve) => {
+            mapCaptureResolverRef.current?.({
+                requestId: mapCaptureSequenceRef.current,
+                dataUrl: null,
+                error: "新的地图捕获请求已替换上一次请求。",
+            });
+            mapCaptureSequenceRef.current += 1;
+            mapCaptureResolverRef.current = resolve;
+            setMapCaptureRequestId(mapCaptureSequenceRef.current);
+        });
+    }
+
+    function handleMapCapture(result: MapCaptureResult) {
+        if (result.requestId !== mapCaptureSequenceRef.current) {
+            return;
+        }
+
+        mapCaptureResolverRef.current?.(result);
+        mapCaptureResolverRef.current = null;
+        setMapCaptureRequestId(null);
+    }
+
+    async function handleGenerateReportSnapshot(
+        config: ReportBuilderConfig,
+    ) {
+        if (!dataset) {
+            setReportSnapshotStatus("error");
+            setReportBuilderMessage("当前没有可生成报告的主数据集。");
+            return;
+        }
+
+        if (geometryEditor.mode !== "idle") {
+            setReportSnapshotStatus("error");
+            setReportBuilderMessage("请先保存或取消当前几何编辑。");
+            return;
+        }
+
+        setReportSnapshotStatus("capturing");
+        setReportBuilderMessage("正在捕获地图并生成分析快照...");
+
+        try {
+            const mapCapture = await requestReportMapCapture();
+            const snapshot = createReportSnapshot({
+                projectName: projectMeta?.name ?? "未命名工程",
+                workspaceRevision,
+                dataset,
+                filteredFeatures,
+                filters: state.filters,
+                attributeQuery: state.attributeQuery,
+                selectedFeatureIds,
+                bufferResult,
+                spatialQueryResult,
+                aoiAnalysisResult,
+                analysisResultLayers,
+                dataQualityReport,
+                layerStyle: thematicLayerStyle,
+                mapState: { ...projectMapState, basemap },
+                mapCapture: {
+                    dataUrl: mapCapture.dataUrl,
+                    error: mapCapture.error,
+                },
+            });
+            const fallback = generateDeterministicInsights(snapshot);
+
+            setReportDraft({
+                id: reportDraft?.id ?? crypto.randomUUID(),
+                title: config.title,
+                subtitle: config.subtitle,
+                author: config.author,
+                snapshot,
+                sections: config.sections.map((section) => ({ ...section })),
+                executiveSummary: fallback.executiveSummary,
+                insights: fallback.insights.map((insight) => ({
+                    ...insight,
+                    id: crypto.randomUUID(),
+                })),
+                aiGenerated: false,
+            });
+            setReportAiStatus("idle");
+            setReportSnapshotStatus("ready");
+            setReportBuilderMessage(
+                mapCapture.error
+                    ? `分析快照已生成；${mapCapture.error}`
+                    : "分析快照与地图已生成。",
+            );
+        } catch (error) {
+            setReportSnapshotStatus("error");
+            setReportBuilderMessage(
+                error instanceof Error
+                    ? error.message
+                    : "无法生成分析快照。",
+            );
+        }
+    }
+
+    async function handleGenerateReportAiInsights() {
+        if (!reportDraft) {
+            return;
+        }
+
+        const snapshotId = reportDraft.snapshot.id;
+        setReportAiStatus("generating");
+        setReportBuilderMessage("正在根据结构化统计摘要生成 AI 洞察...");
+
+        try {
+            const response = await generateReportInsights(
+                createAIReportContext(reportDraft.snapshot),
+            );
+
+            setReportDraft((current) => {
+                if (!current || current.snapshot.id !== snapshotId) {
+                    return current;
+                }
+
+                return {
+                    ...current,
+                    executiveSummary: response.executiveSummary,
+                    insights: response.insights.map((insight) => ({
+                        ...insight,
+                        id: crypto.randomUUID(),
+                    })),
+                    aiGenerated: true,
+                };
+            });
+            setReportAiStatus("ready");
+            setReportBuilderMessage(
+                `AI 洞察已生成，共 ${response.insights.length} 条。`,
+            );
+        } catch (error) {
+            setReportAiStatus("error");
+            setReportBuilderMessage(
+                `${error instanceof Error ? error.message : "AI 洞察生成失败。"} 已保留基础统计结论。`,
+            );
+        }
+    }
+
     const workspaceSearchIndex = useMemo(
         () => buildWorkspaceSearchIndex(
             dataset,
@@ -1710,6 +1881,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("data-quality");
             case "open-geometry-editor":
                 return openWorkspacePanelFromSearch("geometry-edit");
+            case "open-report-builder":
+                return openWorkspacePanelFromSearch("report-builder");
             case "open-agent":
                 return openWorkspacePanelFromSearch("agent");
             case "open-basemap":
@@ -2141,6 +2314,8 @@ export function WorkspacePage() {
                             viewCommand={mapViewCommand}
                             searchResultFeature={searchResultFeature}
                             searchLocation={searchLocation}
+                            captureRequestId={mapCaptureRequestId}
+                            onMapCapture={handleMapCapture}
                         />
                     </div>
                 </main>
@@ -3645,6 +3820,10 @@ export function WorkspacePage() {
 
                         searchLocation={searchLocation}
 
+                        captureRequestId={mapCaptureRequestId}
+
+                        onMapCapture={handleMapCapture}
+
                         geometryEditMode={geometryEditor.mode}
 
                         geometryDraftCoordinates={geometryEditor.draftCoordinates}
@@ -3969,6 +4148,31 @@ export function WorkspacePage() {
                     onExportReport={handleExportQualityReport}
                     onRescanCleaned={handleRescanCleanedDataset}
                     onClose={() => setActivePanel(null)}
+                />
+            )}
+
+            {activePanel === "report-builder" && (
+                <ReportBuilderPanel
+                    draft={reportDraft}
+                    currentWorkspaceRevision={workspaceRevision}
+                    hasDataQualityReport={dataQualityReport !== null}
+                    snapshotStatus={reportSnapshotStatus}
+                    aiStatus={reportAiStatus}
+                    message={reportBuilderMessage}
+                    onGenerateSnapshot={(config) => {
+                        void handleGenerateReportSnapshot(config);
+                    }}
+                    onGenerateAiInsights={() => {
+                        void handleGenerateReportAiInsights();
+                    }}
+                    onDraftChange={(draft) => setReportDraft(draft)}
+                    onPreview={() => navigate("/report")}
+                    onClose={() => {
+                        setActivePanel(null);
+                        const nextParams = new URLSearchParams(searchParams);
+                        nextParams.delete("panel");
+                        setSearchParams(nextParams, { replace: true });
+                    }}
                 />
             )}
 

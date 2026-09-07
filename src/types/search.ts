@@ -18,6 +18,7 @@ export type WorkspaceCommandId =
     | "open-geoprocessing"
     | "open-data-quality"
     | "open-geometry-editor"
+    | "open-report-builder"
     | "open-agent"
     | "open-basemap"
     | "navigate-statistics"

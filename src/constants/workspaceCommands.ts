@@ -86,6 +86,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-report-builder",
+        label: "生成报告",
+        description: "打开分析报告构建中心",
+        keywords: ["report builder", "report center", "报告中心", "生成报告", "分析报告"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-agent",
         label: "Agent 分析",
         description: "打开 GIS 自然语言任务规划",
