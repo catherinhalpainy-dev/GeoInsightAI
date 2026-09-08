@@ -11,6 +11,8 @@ import {
   Palette,
   Pentagon,
   Route,
+  RefreshCw,
+  Server,
   Shapes,
   Trash2,
 } from "lucide-react";
@@ -31,6 +33,7 @@ import type {
   OverlayLayerStyle,
   VectorGeometryKind,
   WorkspaceVectorLayer,
+  WorkspaceRasterLayer,
 } from "../../types/mapLayer";
 import {
   calculateLandUseStatistics,
@@ -41,6 +44,7 @@ import "../../styles/layerpanel.css";
 interface LayerPanelProps {
   layerStyle: LayerStyle;
   overlayLayers: WorkspaceVectorLayer[];
+  rasterLayers: WorkspaceRasterLayer[];
   analysisResultLayers: AnalysisResultLayer[];
   focusedLayerId?: string | null;
   onLayerStyleChange: (
@@ -73,6 +77,21 @@ interface LayerPanelProps {
   onRemoveOverlayLayer: (
     layerId: string,
   ) => void;
+  onRefreshOverlayLayer: (
+    layerId: string,
+  ) => void;
+  refreshingOverlayLayerId?: string | null;
+  onRasterVisibilityChange: (
+    layerId: string,
+    visible: boolean,
+  ) => void;
+  onRasterOpacityChange: (
+    layerId: string,
+    opacity: number,
+  ) => void;
+  onMoveRasterLayerUp: (layerId: string) => void;
+  onMoveRasterLayerDown: (layerId: string) => void;
+  onRemoveRasterLayer: (layerId: string) => void;
   onAnalysisLayerVisibilityChange: (
     layerId: string,
     visible: boolean,
@@ -126,6 +145,7 @@ function GeometryIcon({
 export function LayerPanel({
   layerStyle,
   overlayLayers,
+  rasterLayers,
   analysisResultLayers,
   focusedLayerId = null,
   onLayerStyleChange,
@@ -137,6 +157,13 @@ export function LayerPanel({
   onFitOverlayLayer,
   onExportOverlayLayer,
   onRemoveOverlayLayer,
+  onRefreshOverlayLayer,
+  refreshingOverlayLayerId = null,
+  onRasterVisibilityChange,
+  onRasterOpacityChange,
+  onMoveRasterLayerUp,
+  onMoveRasterLayerDown,
+  onRemoveRasterLayer,
   onAnalysisLayerVisibilityChange,
   onDeleteAnalysisLayer,
   onExportAnalysisLayer,
@@ -166,7 +193,9 @@ export function LayerPanel({
           <span>LAYER TREE</span>
           <h2>图层</h2>
           <p>
-            {1 + overlayLayers.length} 个数据图层
+            {1 + overlayLayers.length} 个矢量图层
+            {" · "}
+            {rasterLayers.length} 个地图服务
             {" · "}
             {analysisResultLayers.length} 个分析结果
           </p>
@@ -293,11 +322,31 @@ export function LayerPanel({
                         {layer.featureCount.toLocaleString("zh-CN")}
                         {" features"}
                       </small>
+                      {layer.origin && (
+                        <small className="workspace-layer-origin">
+                          来源：{layer.origin.type === "geojson-url"
+                            ? "URL"
+                            : layer.origin.type === "csv"
+                              ? "CSV"
+                              : "本地文件"}
+                        </small>
+                      )}
                     </span>
                   </label>
                 </div>
 
                 <div className="overlay-layer-actions">
+                  {layer.origin?.type === "geojson-url" && (
+                    <button
+                      type="button"
+                      disabled={refreshingOverlayLayerId === layer.id}
+                      title="刷新远程数据源"
+                      aria-label={`刷新 ${layer.name}`}
+                      onClick={() => onRefreshOverlayLayer(layer.id)}
+                    >
+                      <RefreshCw size={12} aria-hidden="true" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={index === 0}
@@ -505,6 +554,64 @@ export function LayerPanel({
           <p className="overlay-layers-empty">
             使用左侧“添加图层”追加 Point、Line 或 Polygon GeoJSON。
           </p>
+        )}
+      </section>
+
+      <section className="layer-section raster-layers-section">
+        <header className="layer-tree-section-header">
+          <div>
+            <span>MAP SERVICES</span>
+            <h3>地图服务</h3>
+          </div>
+          <strong>{rasterLayers.length}</strong>
+        </header>
+
+        {rasterLayers.length === 0 ? (
+          <p className="overlay-layers-empty">通过“数据源”连接 XYZ 或 WMS 栅格服务。</p>
+        ) : (
+          <ul className="raster-layer-list">
+            {rasterLayers.map((layer, index) => (
+              <li
+                key={layer.id}
+                className={focusedLayerId === layer.id ? "search-focused" : undefined}
+              >
+                <div className="raster-layer-main">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={layer.visible}
+                      onChange={(event) => onRasterVisibilityChange(layer.id, event.currentTarget.checked)}
+                    />
+                    <Server size={14} aria-hidden="true" />
+                    <span>
+                      <strong title={layer.name}>{layer.name}</strong>
+                      <small>
+                        {layer.sourceType.toUpperCase()} Raster
+                        {layer.source.type === "wms" ? ` · ${layer.source.layerName}` : ""}
+                      </small>
+                    </span>
+                  </label>
+                </div>
+                <div className="raster-layer-actions">
+                  <button type="button" disabled={index === 0} title="上移服务" onClick={() => onMoveRasterLayerUp(layer.id)}><ArrowUp size={12} aria-hidden="true" /></button>
+                  <button type="button" disabled={index === rasterLayers.length - 1} title="下移服务" onClick={() => onMoveRasterLayerDown(layer.id)}><ArrowDown size={12} aria-hidden="true" /></button>
+                  <button type="button" title="删除服务" onClick={() => onRemoveRasterLayer(layer.id)}><Trash2 size={12} aria-hidden="true" /></button>
+                </div>
+                <label className="raster-opacity-control">
+                  <span>透明度</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={layer.opacity}
+                    onChange={(event) => onRasterOpacityChange(layer.id, Number(event.currentTarget.value))}
+                  />
+                  <strong>{Math.round(layer.opacity * 100)}%</strong>
+                </label>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

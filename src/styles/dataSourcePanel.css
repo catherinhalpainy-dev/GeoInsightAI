@@ -1,0 +1,96 @@
+.data-source-panel {
+  min-width: 0;
+  overflow-y: auto;
+  border-left: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: -8px 0 24px rgba(15, 23, 42, .06);
+}
+
+.data-source-panel-header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, .96);
+}
+
+.data-source-panel-header span,
+.data-source-eyebrow {
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.data-source-panel-header h2 { margin: 3px 0 0; color: #0f172a; font-size: 15px; }
+.data-source-panel-header p { margin: 5px 0 0; color: #64748b; font-size: 10px; }
+.data-source-panel-header > button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #64748b; cursor: pointer; }
+.data-source-panel-header > button:hover { background: #f8fafc; color: #0f172a; }
+.data-source-panel-body { display: grid; }
+.data-source-panel-body > section { padding: 18px; border-bottom: 1px solid #e2e8f0; }
+
+.data-source-type-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
+.data-source-type-tabs button { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; }
+.data-source-type-tabs button strong { font-size: 11px; }
+.data-source-type-tabs button span { color: #94a3b8; font-size: 9px; }
+.data-source-type-tabs button.active { border-color: #99f6e4; background: #f0fdfa; color: #0f766e; box-shadow: inset 3px 0 0 #0f766e; }
+.data-source-security-note { margin: 10px 0 0; color: #64748b; font-size: 9px; line-height: 1.5; }
+
+.data-source-form-section { display: grid; gap: 10px; }
+.data-source-section-title { display: flex; align-items: center; gap: 8px; color: #0f766e; }
+.data-source-section-title > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.data-source-section-title strong { color: #0f172a; font-size: 12px; }
+.data-source-section-title span { color: #64748b; font-size: 9px; }
+.data-source-form-section > label,
+.csv-mapping > label,
+.data-source-inline-fields label { display: grid; gap: 5px; color: #475569; font-size: 10px; }
+.data-source-form-section input:not([type="checkbox"]),
+.data-source-form-section select { box-sizing: border-box; width: 100%; min-width: 0; height: 34px; padding: 0 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #0f172a; font: inherit; font-size: 11px; }
+.data-source-form-section input:focus,
+.data-source-form-section select:focus { border-color: #14b8a6; outline: 2px solid rgba(20, 184, 166, .12); }
+.data-source-inline-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.data-source-button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.data-source-primary,
+.data-source-secondary { min-height: 34px; padding: 0 10px; border-radius: 7px; font-size: 10px; font-weight: 650; cursor: pointer; }
+.data-source-primary { border: 1px solid #0f766e; background: #0f766e; color: #fff; }
+.data-source-primary:hover:not(:disabled) { background: #0d6b64; }
+.data-source-secondary { border: 1px solid #99f6e4; background: #f0fdfa; color: #0f766e; }
+.data-source-primary:disabled,
+.data-source-secondary:disabled { opacity: .45; cursor: not-allowed; }
+.data-source-hidden-input { display: none; }
+
+.csv-mapping { display: grid; gap: 10px; padding-top: 2px; }
+.data-source-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.data-source-metrics > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 7px; background: #f8fafc; }
+.data-source-metrics strong { overflow: hidden; color: #0f172a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.data-source-metrics span { color: #64748b; font-size: 8px; }
+.csv-preview-wrap { min-width: 0; }
+.csv-preview-wrap > span { color: #64748b; font-size: 8px; font-weight: 700; letter-spacing: .06em; }
+.csv-preview-scroll { overflow-x: auto; margin-top: 5px; border: 1px solid #e2e8f0; border-radius: 7px; }
+.csv-preview-scroll table { min-width: 100%; border-collapse: collapse; font-size: 8px; white-space: nowrap; }
+.csv-preview-scroll th,
+.csv-preview-scroll td { max-width: 120px; overflow: hidden; padding: 5px 7px; border-bottom: 1px solid #f1f5f9; text-align: left; text-overflow: ellipsis; }
+.csv-preview-scroll th { background: #f8fafc; color: #475569; }
+.data-source-check { display: flex !important; grid-template-columns: none !important; align-items: center; gap: 7px !important; }
+.data-source-check input { accent-color: #0f766e; }
+
+.data-source-status { margin: 0; padding: 8px 9px; border-left: 3px solid #0f766e; background: #f0fdfa; color: #0f766e; font-size: 9px; line-height: 1.5; }
+.data-source-status.loading { border-left-color: #0284c7; background: #f0f9ff; color: #0369a1; }
+.data-source-status.error { border-left-color: #dc2626; background: #fef2f2; color: #b91c1c; }
+
+.connected-sources-section > p { margin: 10px 0 0; color: #94a3b8; font-size: 9px; }
+.connected-sources-section ul { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.connected-sources-section li { display: grid; grid-template-columns: 16px minmax(0, 1fr) 8px; align-items: center; gap: 7px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 7px; color: #64748b; }
+.connected-sources-section li > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.connected-sources-section strong { overflow: hidden; color: #0f172a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.connected-sources-section small { color: #64748b; font-size: 8px; }
+.connected-sources-section i { width: 7px; height: 7px; border-radius: 50%; background: #10b981; }
+
+@media (max-width: 720px) {
+  .data-source-inline-fields { grid-template-columns: 1fr; }
+}

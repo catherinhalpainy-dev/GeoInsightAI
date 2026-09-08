@@ -86,6 +86,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-data-sources",
+        label: "数据源",
+        description: "连接 CSV、远程 GeoJSON、XYZ 或 WMS",
+        keywords: ["data source", "connection", "csv", "xyz", "wms", "数据源", "连接"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-report-builder",
         label: "生成报告",
         description: "打开分析报告构建中心",

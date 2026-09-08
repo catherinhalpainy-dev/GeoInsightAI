@@ -10,6 +10,35 @@ import {
     GEOINSIGHT_PROJECT_VERSION,
 } from "../../types/project";
 
+const publicHttpUrlSchema = z.string().refine((value) => {
+    try {
+        const url = new URL(value);
+        const sensitiveNames = new Set([
+            "token",
+            "access_token",
+            "api_key",
+            "apikey",
+            "key",
+            "auth",
+            "password",
+        ]);
+        const hasSensitiveParameter = [...url.searchParams.keys()].some(
+            (key) => sensitiveNames.has(key.toLocaleLowerCase()),
+        );
+
+        return (url.protocol === "http:" || url.protocol === "https:") &&
+            !url.username &&
+            !url.password &&
+            !hasSensitiveParameter;
+    } catch {
+        return false;
+    }
+}, "仅支持不包含私密凭据的 HTTP/HTTPS URL");
+
+const xyzTileTemplateSchema = publicHttpUrlSchema.refine(
+    (value) => ["{z}", "{x}", "{y}"].every((token) => value.includes(token)),
+    "XYZ URL 必须包含 {z}、{x}、{y}",
+);
 const landUseTypeSchema = z.enum([
     "residential",
     "commercial",
@@ -134,7 +163,61 @@ const overlayLayerSchema = z.object({
     collection: overlayCollectionSchema,
     style: overlayStyleSchema,
     createdAt: z.number().finite(),
+    origin: z.discriminatedUnion("type", [
+        z.object({
+            type: z.literal("local-geojson"),
+            filename: z.string().min(1),
+        }),
+        z.object({
+            type: z.literal("csv"),
+            filename: z.string().min(1),
+        }),
+        z.object({
+            type: z.literal("geojson-url"),
+            url: publicHttpUrlSchema,
+        }),
+    ]).optional(),
 });
+
+const xyzRasterSourceSchema = z.object({
+    type: z.literal("xyz"),
+    tiles: z.array(xyzTileTemplateSchema).min(1),
+    tileSize: z.union([z.literal(256), z.literal(512)]),
+});
+
+const wmsRasterSourceSchema = z.object({
+    type: z.literal("wms"),
+    baseUrl: publicHttpUrlSchema,
+    layerName: z.string().min(1),
+    version: z.enum(["1.1.1", "1.3.0"]),
+    format: z.enum(["image/png", "image/jpeg"]),
+    transparent: z.boolean(),
+    styleName: z.string(),
+});
+
+const rasterLayerSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    sourceType: z.enum(["xyz", "wms"]),
+    visible: z.boolean(),
+    opacity: z.number().finite().min(0).max(1),
+    createdAt: z.number().finite(),
+    attribution: z.string().optional(),
+    minZoom: z.number().finite().min(0).max(24).optional(),
+    maxZoom: z.number().finite().min(0).max(24).optional(),
+    source: z.discriminatedUnion("type", [
+        xyzRasterSourceSchema,
+        wmsRasterSourceSchema,
+    ]),
+}).refine(
+    (layer) => layer.sourceType === layer.source.type,
+    { message: "Raster sourceType 与 source.type 不一致" },
+).refine(
+    (layer) => layer.minZoom === undefined ||
+        layer.maxZoom === undefined ||
+        layer.minZoom <= layer.maxZoom,
+    { message: "Raster minZoom 不能大于 maxZoom" },
+);
 
 const analysisPropertiesSchema = z.union([
     landUsePropertiesSchema.extend({
@@ -257,6 +340,7 @@ export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
     data: z.object({
         primaryDataset: primaryDatasetSchema,
         overlayLayers: z.array(overlayLayerSchema),
+        rasterLayers: z.array(rasterLayerSchema).default([]),
         analysisResultLayers: z.array(analysisLayerSchema),
     }),
     map: z.object({

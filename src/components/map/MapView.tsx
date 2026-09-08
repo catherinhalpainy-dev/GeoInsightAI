@@ -40,6 +40,7 @@ import type {
     OverlayLayerStyle,
     VectorGeometryKind,
     WorkspaceVectorLayer,
+    WorkspaceRasterLayer,
 } from "../../types/mapLayer";
 import type {
     DataQualityMapFeatureCollection,
@@ -77,6 +78,7 @@ import { MapLegend } from "./MapLegend";
 import {
     calculateGeoJsonBounds,
 } from "../../services/gis/calculateGeoJsonBounds";
+import { buildWmsTileUrl } from "../../services/gis/wms";
 
 const BASEMAP_STYLES: Record<
     BasemapType,
@@ -184,6 +186,12 @@ const OVERLAY_LINE_PREFIX =
 const OVERLAY_CIRCLE_PREFIX =
     "overlay-circle-";
 
+const EXTERNAL_RASTER_SOURCE_PREFIX =
+    "external-raster-source-";
+
+const EXTERNAL_RASTER_LAYER_PREFIX =
+    "external-raster-";
+
 const DATA_QUALITY_SOURCE_ID =
     "data-quality-source";
 const DATA_QUALITY_FILL_LAYER_ID =
@@ -287,6 +295,9 @@ interface MapViewProps {
 
     overlayLayers?:
     WorkspaceVectorLayer[];
+
+    rasterLayers?:
+    WorkspaceRasterLayer[];
 
     qualityIssueFeatures?:
     DataQualityMapFeatureCollection;
@@ -1574,6 +1585,158 @@ function createOverlayGeometryFilter(
     ];
 }
 
+function getExternalRasterSourceId(layerId: string) {
+    return `${EXTERNAL_RASTER_SOURCE_PREFIX}${layerId}`;
+}
+
+function getExternalRasterLayerId(layerId: string) {
+    return `${EXTERNAL_RASTER_LAYER_PREFIX}${layerId}`;
+}
+
+interface RasterSourceCacheEntry {
+    source: WorkspaceRasterLayer["source"];
+    attribution?: string;
+    minZoom?: number;
+    maxZoom?: number;
+}
+
+function hasRasterSourceChanged(
+    previous: RasterSourceCacheEntry | undefined,
+    layer: WorkspaceRasterLayer,
+) {
+    return !previous ||
+        previous.source !== layer.source ||
+        previous.attribution !== layer.attribution ||
+        previous.minZoom !== layer.minZoom ||
+        previous.maxZoom !== layer.maxZoom;
+}
+
+function syncExternalRasterLayers(
+    map: maplibregl.Map,
+    layers: WorkspaceRasterLayer[],
+    sourceCache: Map<string, RasterSourceCacheEntry>,
+    orderCache: { signature: string },
+) {
+    const desiredSourceIds = new Set(
+        layers.map((layer) => getExternalRasterSourceId(layer.id)),
+    );
+    const desiredLayerIds = new Set(
+        layers.map((layer) => getExternalRasterLayerId(layer.id)),
+    );
+    const style = map.getStyle();
+
+    for (const styleLayer of style.layers ?? []) {
+        if (
+            styleLayer.id.startsWith(EXTERNAL_RASTER_LAYER_PREFIX) &&
+            !desiredLayerIds.has(styleLayer.id) &&
+            map.getLayer(styleLayer.id)
+        ) {
+            map.removeLayer(styleLayer.id);
+        }
+    }
+
+    for (const sourceId of Object.keys(style.sources ?? {})) {
+        if (
+            sourceId.startsWith(EXTERNAL_RASTER_SOURCE_PREFIX) &&
+            !desiredSourceIds.has(sourceId) &&
+            map.getSource(sourceId)
+        ) {
+            map.removeSource(sourceId);
+            sourceCache.delete(sourceId);
+        }
+    }
+
+    for (const sourceId of sourceCache.keys()) {
+        if (!desiredSourceIds.has(sourceId)) {
+            sourceCache.delete(sourceId);
+        }
+    }
+
+    const beforeLayerId = map.getLayer(LAND_USE_FILL_LAYER_ID)
+        ? LAND_USE_FILL_LAYER_ID
+        : undefined;
+    let structureChanged = false;
+
+    for (const layer of [...layers].reverse()) {
+        const sourceId = getExternalRasterSourceId(layer.id);
+        const layerId = getExternalRasterLayerId(layer.id);
+        const sourceChanged = hasRasterSourceChanged(sourceCache.get(sourceId), layer);
+
+        if (sourceChanged && map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+        }
+
+        if (sourceChanged && map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+        }
+
+        if (!map.getSource(sourceId)) {
+            const tiles = layer.source.type === "xyz"
+                ? layer.source.tiles
+                : [buildWmsTileUrl(layer.source)];
+            const tileSize = layer.source.type === "xyz"
+                ? layer.source.tileSize
+                : 256;
+
+            map.addSource(sourceId, {
+                type: "raster",
+                tiles,
+                tileSize,
+                ...(layer.minZoom === undefined ? {} : { minzoom: layer.minZoom }),
+                ...(layer.maxZoom === undefined ? {} : { maxzoom: layer.maxZoom }),
+                ...(layer.attribution ? { attribution: layer.attribution } : {}),
+            });
+            sourceCache.set(sourceId, {
+                source: layer.source,
+                attribution: layer.attribution,
+                minZoom: layer.minZoom,
+                maxZoom: layer.maxZoom,
+            });
+            structureChanged = true;
+        }
+
+        if (!map.getLayer(layerId)) {
+            map.addLayer(
+                {
+                    id: layerId,
+                    type: "raster",
+                    source: sourceId,
+                    layout: {
+                        visibility: layer.visible ? "visible" : "none",
+                    },
+                    paint: {
+                        "raster-opacity": layer.opacity,
+                    },
+                },
+                beforeLayerId,
+            );
+            structureChanged = true;
+        } else {
+            map.setLayoutProperty(
+                layerId,
+                "visibility",
+                layer.visible ? "visible" : "none",
+            );
+            map.setPaintProperty(layerId, "raster-opacity", layer.opacity);
+        }
+    }
+
+    const orderedLayerIds = [...layers]
+        .reverse()
+        .map((layer) => getExternalRasterLayerId(layer.id));
+    const signature = orderedLayerIds.join("|");
+
+    if (structureChanged || orderCache.signature !== signature) {
+        for (const layerId of orderedLayerIds) {
+            if (map.getLayer(layerId)) {
+                map.moveLayer(layerId, beforeLayerId);
+            }
+        }
+
+        orderCache.signature = signature;
+    }
+}
+
 function createQualitySeverityColor(): ExpressionSpecification {
     return [
         "match",
@@ -2739,6 +2902,7 @@ export function MapView({
     aoiQueryFeatures = [],
     analysisResultLayers = [],
     overlayLayers = [],
+    rasterLayers = [],
     qualityIssueFeatures = {
         type: "FeatureCollection",
         features: [],
@@ -2861,6 +3025,9 @@ export function MapView({
     const latestOverlayLayersRef =
         useRef<WorkspaceVectorLayer[]>(overlayLayers);
 
+    const latestRasterLayersRef =
+        useRef<WorkspaceRasterLayer[]>(rasterLayers);
+
     const latestQualityIssueFeaturesRef =
         useRef<DataQualityMapFeatureCollection>(
             qualityIssueFeatures,
@@ -2892,6 +3059,14 @@ export function MapView({
     );
 
     const overlayOrderCacheRef = useRef({
+        signature: "",
+    });
+
+    const rasterSourceCacheRef = useRef(
+        new Map<string, RasterSourceCacheEntry>(),
+    );
+
+    const rasterOrderCacheRef = useRef({
         signature: "",
     });
 
@@ -3680,6 +3855,13 @@ export function MapView({
                     latestLayerStyleRef.current,
                 );
 
+                syncExternalRasterLayers(
+                    map,
+                    latestRasterLayersRef.current,
+                    rasterSourceCacheRef.current,
+                    rasterOrderCacheRef.current,
+                );
+
                 syncOverlayLayers(
                     map,
                     latestOverlayLayersRef.current,
@@ -4003,6 +4185,23 @@ export function MapView({
     ]);
 
     useEffect(() => {
+        latestRasterLayersRef.current = rasterLayers;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        syncExternalRasterLayers(
+            map,
+            rasterLayers,
+            rasterSourceCacheRef.current,
+            rasterOrderCacheRef.current,
+        );
+    }, [rasterLayers]);
+
+    useEffect(() => {
         latestOverlayLayersRef.current = overlayLayers;
 
         const map = mapRef.current;
@@ -4257,6 +4456,13 @@ export function MapView({
                         collection,
                     );
 
+                    syncExternalRasterLayers(
+                        map,
+                        latestRasterLayersRef.current,
+                        rasterSourceCacheRef.current,
+                        rasterOrderCacheRef.current,
+                    );
+
                     syncOverlayLayers(
                         map,
                         latestOverlayLayersRef.current,
@@ -4290,6 +4496,13 @@ export function MapView({
                     map,
                     collection,
                     latestLayerStyleRef.current,
+                );
+
+                syncExternalRasterLayers(
+                    map,
+                    latestRasterLayersRef.current,
+                    rasterSourceCacheRef.current,
+                    rasterOrderCacheRef.current,
                 );
 
                 syncOverlayLayers(

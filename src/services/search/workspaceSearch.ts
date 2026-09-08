@@ -12,6 +12,7 @@ import type {
 } from "../../types/landUse";
 import type {
     WorkspaceVectorLayer,
+    WorkspaceRasterLayer,
 } from "../../types/mapLayer";
 import type {
     IndexedWorkspaceSearchResult,
@@ -105,6 +106,7 @@ export function buildWorkspaceSearchIndex(
     primaryDataset: LandUseDataset | null,
     overlayLayers: readonly WorkspaceVectorLayer[],
     analysisResultLayers: readonly AnalysisResultLayer[],
+    rasterLayers: readonly WorkspaceRasterLayer[] = [],
 ) {
     const documents: WorkspaceSearchDocument[] = [];
     let order = 0;
@@ -248,6 +250,32 @@ export function buildWorkspaceSearchIndex(
                 order++,
             ));
         });
+    }
+
+    for (const layer of rasterLayers) {
+        const sourceLabel = layer.source.type === "wms"
+            ? `WMS Raster · ${layer.source.layerName}`
+            : "XYZ Raster";
+
+        documents.push(createDocument(
+            {
+                type: "layer",
+                id: `layer:raster:${layer.id}`,
+                layerType: "raster",
+                layerId: layer.id,
+                title: layer.name,
+                subtitle: sourceLabel,
+            },
+            [
+                layer.name,
+                layer.sourceType,
+                "raster",
+                "地图服务",
+                layer.source.type === "wms" ? layer.source.layerName : "xyz tiles",
+            ],
+            1,
+            order++,
+        ));
     }
 
     for (const command of WORKSPACE_COMMANDS) {

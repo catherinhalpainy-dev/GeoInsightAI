@@ -668,7 +668,7 @@ export function DataImportPage() {
                   >
                     <strong>{project.name}</strong>
                     <span>
-                      {project.primaryFeatureCount} 主数据 · {project.overlayLayerCount} 图层 · {project.analysisLayerCount} 分析
+                      {project.primaryFeatureCount} 主数据 · {project.overlayLayerCount} 矢量 · {project.rasterLayerCount ?? 0} 服务 · {project.analysisLayerCount} 分析
                     </span>
                     <time>{new Date(project.updatedAt).toLocaleString("zh-CN")}</time>
                   </button>

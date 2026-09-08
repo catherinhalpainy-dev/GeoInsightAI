@@ -31,6 +31,7 @@ import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
 import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
 import { BatchEditPanel } from "../components/workspace/BatchEditPanel";
 import { GeometryEditPanel } from "../components/workspace/GeometryEditPanel";
+import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -87,7 +88,9 @@ import {
 import type {
     OverlayLayerStyle,
     WorkspaceVectorLayer,
+    WorkspaceRasterLayer,
 } from "../types/mapLayer";
+import { fetchRemoteGeoJson } from "../services/import/remoteGeoJson";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
 import { useEditHistory } from "../hooks/useEditHistory";
 import { useGeometryEditor } from "../hooks/useGeometryEditor";
@@ -388,10 +391,14 @@ export function WorkspacePage() {
         useState<AnalysisResultLayer[]>([]);
     const [overlayLayers, setOverlayLayers] =
         useState<WorkspaceVectorLayer[]>([]);
+    const [rasterLayers, setRasterLayers] =
+        useState<WorkspaceRasterLayer[]>([]);
     const [overlayImportError, setOverlayImportError] =
         useState<string | null>(null);
     const [overlayImporting, setOverlayImporting] =
         useState(false);
+    const [refreshingOverlayLayerId, setRefreshingOverlayLayerId] =
+        useState<string | null>(null);
     const [qualityTargetId, setQualityTargetId] =
         useState("primary");
     const [dataQualityReport, setDataQualityReport] =
@@ -1002,6 +1009,25 @@ export function WorkspacePage() {
         return `${requestedName} (${suffix})`;
     }
 
+    function addWorkspaceVectorLayer(layer: WorkspaceVectorLayer) {
+        setOverlayLayers((previous) => {
+            const layerName = getUniqueOverlayLayerName(layer.name, previous);
+
+            return [
+                ...previous,
+                {
+                    ...layer,
+                    name: layerName,
+                    style: createDefaultOverlayLayerStyle(
+                        previous.length,
+                        layer.geometryKind,
+                    ),
+                },
+            ];
+        });
+        setOverlayImportError(null);
+    }
+
     async function handleAddOverlayLayer(
         file: File,
     ) {
@@ -1041,26 +1067,13 @@ export function WorkspacePage() {
             const parsedLayer = parseOverlayGeoJson(
                 raw,
                 file.name,
+                {
+                    type: "local-geojson",
+                    filename: file.name,
+                },
             );
 
-            setOverlayLayers((previous) => {
-                const layerName = getUniqueOverlayLayerName(
-                    parsedLayer.name,
-                    previous,
-                );
-
-                return [
-                    ...previous,
-                    {
-                        ...parsedLayer,
-                        name: layerName,
-                        style: createDefaultOverlayLayerStyle(
-                            previous.length,
-                            parsedLayer.geometryKind,
-                        ),
-                    },
-                ];
-            });
+            addWorkspaceVectorLayer(parsedLayer);
             setActivePanel("layers");
         } catch (error) {
             setOverlayImportError(
@@ -1086,6 +1099,107 @@ export function WorkspacePage() {
             setQualityTargetId("primary");
             resetQualityResults();
         }
+    }
+
+    async function handleRefreshOverlayLayer(layerId: string) {
+        const existingLayer = overlayLayers.find((layer) => layer.id === layerId);
+
+        if (existingLayer?.origin?.type !== "geojson-url") {
+            return;
+        }
+
+        setRefreshingOverlayLayerId(layerId);
+        setOverlayImportError(null);
+
+        try {
+            const refreshedLayer = await fetchRemoteGeoJson(existingLayer.origin.url);
+
+            setOverlayLayers((previous) => previous.map((layer) =>
+                layer.id === layerId
+                    ? {
+                        ...layer,
+                        geometryKind: refreshedLayer.geometryKind,
+                        featureCount: refreshedLayer.featureCount,
+                        collection: refreshedLayer.collection,
+                    }
+                    : layer,
+            ));
+            setSearchResultFeature(null);
+
+            if (qualityTargetId === layerId) {
+                resetQualityResults();
+            }
+        } catch (error) {
+            setOverlayImportError(
+                `${existingLayer.name} 刷新失败：${error instanceof Error ? error.message : "未知错误"}。旧数据已保留。`,
+            );
+        } finally {
+            setRefreshingOverlayLayerId(null);
+        }
+    }
+
+    function getUniqueRasterLayerName(
+        requestedName: string,
+        layers: readonly WorkspaceRasterLayer[],
+    ) {
+        const usedNames = new Set(layers.map((layer) => layer.name.toLocaleLowerCase()));
+        const baseName = requestedName.trim() || "map-service";
+
+        if (!usedNames.has(baseName.toLocaleLowerCase())) {
+            return baseName;
+        }
+
+        let suffix = 2;
+        while (usedNames.has(`${baseName} (${suffix})`.toLocaleLowerCase())) {
+            suffix += 1;
+        }
+
+        return `${baseName} (${suffix})`;
+    }
+
+    function handleAddRasterLayer(layer: WorkspaceRasterLayer) {
+        setRasterLayers((previous) => [
+            ...previous,
+            {
+                ...layer,
+                name: getUniqueRasterLayerName(layer.name, previous),
+            },
+        ]);
+    }
+
+    function handleRemoveRasterLayer(layerId: string) {
+        setRasterLayers((previous) => previous.filter((layer) => layer.id !== layerId));
+    }
+
+    function handleToggleRasterLayer(layerId: string, visible: boolean) {
+        setRasterLayers((previous) => previous.map((layer) =>
+            layer.id === layerId ? { ...layer, visible } : layer,
+        ));
+    }
+
+    function handleRasterOpacityChange(layerId: string, opacity: number) {
+        const normalizedOpacity = Math.min(1, Math.max(0, opacity));
+        setRasterLayers((previous) => previous.map((layer) =>
+            layer.id === layerId ? { ...layer, opacity: normalizedOpacity } : layer,
+        ));
+    }
+
+    function moveRasterLayer(layerId: string, offset: -1 | 1) {
+        setRasterLayers((previous) => {
+            const currentIndex = previous.findIndex((layer) => layer.id === layerId);
+            const nextIndex = currentIndex + offset;
+
+            if (currentIndex < 0 || nextIndex < 0 || nextIndex >= previous.length) {
+                return previous;
+            }
+
+            const nextLayers = [...previous];
+            [nextLayers[currentIndex], nextLayers[nextIndex]] = [
+                nextLayers[nextIndex],
+                nextLayers[currentIndex],
+            ];
+            return nextLayers;
+        });
     }
 
     function handleToggleOverlayLayer(
@@ -1753,8 +1867,9 @@ export function WorkspacePage() {
             dataset,
             overlayLayers,
             analysisResultLayers,
+            rasterLayers,
         ),
-        [analysisResultLayers, dataset, overlayLayers],
+        [analysisResultLayers, dataset, overlayLayers, rasterLayers],
     );
 
     function openWorkspacePanelFromSearch(
@@ -1836,6 +1951,12 @@ export function WorkspacePage() {
                 return result.layerId === dataset.id ? null : "该图层已不存在";
             }
 
+            if (result.layerType === "raster") {
+                return rasterLayers.some((layer) => layer.id === result.layerId)
+                    ? null
+                    : "该地图服务已不存在";
+            }
+
             const layers = result.layerType === "overlay"
                 ? overlayLayers
                 : analysisResultLayers;
@@ -1883,6 +2004,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("geometry-edit");
             case "open-report-builder":
                 return openWorkspacePanelFromSearch("report-builder");
+            case "open-data-sources":
+                return openWorkspacePanelFromSearch("data-sources");
             case "open-agent":
                 return openWorkspacePanelFromSearch("agent");
             case "open-basemap":
@@ -1936,7 +2059,7 @@ export function WorkspacePage() {
 
             if (result.layerType === "primary") {
                 requestMapView("fit-all");
-            } else {
+            } else if (result.layerType !== "raster") {
                 setMapViewCommand((previous) => ({
                     type: "fit-search-layer",
                     requestId: (previous?.requestId ?? 0) + 1,
@@ -2080,6 +2203,7 @@ export function WorkspacePage() {
             data: {
                 primaryDataset: dataset,
                 overlayLayers,
+                rasterLayers,
                 analysisResultLayers,
             },
             map: {
@@ -2179,6 +2303,7 @@ export function WorkspacePage() {
         setLayerStyle(restoredLayerStyle);
         setSavedLayerStyle(restoredLayerStyle);
         setOverlayLayers(project.data.overlayLayers);
+        setRasterLayers(project.data.rasterLayers);
         setAnalysisResultLayers(project.data.analysisResultLayers);
         setSelectedFeatureIds(restoredSelectionIds);
         setSelectedFeature(restoredSelectedFeature);
@@ -2244,6 +2369,7 @@ export function WorkspacePage() {
             bufferResult,
             spatialQueryResult,
             overlayLayers,
+            rasterLayers,
             analysisResultLayers,
             basemap,
         ];
@@ -2279,6 +2405,7 @@ export function WorkspacePage() {
         layerStyle,
         markProjectDirty,
         overlayLayers,
+        rasterLayers,
         pendingProject,
         persistedAoiFeature,
         projectMeta,
@@ -3812,6 +3939,8 @@ export function WorkspacePage() {
 
                         overlayLayers={overlayLayers}
 
+                        rasterLayers={rasterLayers}
+
                         qualityIssueFeatures={qualityIssueFeatures}
 
                         selectedQualityIssueId={selectedQualityIssueId}
@@ -3926,6 +4055,7 @@ export function WorkspacePage() {
                 <LayerPanel
                     layerStyle={thematicLayerStyle}
                     overlayLayers={overlayLayers}
+                    rasterLayers={rasterLayers}
                     analysisResultLayers={analysisResultLayers}
                     focusedLayerId={focusedLayerId}
                     onLayerStyleChange={(nextStyle) => {
@@ -3967,6 +4097,15 @@ export function WorkspacePage() {
                     onRemoveOverlayLayer={
                         handleRemoveOverlayLayer
                     }
+                    onRefreshOverlayLayer={(layerId) => {
+                        void handleRefreshOverlayLayer(layerId);
+                    }}
+                    refreshingOverlayLayerId={refreshingOverlayLayerId}
+                    onRasterVisibilityChange={handleToggleRasterLayer}
+                    onRasterOpacityChange={handleRasterOpacityChange}
+                    onMoveRasterLayerUp={(layerId) => moveRasterLayer(layerId, -1)}
+                    onMoveRasterLayerDown={(layerId) => moveRasterLayer(layerId, 1)}
+                    onRemoveRasterLayer={handleRemoveRasterLayer}
                     onClose={() => {
                         setActivePanel(null,);
                     }}
@@ -4173,6 +4312,16 @@ export function WorkspacePage() {
                         nextParams.delete("panel");
                         setSearchParams(nextParams, { replace: true });
                     }}
+                />
+            )}
+
+            {activePanel === "data-sources" && (
+                <DataSourcePanel
+                    overlayLayerCount={overlayLayers.length}
+                    rasterLayers={rasterLayers}
+                    onAddVectorLayer={addWorkspaceVectorLayer}
+                    onAddRasterLayer={handleAddRasterLayer}
+                    onClose={() => setActivePanel(null)}
                 />
             )}
 

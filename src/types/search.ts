@@ -9,6 +9,8 @@ export type SearchSourceType =
     | "overlay"
     | "analysis";
 
+export type SearchLayerType = SearchSourceType | "raster";
+
 export type WorkspaceCommandId =
     | "open-filter"
     | "open-layers"
@@ -19,6 +21,7 @@ export type WorkspaceCommandId =
     | "open-data-quality"
     | "open-geometry-editor"
     | "open-report-builder"
+    | "open-data-sources"
     | "open-agent"
     | "open-basemap"
     | "navigate-statistics"
@@ -41,7 +44,7 @@ export interface FeatureSearchResult {
 export interface LayerSearchResult {
     type: "layer";
     id: string;
-    layerType: SearchSourceType;
+    layerType: SearchLayerType;
     layerId: string;
     title: string;
     subtitle: string;

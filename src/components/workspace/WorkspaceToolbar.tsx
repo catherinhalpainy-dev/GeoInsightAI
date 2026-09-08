@@ -1,6 +1,7 @@
 import {
   FilePlus2,
   FileText,
+  Database,
   SquarePen,
   ShieldCheck,
   SquareDashed,
@@ -215,6 +216,20 @@ export function WorkspaceToolbar({
           event.currentTarget.value = "";
         }}
       />
+
+      <button
+        type="button"
+        className={
+          activePanel === "data-sources"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("data-sources")}
+        title="连接 CSV、远程 GeoJSON、XYZ 或 WMS"
+      >
+        <Database size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>数据源</span>
+      </button>
 
       <button
         type="button"

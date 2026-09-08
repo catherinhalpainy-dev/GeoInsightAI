@@ -10,6 +10,7 @@ import type {
     OverlayFeature,
     OverlayGeometry,
     VectorGeometryKind,
+    VectorLayerOrigin,
     WorkspaceVectorLayer,
 } from "../../types/mapLayer";
 
@@ -197,6 +198,7 @@ function createLayerName(
 export function parseOverlayGeoJson(
     raw: unknown,
     filename: string,
+    origin?: VectorLayerOrigin,
 ): WorkspaceVectorLayer {
     if (
         !isRecord(raw) ||
@@ -246,5 +248,6 @@ export function parseOverlayGeoJson(
             geometryKind,
         ),
         createdAt: Date.now(),
+        origin,
     };
 }

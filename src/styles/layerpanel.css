@@ -536,7 +536,7 @@
 .overlay-layer-actions {
   display: grid;
   max-height: 0;
-  grid-template-columns: repeat(6, 24px);
+  grid-template-columns: repeat(7, 24px);
   justify-content: end;
   gap: 3px;
   overflow: hidden;
@@ -634,6 +634,93 @@
   font-size: 9px;
   line-height: 1.55;
 }
+
+.workspace-layer-origin {
+  color: #0f766e !important;
+}
+
+.raster-layer-list {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.raster-layer-list > li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.raster-layer-list > li.search-focused {
+  border-color: #5eead4;
+  background: #f0fdfa;
+  box-shadow: inset 3px 0 0 #0f766e;
+}
+
+.raster-layer-main,
+.raster-layer-main label,
+.raster-layer-main label > span {
+  min-width: 0;
+}
+
+.raster-layer-main label {
+  display: grid;
+  grid-template-columns: 16px 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.raster-layer-main input { width: 14px; height: 14px; margin: 0; accent-color: #0f766e; }
+.raster-layer-main svg { color: #7c3aed; }
+.raster-layer-main label > span { display: flex; flex-direction: column; gap: 2px; }
+.raster-layer-main strong,
+.raster-layer-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.raster-layer-main strong { color: #0f172a; font-size: 10px; }
+.raster-layer-main small { color: #64748b; font-size: 8px; }
+
+.raster-layer-actions {
+  display: flex;
+  gap: 3px;
+}
+
+.raster-layer-actions button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.raster-layer-actions button:hover:not(:disabled) { border-color: #e2e8f0; background: #f8fafc; color: #0f172a; }
+.raster-layer-actions button:last-child:hover:not(:disabled) { border-color: #fecaca; background: #fef2f2; color: #dc2626; }
+.raster-layer-actions button:disabled { color: #cbd5e1; cursor: not-allowed; }
+
+.raster-opacity-control {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 44px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #f1f5f9;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.raster-opacity-control input { width: 100%; min-width: 0; accent-color: #7c3aed; }
+.raster-opacity-control strong { color: #334155; font-size: 9px; text-align: right; }
 
 .primary-symbol-overview {
   cursor: default;

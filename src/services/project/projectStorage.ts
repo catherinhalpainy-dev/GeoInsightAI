@@ -76,6 +76,7 @@ function createRecentMetadata(
             project.data.primaryDataset.collection.features.length,
         overlayLayerCount: project.data.overlayLayers.length,
         analysisLayerCount: project.data.analysisResultLayers.length,
+        rasterLayerCount: project.data.rasterLayers.length,
     };
 }
 

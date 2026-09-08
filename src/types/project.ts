@@ -21,6 +21,7 @@ import type {
 } from "./layerStyle";
 import type {
     WorkspaceVectorLayer,
+    WorkspaceRasterLayer,
 } from "./mapLayer";
 import type {
     AttributeQuery,
@@ -43,6 +44,7 @@ export interface ProjectDataState {
     primaryDataset: LandUseDataset;
     overlayLayers: WorkspaceVectorLayer[];
     analysisResultLayers: AnalysisResultLayer[];
+    rasterLayers: WorkspaceRasterLayer[];
 }
 
 export type ProjectLayerStyle = Omit<
@@ -92,6 +94,7 @@ export interface RecentProjectMetadata extends ProjectMetadata {
     primaryFeatureCount: number;
     overlayLayerCount: number;
     analysisLayerCount: number;
+    rasterLayerCount?: number;
 }
 
 export type ProjectSaveStatus =
