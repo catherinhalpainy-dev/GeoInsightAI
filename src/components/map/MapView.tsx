@@ -5128,7 +5128,11 @@ export function MapView({
                 className="map-container"
             />
 
-            <MapLegend style={layerStyle} />
+            {(allCollection?.features.length ??
+                collection?.features.length ??
+                0) > 0 && (
+                <MapLegend style={layerStyle} />
+            )}
 
             <div className="map-runtime-info">
                 <span className="map-cursor-coordinate">

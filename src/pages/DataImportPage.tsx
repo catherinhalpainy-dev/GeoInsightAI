@@ -9,6 +9,10 @@ import {
 } from "react-router-dom";
 
 import {
+  Trash2,
+} from "lucide-react";
+
+import {
   useAppContext,
 } from "../app/AppProvider";
 
@@ -589,26 +593,26 @@ export function DataImportPage() {
 
           <div className="import-format-note">
             <strong>
-              当前格式支持
+              数据导入能力
             </strong>
 
             <div>
               <span>
-                GeoJSON
+                GeoJSON 主数据
               </span>
 
               <b className="supported">
-                已支持
+                当前页导入
               </b>
             </div>
 
             <div>
               <span>
-                CSV
+                CSV 点数据
               </span>
 
-              <b>
-                暂未支持
+              <b className="supported">
+                工作台追加
               </b>
             </div>
 
@@ -676,6 +680,7 @@ export function DataImportPage() {
                     type="button"
                     className="recent-project-delete"
                     aria-label={`删除本地工程 ${project.name}`}
+                    title="删除本地工程"
                     onClick={() => {
                       if (!window.confirm("仅删除浏览器中的本地工程，不会删除你已经导出的 .geoinsight 文件。确定继续？")) {
                         return;
@@ -685,7 +690,9 @@ export function DataImportPage() {
                         setProjectOpenError("删除本地工程失败。");
                       });
                     }}
-                  >删除</button>
+                  >
+                    <Trash2 size={15} strokeWidth={1.8} aria-hidden="true" />
+                  </button>
                 </article>
               ))}
               {recentProjects.length === 0 && <p>暂无本地工程记录</p>}

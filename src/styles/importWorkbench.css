@@ -259,24 +259,39 @@
 }
 
 .recent-project-delete {
+  display: grid;
+
   width: 26px;
   height: 26px;
+
+  place-items: center;
 
   padding: 0;
 
   border: 0;
 
+  border-radius: 6px;
+
   background: transparent;
 
   color: #98a2b3;
 
-  font-size: 15px;
+  cursor: pointer;
+
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .recent-project-delete:hover {
   background: #fff1f0;
 
   color: #b42318;
+}
+
+.recent-project-delete:focus-visible {
+  outline: 2px solid rgba(180, 35, 24, 0.28);
+  outline-offset: 2px;
 }
 
 .recent-project-list > p,
