@@ -1,0 +1,33 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "测试点A",
+                "type": "school"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.3646,
+                    30.5368
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "测试点B",
+                "type": "hospital"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.2805,
+                    30.5900
+                ]
+            }
+        }
+    ]
+}

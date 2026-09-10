@@ -328,6 +328,22 @@ const bufferResultSchema = z.object({
     featureCount: z.number().int().nonnegative().optional(),
 });
 
+const temporalConfigSchema = z.object({
+    enabled: z.boolean(),
+    field: z.string(),
+    type: z.enum(["year", "date", "datetime"]),
+    min: z.number().finite(),
+    max: z.number().finite(),
+    current: z.number().finite(),
+}).refine(
+    (config) => !config.enabled || (
+        config.field.trim().length > 0 &&
+        config.min <= config.current &&
+        config.current <= config.max
+    ),
+    { message: "启用的时间配置无效" },
+);
+
 export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
     format: z.literal(GEOINSIGHT_PROJECT_FORMAT),
     version: z.literal(GEOINSIGHT_PROJECT_VERSION),
@@ -374,5 +390,6 @@ export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
         }).nullable(),
         bufferResult: bufferResultSchema.nullable(),
         bufferSpatialQueryResult: spatialQueryResultSchema.nullable(),
+        temporalConfig: temporalConfigSchema.optional(),
     }),
 });

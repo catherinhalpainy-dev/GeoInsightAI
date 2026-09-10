@@ -1,0 +1,50 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2019-a", "landUseType": "residential", "areaM2": 9600, "districtCode": "110105", "builtYear": 2019 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.370, 39.910], [116.371, 39.910], [116.371, 39.911], [116.370, 39.911], [116.370, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2019-b", "landUseType": "industrial", "areaM2": 9600, "districtCode": "110105", "builtYear": 2019 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.372, 39.910], [116.373, 39.910], [116.373, 39.911], [116.372, 39.911], [116.372, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2020-a", "landUseType": "commercial", "areaM2": 9600, "districtCode": "110105", "builtYear": 2020 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.374, 39.910], [116.375, 39.910], [116.375, 39.911], [116.374, 39.911], [116.374, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2020-b", "landUseType": "green", "areaM2": 9600, "districtCode": "110105", "builtYear": 2020 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.376, 39.910], [116.377, 39.910], [116.377, 39.911], [116.376, 39.911], [116.376, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2021-a", "landUseType": "public", "areaM2": 9600, "districtCode": "110105", "builtYear": 2021 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.378, 39.910], [116.379, 39.910], [116.379, 39.911], [116.378, 39.911], [116.378, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2021-b", "landUseType": "transportation", "areaM2": 9600, "districtCode": "110105", "builtYear": 2021 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.380, 39.910], [116.381, 39.910], [116.381, 39.911], [116.380, 39.911], [116.380, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2022-a", "landUseType": "residential", "areaM2": 9600, "districtCode": "110105", "builtYear": 2022 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.382, 39.910], [116.383, 39.910], [116.383, 39.911], [116.382, 39.911], [116.382, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2022-b", "landUseType": "commercial", "areaM2": 9600, "districtCode": "110105", "builtYear": 2022 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.384, 39.910], [116.385, 39.910], [116.385, 39.911], [116.384, 39.911], [116.384, 39.910]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "temporal-2022-c", "landUseType": "green", "areaM2": 9600, "districtCode": "110105", "builtYear": 2022 },
+      "geometry": { "type": "Polygon", "coordinates": [[[116.386, 39.910], [116.387, 39.910], [116.387, 39.911], [116.386, 39.911], [116.386, 39.910]]] }
+    }
+  ]
+}

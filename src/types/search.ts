@@ -22,6 +22,7 @@ export type WorkspaceCommandId =
     | "open-geometry-editor"
     | "open-report-builder"
     | "open-data-sources"
+    | "open-temporal"
     | "open-agent"
     | "open-basemap"
     | "navigate-statistics"

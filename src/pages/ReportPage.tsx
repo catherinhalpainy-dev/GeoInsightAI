@@ -225,6 +225,11 @@ export function ReportPage() {
                     <span>快照：{new Date(snapshot.generatedAt).toLocaleString("zh-CN")}</span>
                     <span>Feature count：{snapshot.kpi.featureCount}</span>
                     <span>Filter：{snapshot.filterSummary.join("；")}</span>
+                    {snapshot.temporal?.enabled && (
+                        <span>
+                            Temporal：{snapshot.temporal.field} · {snapshot.temporal.current}
+                        </span>
+                    )}
                 </footer>
             </article>
         </section>

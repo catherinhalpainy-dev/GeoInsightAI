@@ -32,6 +32,8 @@ import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
 import { BatchEditPanel } from "../components/workspace/BatchEditPanel";
 import { GeometryEditPanel } from "../components/workspace/GeometryEditPanel";
 import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
+import { TemporalConfigPanel } from "../components/temporal/TemporalConfigPanel";
+import { TimelineControl } from "../components/temporal/TimelineControl";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -162,6 +164,17 @@ import type {
     ReportAiStatus,
     ReportSnapshotStatus,
 } from "../types/report";
+import {
+    DEFAULT_TEMPORAL_CONFIG,
+    type TemporalConfig,
+} from "../types/temporal";
+import { detectTemporalFields } from "../services/temporal/detectTemporalField";
+import {
+    filterFeaturesByTemporalConfig,
+    getAvailableTemporalValues,
+} from "../services/temporal/filterTemporalFeatures";
+import { calculateTemporalStatistics } from "../services/temporal/calculateTemporalStatistics";
+import { calculateTemporalChange } from "../services/temporal/calculateChange";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -393,6 +406,9 @@ export function WorkspacePage() {
         useState<WorkspaceVectorLayer[]>([]);
     const [rasterLayers, setRasterLayers] =
         useState<WorkspaceRasterLayer[]>([]);
+    const [temporalConfig, setTemporalConfig] = useState<TemporalConfig>(() => ({
+        ...(pendingProject?.workspace.temporalConfig ?? DEFAULT_TEMPORAL_CONFIG),
+    }));
     const [overlayImportError, setOverlayImportError] =
         useState<string | null>(null);
     const [overlayImporting, setOverlayImporting] =
@@ -1602,6 +1618,47 @@ export function WorkspacePage() {
 
 
     const dataset = state.dataset;
+    const temporalCandidates = useMemo(
+        () => dataset ? detectTemporalFields(dataset.collection) : [],
+        [dataset],
+    );
+    const temporalFeatures = useMemo(
+        () => filterFeaturesByTemporalConfig(filteredFeatures, temporalConfig),
+        [filteredFeatures, temporalConfig],
+    );
+    const temporalValues = useMemo(
+        () => getAvailableTemporalValues(filteredFeatures, temporalConfig),
+        [filteredFeatures, temporalConfig],
+    );
+    useEffect(() => {
+        if (
+            !temporalConfig.enabled ||
+            temporalValues.length === 0 ||
+            temporalValues.includes(temporalConfig.current)
+        ) {
+            return;
+        }
+
+        setTemporalConfig((previous) => ({
+            ...previous,
+            current: temporalValues[temporalValues.length - 1],
+        }));
+    }, [
+        temporalConfig,
+        temporalValues,
+    ]);
+    const temporalStatistics = useMemo(
+        () => temporalConfig.enabled
+            ? calculateTemporalStatistics(filteredFeatures, temporalConfig)
+            : null,
+        [filteredFeatures, temporalConfig],
+    );
+    const temporalChange = useMemo(
+        () => temporalConfig.enabled
+            ? calculateTemporalChange(filteredFeatures, temporalConfig)
+            : null,
+        [filteredFeatures, temporalConfig],
+    );
     const qualitySourceCollection = useMemo<
         DataQualityFeatureCollection | null
     >(
@@ -1644,6 +1701,13 @@ export function WorkspacePage() {
             },
             [filteredFeatures],
         );
+    const temporalCollection = useMemo<LandUseFeatureCollection>(
+        () => ({
+            type: "FeatureCollection",
+            features: temporalFeatures,
+        }),
+        [temporalFeatures],
+    );
     const geometryDraft = useMemo(
         () => createClosedPolygonGeometry(
             geometryEditor.draftCoordinates,
@@ -1689,7 +1753,7 @@ export function WorkspacePage() {
             }
 
             return createGraduatedClasses(
-                filteredFeatures,
+                temporalFeatures,
                 {
                     field:
                         layerStyle.graduatedField,
@@ -1705,7 +1769,7 @@ export function WorkspacePage() {
             );
         },
         [
-            filteredFeatures,
+            temporalFeatures,
             layerStyle.symbologyMode,
             layerStyle.graduatedField,
             layerStyle.classificationMethod,
@@ -1772,7 +1836,7 @@ export function WorkspacePage() {
                 projectName: projectMeta?.name ?? "未命名工程",
                 workspaceRevision,
                 dataset,
-                filteredFeatures,
+                filteredFeatures: temporalFeatures,
                 filters: state.filters,
                 attributeQuery: state.attributeQuery,
                 selectedFeatureIds,
@@ -1782,6 +1846,7 @@ export function WorkspacePage() {
                 analysisResultLayers,
                 dataQualityReport,
                 layerStyle: thematicLayerStyle,
+                temporalConfig,
                 mapState: { ...projectMapState, basemap },
                 mapCapture: {
                     dataUrl: mapCapture.dataUrl,
@@ -2006,6 +2071,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("report-builder");
             case "open-data-sources":
                 return openWorkspacePanelFromSearch("data-sources");
+            case "open-temporal":
+                return openWorkspacePanelFromSearch("temporal");
             case "open-agent":
                 return openWorkspacePanelFromSearch("agent");
             case "open-basemap":
@@ -2240,6 +2307,7 @@ export function WorkspacePage() {
                 bufferFeature,
                 bufferResult,
                 bufferSpatialQueryResult: spatialQueryResult,
+                temporalConfig,
             },
         }
         : null;
@@ -2322,6 +2390,9 @@ export function WorkspacePage() {
             project.workspace.bufferSpatialQueryResult,
         ));
         setSpatialQueryError(null);
+        setTemporalConfig({
+            ...(project.workspace.temporalConfig ?? DEFAULT_TEMPORAL_CONFIG),
+        });
         setActivePanel(null);
         setActiveTool("select");
         setMapViewCommand(null);
@@ -2372,6 +2443,7 @@ export function WorkspacePage() {
             rasterLayers,
             analysisResultLayers,
             basemap,
+            temporalConfig,
         ];
         const previousReferences = persistentReferencesRef.current;
         const changed = previousReferences !== null &&
@@ -2415,6 +2487,7 @@ export function WorkspacePage() {
         state.attributeQuery,
         state.dataset,
         state.filters,
+        temporalConfig,
     ]);
 
     if (!dataset ||
@@ -3885,7 +3958,7 @@ export function WorkspacePage() {
                         <p>
                             {dataset.name}
                             {" · "}
-                            当前 {filteredFeatures.length}
+                            当前 {temporalFeatures.length}
                             {" / "}
                             {totalFeatureCount} 条要素
                         </p>
@@ -3895,13 +3968,14 @@ export function WorkspacePage() {
                 <div className="workspace-map-wrapper">
                     <MapView
                         collection={
-                            filteredCollection
+                            temporalCollection
                         }
                         allCollection={
                             dataset.collection
                         }
                         interactionMode={activeTool}
                         layerStyle={thematicLayerStyle}
+                        temporalConfig={temporalConfig}
                         basemap={basemap}
                         restoreViewState={restoreViewState}
                         onViewStateChange={handleProjectMapStateChange}
@@ -4031,14 +4105,29 @@ export function WorkspacePage() {
 
                     />
 
-                    {filteredFeatures.length === 0 && (
+                    <TimelineControl
+                        config={temporalConfig}
+                        values={temporalValues}
+                        onCurrentChange={(current) => {
+                            setTemporalConfig((previous) => ({
+                                ...previous,
+                                current,
+                            }));
+                        }}
+                    />
+
+                    {temporalFeatures.length === 0 && (
                         <div className="map-empty-overlay">
                             <strong>
-                                当前筛选无匹配结果
+                                {temporalConfig.enabled
+                                    ? "当前时间无匹配结果"
+                                    : "当前筛选无匹配结果"}
                             </strong>
 
                             <span>
-                                请调整或清除筛选条件
+                                {temporalConfig.enabled
+                                    ? "请选择其它时间，或关闭时间过滤"
+                                    : "请调整或清除筛选条件"}
                             </span>
                         </div>
                     )}
@@ -4057,6 +4146,7 @@ export function WorkspacePage() {
                     overlayLayers={overlayLayers}
                     rasterLayers={rasterLayers}
                     analysisResultLayers={analysisResultLayers}
+                    temporalConfig={temporalConfig}
                     focusedLayerId={focusedLayerId}
                     onLayerStyleChange={(nextStyle) => {
                         setLayerStyle({
@@ -4321,6 +4411,17 @@ export function WorkspacePage() {
                     rasterLayers={rasterLayers}
                     onAddVectorLayer={addWorkspaceVectorLayer}
                     onAddRasterLayer={handleAddRasterLayer}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
+
+            {activePanel === "temporal" && (
+                <TemporalConfigPanel
+                    candidates={temporalCandidates}
+                    config={temporalConfig}
+                    statistics={temporalStatistics}
+                    change={temporalChange}
+                    onApply={setTemporalConfig}
                     onClose={() => setActivePanel(null)}
                 />
             )}

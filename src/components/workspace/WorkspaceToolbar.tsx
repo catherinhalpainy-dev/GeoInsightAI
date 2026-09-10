@@ -2,6 +2,7 @@ import {
   FilePlus2,
   FileText,
   Database,
+  Clock3,
   SquarePen,
   ShieldCheck,
   SquareDashed,
@@ -229,6 +230,20 @@ export function WorkspaceToolbar({
       >
         <Database size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>数据源</span>
+      </button>
+
+      <button
+        type="button"
+        className={
+          activePanel === "temporal"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("temporal")}
+        title="配置时间字段并按时间浏览主数据"
+      >
+        <Clock3 size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>时间分析</span>
       </button>
 
       <button

@@ -17,6 +17,7 @@ export type WorkspacePanel =
     | "geometry-edit"
     | "report-builder"
     | "data-sources"
+    | "temporal"
     | "agent"
     | null;
 

@@ -23,6 +23,8 @@ import type {
     ReportMapSnapshot,
     ReportSnapshot,
 } from "../../types/report";
+import type { TemporalConfig } from "../../types/temporal";
+import { formatTemporalValue } from "../temporal/formatTemporalValue";
 
 export interface CreateReportSnapshotInput {
     projectName: string;
@@ -38,6 +40,7 @@ export interface CreateReportSnapshotInput {
     analysisResultLayers: readonly AnalysisResultLayer[];
     dataQualityReport: DataQualityReport | null;
     layerStyle: LayerStyle;
+    temporalConfig: TemporalConfig;
     mapState: ProjectMapState;
     mapCapture: {
         dataUrl: string | null;
@@ -49,6 +52,7 @@ export interface CreateReportSnapshotInput {
 function createFilterSummary(
     filters: LandUseFilters,
     attributeQuery: AttributeQuery | null,
+    temporalConfig: TemporalConfig,
 ) {
     const summary: string[] = [];
 
@@ -74,6 +78,15 @@ function createFilterSummary(
         if (querySummary) {
             summary.push(`高级查询：${querySummary}`);
         }
+    }
+
+    if (temporalConfig.enabled) {
+        summary.push(
+            `时间：${temporalConfig.field} = ${formatTemporalValue(
+                temporalConfig.current,
+                temporalConfig.type,
+            )}`,
+        );
     }
 
     return summary.length > 0
@@ -114,6 +127,7 @@ export function createReportSnapshot(
         filterSummary: createFilterSummary(
             input.filters,
             input.attributeQuery,
+            input.temporalConfig,
         ),
         kpi: {
             featureCount: summary.totalFeatureCount,
@@ -172,6 +186,12 @@ export function createReportSnapshot(
                 colorRamp: input.layerStyle.colorRamp,
             }
             : { mode: input.layerStyle.symbologyMode },
+        temporal: input.temporalConfig.enabled
+            ? {
+                ...input.temporalConfig,
+                featureCount: summary.totalFeatureCount,
+            }
+            : undefined,
         map,
     };
 }
@@ -193,5 +213,6 @@ export function createAIReportContext(snapshot: ReportSnapshot) {
         },
         dataQuality: { ...snapshot.dataQuality },
         symbology: { ...snapshot.symbology },
+        temporal: snapshot.temporal ? { ...snapshot.temporal } : undefined,
     };
 }

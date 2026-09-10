@@ -58,6 +58,7 @@ import type {
 import type {
     MapCaptureResult,
 } from "../../types/report";
+import type { TemporalConfig } from "../../types/temporal";
 
 import type {
     LayerStyle,
@@ -241,6 +242,8 @@ interface MapViewProps {
 
     layerStyle:
     LayerStyle;
+
+    temporalConfig?: TemporalConfig;
 
     basemap?:
     BasemapType;
@@ -612,6 +615,28 @@ function applyLayerStyle(
                 selectionVisible,
             );
         }
+    }
+}
+
+function applyTemporalLayerFilter(
+    map: maplibregl.Map,
+    config: TemporalConfig | undefined,
+) {
+    const filter: FilterSpecification | null =
+        config?.enabled && config.field && config.type === "year"
+            ? [
+                "==",
+                ["to-number", ["get", config.field]],
+                config.current,
+            ]
+            : null;
+
+    if (map.getLayer(LAND_USE_FILL_LAYER_ID)) {
+        map.setFilter(LAND_USE_FILL_LAYER_ID, filter);
+    }
+
+    if (map.getLayer(LAND_USE_OUTLINE_LAYER_ID)) {
+        map.setFilter(LAND_USE_OUTLINE_LAYER_ID, filter);
     }
 }
 
@@ -2886,6 +2911,7 @@ export function MapView({
     allCollection,
     interactionMode,
     layerStyle,
+    temporalConfig,
     basemap = "dark",
     selectedFeatureId = null,
     selectedFeatureIds = [],
@@ -2965,6 +2991,7 @@ export function MapView({
 
     const latestLayerStyleRef =
         useRef(layerStyle);
+    const latestTemporalConfigRef = useRef(temporalConfig);
 
     const latestOnFeatureSelectRef =
         useRef(onFeatureSelect);
@@ -3854,6 +3881,10 @@ export function MapView({
                     currentCollection,
                     latestLayerStyleRef.current,
                 );
+                applyTemporalLayerFilter(
+                    map,
+                    latestTemporalConfigRef.current,
+                );
 
                 syncExternalRasterLayers(
                     map,
@@ -4455,6 +4486,10 @@ export function MapView({
                     ).setData(
                         collection,
                     );
+                    applyTemporalLayerFilter(
+                        map,
+                        latestTemporalConfigRef.current,
+                    );
 
                     syncExternalRasterLayers(
                         map,
@@ -4496,6 +4531,10 @@ export function MapView({
                     map,
                     collection,
                     latestLayerStyleRef.current,
+                );
+                applyTemporalLayerFilter(
+                    map,
+                    latestTemporalConfigRef.current,
                 );
 
                 syncExternalRasterLayers(
@@ -4658,6 +4697,17 @@ export function MapView({
     }, [
         layerStyle,
     ]);
+
+    useEffect(() => {
+        latestTemporalConfigRef.current = temporalConfig;
+        const map = mapRef.current;
+
+        if (!map || !map.isStyleLoaded()) {
+            return;
+        }
+
+        applyTemporalLayerFilter(map, temporalConfig);
+    }, [temporalConfig]);
 
 
     /*

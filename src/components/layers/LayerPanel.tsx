@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   Circle,
+  Clock3,
   Download,
   LocateFixed,
   Palette,
@@ -35,6 +36,7 @@ import type {
   WorkspaceVectorLayer,
   WorkspaceRasterLayer,
 } from "../../types/mapLayer";
+import type { TemporalConfig } from "../../types/temporal";
 import {
   calculateLandUseStatistics,
 } from "../../utils/landUseStatistics";
@@ -46,6 +48,7 @@ interface LayerPanelProps {
   overlayLayers: WorkspaceVectorLayer[];
   rasterLayers: WorkspaceRasterLayer[];
   analysisResultLayers: AnalysisResultLayer[];
+  temporalConfig: TemporalConfig;
   focusedLayerId?: string | null;
   onLayerStyleChange: (
     next: LayerStyle,
@@ -147,6 +150,7 @@ export function LayerPanel({
   overlayLayers,
   rasterLayers,
   analysisResultLayers,
+  temporalConfig,
   focusedLayerId = null,
   onLayerStyleChange,
   onOverlayVisibilityChange,
@@ -253,6 +257,12 @@ export function LayerPanel({
                     {totalFeatureCount.toLocaleString("zh-CN")}
                     {" features"}
                   </small>
+                  {temporalConfig.enabled && (
+                    <small className="workspace-layer-temporal">
+                      <Clock3 size={10} aria-hidden="true" />
+                      Temporal · {temporalConfig.field}
+                    </small>
+                  )}
                 </span>
               </label>
               <button

@@ -1,0 +1,40 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "area001",
+                "name": "武汉测试区域A",
+                "type": "residential"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            114.30,
+                            30.50
+                        ],
+                        [
+                            114.40,
+                            30.50
+                        ],
+                        [
+                            114.40,
+                            30.60
+                        ],
+                        [
+                            114.30,
+                            30.60
+                        ],
+                        [
+                            114.30,
+                            30.50
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

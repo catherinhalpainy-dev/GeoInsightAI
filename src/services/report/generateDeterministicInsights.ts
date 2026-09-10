@@ -32,6 +32,14 @@ export function generateDeterministicInsights(
         });
     }
 
+    if (snapshot.temporal?.enabled) {
+        insights.push({
+            category: "overview",
+            title: "时间切片",
+            content: `当前报告基于时间字段 ${snapshot.temporal.field} 的精确时间切片，包含 ${snapshot.temporal.featureCount.toLocaleString("zh-CN")} 个地块。`,
+        });
+    }
+
     if (snapshot.spatialAnalysis.spatialQueryFeatureCount > 0) {
         insights.push({
             category: "spatial",
@@ -89,6 +97,12 @@ export function createReportMethodology(
         );
     } else if (snapshot.symbology.mode === "categorized") {
         methods.push("专题制图采用用地类型唯一值分类。");
+    }
+
+    if (snapshot.temporal?.enabled) {
+        methods.push(
+            `时间分析采用 ${snapshot.temporal.field} 字段的精确匹配，只显示当前时间值对应的要素；缺少或无效时间值的要素不会进入该时间切片。`,
+        );
     }
 
     if (snapshot.spatialAnalysis.hasBuffer) {

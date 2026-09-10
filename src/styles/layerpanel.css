@@ -509,6 +509,13 @@
   white-space: nowrap;
 }
 
+.workspace-layer-copy .workspace-layer-temporal {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #0f766e;
+}
+
 .workspace-layer-style-shortcut,
 .overlay-layer-actions button {
   display: grid;

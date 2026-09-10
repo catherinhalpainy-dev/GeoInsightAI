@@ -134,13 +134,16 @@ export function buildWorkspaceSearchIndex(
                 Number.isFinite(properties.areaM2)
                 ? `${properties.areaM2.toLocaleString("zh-CN")} m²`
                 : "面积未知";
+            const temporalLabel = properties.builtYear === null
+                ? ""
+                : ` · Year: ${properties.builtYear}`;
 
             documents.push(createDocument(
                 {
                     type: "feature",
                     id: `feature:primary:${primaryDataset.id}:${featureIndex}`,
                     title: properties.id,
-                    subtitle: `${landUseLabel} · ${areaLabel}`,
+                    subtitle: `${landUseLabel} · ${areaLabel}${temporalLabel}`,
                     sourceType: "primary",
                     layerId: primaryDataset.id,
                     featureId: properties.id,

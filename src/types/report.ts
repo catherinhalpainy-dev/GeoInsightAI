@@ -5,6 +5,7 @@ import type {
     GraduatedField,
     SymbologyMode,
 } from "./layerStyle";
+import type { TemporalFieldType } from "./temporal";
 
 export type ReportSectionType =
     | "executive-summary"
@@ -88,6 +89,16 @@ export interface ReportSymbologySnapshot {
     colorRamp?: ColorRampName;
 }
 
+export interface ReportTemporalSnapshot {
+    enabled: boolean;
+    field: string;
+    type: TemporalFieldType;
+    min: number;
+    max: number;
+    current: number;
+    featureCount: number;
+}
+
 export interface ReportSnapshot {
     id: string;
     generatedAt: number;
@@ -101,6 +112,7 @@ export interface ReportSnapshot {
     spatialAnalysis: ReportSpatialAnalysisSnapshot;
     dataQuality: ReportDataQualitySnapshot;
     symbology: ReportSymbologySnapshot;
+    temporal?: ReportTemporalSnapshot;
     map: ReportMapSnapshot;
 }
 
@@ -151,6 +163,7 @@ export interface AIReportContext {
     spatialAnalysis: ReportSpatialAnalysisSnapshot;
     dataQuality: ReportDataQualitySnapshot;
     symbology: ReportSymbologySnapshot;
+    temporal?: ReportTemporalSnapshot;
 }
 
 export interface MapCaptureResult {

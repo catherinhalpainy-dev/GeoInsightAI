@@ -56,6 +56,16 @@ const symbologySchema = z.object({
     colorRamp: z.enum(["teal", "blue", "green", "orange", "purple"]).optional(),
 }).strict();
 
+const temporalSchema = z.object({
+    enabled: z.boolean(),
+    field: z.string().min(1).max(120),
+    type: z.enum(["year", "date", "datetime"]),
+    min: finiteNumber,
+    max: finiteNumber,
+    current: finiteNumber,
+    featureCount: z.number().int().nonnegative(),
+}).strict();
+
 export const AIReportContextSchema = z.object({
     projectName: z.string().min(1).max(160),
     datasetName: z.string().min(1).max(160),
@@ -66,6 +76,7 @@ export const AIReportContextSchema = z.object({
     spatialAnalysis: spatialAnalysisSchema,
     dataQuality: dataQualitySchema,
     symbology: symbologySchema,
+    temporal: temporalSchema.optional(),
 }).strict();
 
 export const ReportInsightResponseSchema = z.object({

@@ -94,6 +94,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-temporal",
+        label: "时间分析",
+        description: "配置时间字段并打开时间轴",
+        keywords: ["temporal", "timeline", "time", "year", "时间分析", "时间轴"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-report-builder",
         label: "生成报告",
         description: "打开分析报告构建中心",
