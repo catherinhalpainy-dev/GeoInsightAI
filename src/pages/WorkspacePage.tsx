@@ -5,7 +5,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
@@ -34,6 +34,7 @@ import { GeometryEditPanel } from "../components/workspace/GeometryEditPanel";
 import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
 import { TemporalConfigPanel } from "../components/temporal/TemporalConfigPanel";
 import { TimelineControl } from "../components/temporal/TimelineControl";
+import { SpatialStatisticsPanel } from "../components/workspace/SpatialStatisticsPanel";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -175,6 +176,23 @@ import {
 } from "../services/temporal/filterTemporalFeatures";
 import { calculateTemporalStatistics } from "../services/temporal/calculateTemporalStatistics";
 import { calculateTemporalChange } from "../services/temporal/calculateChange";
+import type {
+    SpatialRepresentativePointCollection,
+    SpatialStatisticsConfig,
+    SpatialStatisticsFeatureCollection,
+    SpatialStatisticsInput,
+    SpatialStatisticsInputOption,
+    SpatialStatisticsRunRequest,
+    SpatialStatisticsSummary,
+} from "../types/spatialStatistics";
+import {
+    DEFAULT_SPATIAL_STATISTICS_CONFIG,
+} from "../types/spatialStatistics";
+import {
+    createHeatmapAnalysis,
+    createHexbinAnalysis,
+    supportsAreaWeight,
+} from "../services/gis/spatialStatistics";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -246,6 +264,12 @@ function areAoiFeaturesEqual(
     );
 }
 
+function getSpatialStatisticsInputKey(input: SpatialStatisticsInput) {
+    return typeof input === "string"
+        ? input
+        : `overlay:${input.layerId}`;
+}
+
 
 export function WorkspacePage() {
     const navigate = useNavigate();
@@ -314,6 +338,7 @@ export function WorkspacePage() {
             | "fit-overlay"
             | "fit-quality-issue"
             | "fit-search-layer"
+            | "fit-spatial-cell"
             | "jump-to-coordinate"
         >,
     ) {
@@ -409,6 +434,20 @@ export function WorkspacePage() {
     const [temporalConfig, setTemporalConfig] = useState<TemporalConfig>(() => ({
         ...(pendingProject?.workspace.temporalConfig ?? DEFAULT_TEMPORAL_CONFIG),
     }));
+    const [spatialStatisticsConfig, setSpatialStatisticsConfig] =
+        useState<SpatialStatisticsConfig>(DEFAULT_SPATIAL_STATISTICS_CONFIG);
+    const [spatialHeatmapData, setSpatialHeatmapData] =
+        useState<SpatialRepresentativePointCollection | null>(null);
+    const [spatialStatisticsSummary, setSpatialStatisticsSummary] =
+        useState<SpatialStatisticsSummary | null>(null);
+    const [spatialStatisticsError, setSpatialStatisticsError] =
+        useState<string | null>(null);
+    const [spatialStatisticsAnalyzing, setSpatialStatisticsAnalyzing] =
+        useState(false);
+    const [activeHeatmapRequest, setActiveHeatmapRequest] =
+        useState<SpatialStatisticsRunRequest | null>(null);
+    const [spatialStatisticsResultLayerId, setSpatialStatisticsResultLayerId] =
+        useState<string | null>(null);
     const [overlayImportError, setOverlayImportError] =
         useState<string | null>(null);
     const [overlayImporting, setOverlayImporting] =
@@ -978,6 +1017,10 @@ export function WorkspacePage() {
                     ? null
                     : previous,
         );
+        if (spatialStatisticsResultLayerId === layerId) {
+            setSpatialStatisticsResultLayerId(null);
+            setSpatialStatisticsSummary(null);
+        }
     }
 
     function handleExportAnalysisLayer(
@@ -1659,6 +1702,236 @@ export function WorkspacePage() {
             : null,
         [filteredFeatures, temporalConfig],
     );
+    const temporalBufferQueryFeatures = useMemo(
+        () => filterFeaturesByTemporalConfig(spatialQueryFeatures, temporalConfig),
+        [spatialQueryFeatures, temporalConfig],
+    );
+    const temporalAoiQueryFeatures = useMemo(
+        () => filterFeaturesByTemporalConfig(aoiQueryFeatures, temporalConfig),
+        [aoiQueryFeatures, temporalConfig],
+    );
+    const spatialStatisticsSources = useMemo(() => {
+        const sources = new Map<string, {
+            collection: SpatialStatisticsFeatureCollection;
+            sourceLayerId: string;
+            input: SpatialStatisticsInput;
+            label: string;
+        }>();
+
+        sources.set("filtered-primary", {
+            collection: {
+                type: "FeatureCollection",
+                features: temporalFeatures,
+            },
+            sourceLayerId: dataset?.id ?? "primary",
+            input: "filtered-primary",
+            label: temporalConfig.enabled
+                ? "当前筛选结果（含时间切片）"
+                : "当前筛选结果",
+        });
+
+        if (spatialQueryResult) {
+            sources.set("buffer-query", {
+                collection: {
+                    type: "FeatureCollection",
+                    features: temporalBufferQueryFeatures,
+                },
+                sourceLayerId: "buffer-query",
+                input: "buffer-query",
+                label: "Buffer 查询结果",
+            });
+        }
+
+        if (aoiAnalysisResult) {
+            sources.set("aoi-query", {
+                collection: {
+                    type: "FeatureCollection",
+                    features: temporalAoiQueryFeatures,
+                },
+                sourceLayerId: "aoi-query",
+                input: "aoi-query",
+                label: "AOI 查询结果",
+            });
+        }
+
+        overlayLayers
+            .filter((layer) => layer.geometryKind === "point")
+            .forEach((layer) => {
+                const input = {
+                    type: "overlay" as const,
+                    layerId: layer.id,
+                };
+                sources.set(getSpatialStatisticsInputKey(input), {
+                    collection: layer.collection,
+                    sourceLayerId: layer.id,
+                    input,
+                    label: layer.name,
+                });
+            });
+
+        return sources;
+    }, [
+        aoiAnalysisResult,
+        dataset?.id,
+        overlayLayers,
+        spatialQueryResult,
+        temporalAoiQueryFeatures,
+        temporalBufferQueryFeatures,
+        temporalConfig.enabled,
+        temporalFeatures,
+    ]);
+    const spatialStatisticsInputOptions = useMemo<SpatialStatisticsInputOption[]>(
+        () => [...spatialStatisticsSources.entries()].map(([key, source]) => ({
+            key,
+            input: source.input,
+            label: source.label,
+            featureCount: source.collection.features.length,
+            supportsAreaWeight: supportsAreaWeight(source.collection),
+        })),
+        [spatialStatisticsSources],
+    );
+    const resolveSpatialStatisticsInput = useCallback(
+        (input: SpatialStatisticsInput) => {
+            const source = spatialStatisticsSources.get(
+                getSpatialStatisticsInputKey(input),
+            );
+
+            if (source) {
+                return source;
+            }
+
+            if (input === "buffer-query") {
+                throw new Error("当前没有可用的 Buffer 查询结果。");
+            }
+
+            if (input === "aoi-query") {
+                throw new Error("当前没有可用的 AOI 查询结果。");
+            }
+
+            if (typeof input !== "string") {
+                throw new Error("所选 Point Overlay 已被删除或不可用。");
+            }
+
+            throw new Error("当前筛选结果不可用。");
+        },
+        [spatialStatisticsSources],
+    );
+
+    useEffect(() => {
+        if (!activeHeatmapRequest) {
+            return;
+        }
+
+        try {
+            const source = resolveSpatialStatisticsInput(activeHeatmapRequest.input);
+            const analysis = createHeatmapAnalysis(source.collection, {
+                sourceLayerId: source.sourceLayerId,
+                weightMode: activeHeatmapRequest.config.weightMode,
+            });
+
+            setSpatialStatisticsConfig(activeHeatmapRequest.config);
+            setSpatialHeatmapData(analysis.points);
+            setSpatialStatisticsSummary(analysis.summary);
+            setSpatialStatisticsError(null);
+            setSpatialStatisticsResultLayerId(null);
+        } catch (error) {
+            setSpatialHeatmapData(null);
+            setSpatialStatisticsSummary(null);
+            setSpatialStatisticsError(
+                error instanceof Error ? error.message : "密度热力图生成失败。",
+            );
+        } finally {
+            setSpatialStatisticsAnalyzing(false);
+        }
+    }, [activeHeatmapRequest, resolveSpatialStatisticsInput]);
+
+    async function handleRunSpatialStatistics(request: SpatialStatisticsRunRequest) {
+        setSpatialStatisticsError(null);
+        setSpatialStatisticsAnalyzing(true);
+
+        if (request.config.method === "heatmap") {
+            setActiveHeatmapRequest(request);
+            return;
+        }
+
+        await new Promise<void>((resolve) => {
+            window.requestAnimationFrame(() => resolve());
+        });
+
+        try {
+            const source = resolveSpatialStatisticsInput(request.input);
+            const analysis = createHexbinAnalysis(source.collection, {
+                sourceLayerId: source.sourceLayerId,
+                weightMode: request.config.weightMode,
+                cellSizeKm: request.config.cellSizeKm,
+            });
+            const createdAt = Date.now();
+            const temporalLabel = temporalConfig.enabled
+                ? ` · ${temporalConfig.current}`
+                : "";
+            const weightLabel = request.config.weightMode === "area"
+                ? "Area"
+                : "Count";
+            const layerId = `analysis-spatial-hexbin-${createdAt}-${crypto.randomUUID()}`;
+            const layer: AnalysisResultLayer = {
+                id: layerId,
+                name: `空间热点${temporalLabel} · ${request.config.cellSizeKm} km · ${weightLabel}`,
+                operation: "spatial-hexbin",
+                geometryType: "Polygon",
+                visible: true,
+                createdAt,
+                featureCount: analysis.collection.features.length,
+                collection: analysis.collection,
+                metadata: {
+                    method: "hexbin",
+                    inputSource: request.input,
+                    weightMode: request.config.weightMode,
+                    cellSizeKm: request.config.cellSizeKm,
+                    ...(temporalConfig.enabled
+                        ? { temporalValue: temporalConfig.current }
+                        : {}),
+                    createdFromFeatureCount: analysis.summary.inputFeatureCount,
+                },
+            };
+
+            setAnalysisResultLayers((previous) => [...previous, layer]);
+            setSpatialStatisticsConfig(request.config);
+            setSpatialStatisticsSummary(analysis.summary);
+            setSpatialStatisticsResultLayerId(layerId);
+            setSpatialStatisticsError(null);
+            setSpatialHeatmapData(null);
+            setActiveHeatmapRequest(null);
+        } catch (error) {
+            setSpatialStatisticsSummary(null);
+            setSpatialStatisticsError(
+                error instanceof Error ? error.message : "六边形聚合分析失败。",
+            );
+        } finally {
+            setSpatialStatisticsAnalyzing(false);
+        }
+    }
+
+    function handleClearSpatialHeatmap() {
+        setActiveHeatmapRequest(null);
+        setSpatialHeatmapData(null);
+
+        if (spatialStatisticsSummary?.method === "heatmap") {
+            setSpatialStatisticsSummary(null);
+        }
+    }
+
+    function handleFitSpatialHotspot(cellId: string) {
+        if (!spatialStatisticsResultLayerId) {
+            return;
+        }
+
+        setMapViewCommand((previous) => ({
+            type: "fit-spatial-cell",
+            requestId: (previous?.requestId ?? 0) + 1,
+            layerId: spatialStatisticsResultLayerId,
+            cellId,
+        }));
+    }
     const qualitySourceCollection = useMemo<
         DataQualityFeatureCollection | null
     >(
@@ -1847,6 +2120,12 @@ export function WorkspacePage() {
                 dataQualityReport,
                 layerStyle: thematicLayerStyle,
                 temporalConfig,
+                spatialStatistics: spatialStatisticsSummary
+                    ? {
+                        config: spatialStatisticsConfig,
+                        summary: spatialStatisticsSummary,
+                    }
+                    : null,
                 mapState: { ...projectMapState, basemap },
                 mapCapture: {
                     dataUrl: mapCapture.dataUrl,
@@ -2073,6 +2352,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("data-sources");
             case "open-temporal":
                 return openWorkspacePanelFromSearch("temporal");
+            case "open-spatial-statistics":
+                return openWorkspacePanelFromSearch("spatial-statistics");
             case "open-agent":
                 return openWorkspacePanelFromSearch("agent");
             case "open-basemap":
@@ -3258,14 +3539,16 @@ export function WorkspacePage() {
             aoiMode === "completed" && aoiPolygon !== null,
         bufferQueryFeatureCount: spatialQueryFeatures.length,
         aoiQueryFeatureCount: aoiQueryFeatures.length,
-        analysisLayers: analysisResultLayers.map(
-            (layer) => ({
+        analysisLayers: analysisResultLayers.flatMap(
+            (layer) => layer.operation === "spatial-hexbin"
+                ? []
+                : [{
                 id: layer.id,
                 name: layer.name,
                 operation: layer.operation,
                 featureCount: layer.featureCount,
                 visible: layer.visible,
-            }),
+                }],
         ),
         overlayLayers: overlayLayers.map(
             (layer) => ({
@@ -4011,6 +4294,10 @@ export function WorkspacePage() {
 
                         analysisResultLayers={analysisResultLayers}
 
+                        spatialHeatmapData={spatialHeatmapData}
+
+                        spatialStatisticsConfig={spatialStatisticsConfig}
+
                         overlayLayers={overlayLayers}
 
                         rasterLayers={rasterLayers}
@@ -4422,6 +4709,21 @@ export function WorkspacePage() {
                     statistics={temporalStatistics}
                     change={temporalChange}
                     onApply={setTemporalConfig}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
+
+            {activePanel === "spatial-statistics" && (
+                <SpatialStatisticsPanel
+                    inputs={spatialStatisticsInputOptions}
+                    config={spatialStatisticsConfig}
+                    summary={spatialStatisticsSummary}
+                    analyzing={spatialStatisticsAnalyzing}
+                    error={spatialStatisticsError}
+                    heatmapVisible={spatialHeatmapData !== null}
+                    onRun={handleRunSpatialStatistics}
+                    onClearHeatmap={handleClearSpatialHeatmap}
+                    onFitHotspot={handleFitSpatialHotspot}
                     onClose={() => setActivePanel(null)}
                 />
             )}

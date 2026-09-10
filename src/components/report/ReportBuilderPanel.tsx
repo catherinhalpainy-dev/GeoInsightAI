@@ -48,6 +48,7 @@ const SECTION_DEFINITIONS: readonly {
     { type: "land-use-distribution", title: "用地类型分布" },
     { type: "area-analysis", title: "面积分析" },
     { type: "spatial-analysis", title: "空间分析结果" },
+    { type: "spatial-statistics", title: "空间统计" },
     { type: "data-quality", title: "数据质量" },
     { type: "analysis-layers", title: "分析结果图层" },
     { type: "methodology", title: "方法说明" },

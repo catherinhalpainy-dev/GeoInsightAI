@@ -123,6 +123,38 @@ function renderSection(
                 </section>
             );
         }
+        case "spatial-statistics": {
+            const spatial = snapshot.spatialStatistics;
+
+            return (
+                <section className="report-section" key={section.id}>
+                    <h2>{heading}</h2>
+                    {spatial ? (
+                        <>
+                            <dl className="report-analysis-metrics">
+                                <div>
+                                    <dt>分析方法</dt>
+                                    <dd>{spatial.method === "hexbin" ? "六边形网格聚合" : "密度热力图"}</dd>
+                                </div>
+                                <div><dt>输入要素</dt><dd>{spatial.inputFeatureCount.toLocaleString("zh-CN")}</dd></div>
+                                <div><dt>代表点</dt><dd>{spatial.analysisPointCount.toLocaleString("zh-CN")}</dd></div>
+                                <div><dt>权重</dt><dd>{spatial.weightMode === "area" ? "面积" : "要素数量"}</dd></div>
+                                {spatial.method === "hexbin" && (
+                                    <>
+                                        <div><dt>网格尺寸</dt><dd>{spatial.cellSizeKm} km</dd></div>
+                                        <div><dt>有效网格</dt><dd>{spatial.occupiedCellCount ?? 0}</dd></div>
+                                        <div><dt>最高网格</dt><dd>{(spatial.maxCellValue ?? 0).toLocaleString("zh-CN")} · {((spatial.maxCellShare ?? 0) * 100).toFixed(1)}%</dd></div>
+                                    </>
+                                )}
+                            </dl>
+                            <p>
+                                当前分析基于代表点密度或网格聚合，不构成 Getis-Ord Gi* 等统计显著性热点检验。
+                            </p>
+                        </>
+                    ) : <p>快照生成时未包含空间统计结果。</p>}
+                </section>
+            );
+        }
         case "data-quality":
             return snapshot.dataQuality.available ? (
                 <section className="report-section" key={section.id}>

@@ -24,6 +24,10 @@ import type {
     ReportSnapshot,
 } from "../../types/report";
 import type { TemporalConfig } from "../../types/temporal";
+import type {
+    SpatialStatisticsConfig,
+    SpatialStatisticsSummary,
+} from "../../types/spatialStatistics";
 import { formatTemporalValue } from "../temporal/formatTemporalValue";
 
 export interface CreateReportSnapshotInput {
@@ -41,6 +45,10 @@ export interface CreateReportSnapshotInput {
     dataQualityReport: DataQualityReport | null;
     layerStyle: LayerStyle;
     temporalConfig: TemporalConfig;
+    spatialStatistics: {
+        config: SpatialStatisticsConfig;
+        summary: SpatialStatisticsSummary;
+    } | null;
     mapState: ProjectMapState;
     mapCapture: {
         dataUrl: string | null;
@@ -192,6 +200,30 @@ export function createReportSnapshot(
                 featureCount: summary.totalFeatureCount,
             }
             : undefined,
+        spatialStatistics: input.spatialStatistics
+            ? {
+                method: input.spatialStatistics.summary.method,
+                inputFeatureCount:
+                    input.spatialStatistics.summary.inputFeatureCount,
+                analysisPointCount:
+                    input.spatialStatistics.summary.analysisPointCount,
+                weightMode: input.spatialStatistics.summary.weightMode,
+                ...(input.spatialStatistics.summary.method === "hexbin"
+                    ? {
+                        cellSizeKm: input.spatialStatistics.config.cellSizeKm,
+                        occupiedCellCount:
+                            input.spatialStatistics.summary.occupiedCellCount,
+                        maxCellValue:
+                            input.spatialStatistics.summary.maxCellValue,
+                        maxCellShare:
+                            input.spatialStatistics.summary.maxCellShare,
+                    }
+                    : {}),
+                meanCenter: input.spatialStatistics.summary.meanCenter
+                    ? [...input.spatialStatistics.summary.meanCenter]
+                    : null,
+            }
+            : undefined,
         map,
     };
 }
@@ -214,5 +246,16 @@ export function createAIReportContext(snapshot: ReportSnapshot) {
         dataQuality: { ...snapshot.dataQuality },
         symbology: { ...snapshot.symbology },
         temporal: snapshot.temporal ? { ...snapshot.temporal } : undefined,
+        spatialStatistics: snapshot.spatialStatistics
+            ? {
+                ...snapshot.spatialStatistics,
+                meanCenter: snapshot.spatialStatistics.meanCenter
+                    ? [
+                        snapshot.spatialStatistics.meanCenter[0],
+                        snapshot.spatialStatistics.meanCenter[1],
+                    ] as [number, number]
+                    : null,
+            }
+            : undefined,
     };
 }

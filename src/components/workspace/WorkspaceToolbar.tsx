@@ -3,6 +3,7 @@ import {
   FileText,
   Database,
   Clock3,
+  ChartScatter,
   SquarePen,
   ShieldCheck,
   SquareDashed,
@@ -244,6 +245,20 @@ export function WorkspaceToolbar({
       >
         <Clock3 size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>时间分析</span>
+      </button>
+
+      <button
+        type="button"
+        className={
+          activePanel === "spatial-statistics"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("spatial-statistics")}
+        title="生成密度热力图或六边形聚合结果"
+      >
+        <ChartScatter size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>空间统计</span>
       </button>
 
       <button

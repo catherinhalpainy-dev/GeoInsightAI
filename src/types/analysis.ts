@@ -11,6 +11,11 @@ import type {
     LandUseProperties,
     LandUseType,
 } from "./landUse";
+import type {
+    SpatialHexbinProperties,
+    SpatialStatisticsInput,
+    SpatialWeightMode,
+} from "./spatialStatistics";
 
 export interface BufferAnalysisResult {
     distance: number;
@@ -56,6 +61,10 @@ export type GeoprocessingOperation =
     | "dissolve"
     | "centroid";
 
+export type AnalysisOperation =
+    | GeoprocessingOperation
+    | "spatial-hexbin";
+
 export type GeoprocessingInputSource =
     | "current-filtered"
     | "aoi-query"
@@ -94,7 +103,8 @@ export interface DissolveResultProperties {
 export type AnalysisResultProperties =
     | IntersectionResultProperties
     | DissolveResultProperties
-    | CentroidResultProperties;
+    | CentroidResultProperties
+    | SpatialHexbinProperties;
 
 export type AnalysisResultGeometry =
     | Point
@@ -115,12 +125,20 @@ export type AnalysisResultFeatureCollection =
 export interface AnalysisResultLayer {
     id: string;
     name: string;
-    operation: GeoprocessingOperation;
+    operation: AnalysisOperation;
     geometryType: AnalysisResultGeometryType;
     visible: boolean;
     createdAt: number;
     featureCount: number;
     collection: AnalysisResultFeatureCollection;
+    metadata?: {
+        method: "hexbin";
+        inputSource: SpatialStatisticsInput;
+        weightMode: SpatialWeightMode;
+        cellSizeKm: number;
+        temporalValue?: number;
+        createdFromFeatureCount: number;
+    };
 }
 
 export interface GeoprocessingRunRequest {

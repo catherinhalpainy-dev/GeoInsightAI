@@ -62,6 +62,18 @@ export function generateDeterministicInsights(
         });
     }
 
+    if (snapshot.spatialStatistics) {
+        const spatial = snapshot.spatialStatistics;
+
+        insights.push({
+            category: "spatial",
+            title: spatial.method === "hexbin" ? "聚合热点概况" : "密度分析概况",
+            content: spatial.method === "hexbin"
+                ? `当前六边形网格聚合形成 ${spatial.occupiedCellCount ?? 0} 个有效单元，最高值单元权重为 ${(spatial.maxCellValue ?? 0).toLocaleString("zh-CN")}，占总权重的 ${((spatial.maxCellShare ?? 0) * 100).toFixed(1)}%。该结果是代表点网格聚合，不构成统计显著性检验。`
+                : `当前密度热力图基于 ${spatial.inputFeatureCount.toLocaleString("zh-CN")} 个输入要素生成 ${spatial.analysisPointCount.toLocaleString("zh-CN")} 个代表点，用于连续密度表达，不构成统计显著性检验。`,
+        });
+    }
+
     if (snapshot.dataQuality.available) {
         insights.push({
             category: "quality",
@@ -73,7 +85,7 @@ export function generateDeterministicInsights(
     insights.push({
         category: "recommendation",
         title: "进一步分析建议",
-        content: "建议结合当前筛选条件、空间查询范围和数据质量结果开展分区对比，并对显著差异地块进行进一步核验。",
+        content: "建议结合当前筛选条件、空间查询范围和数据质量结果开展分区对比，并对差异较大的地块进行进一步核验。",
     });
 
     return {
@@ -102,6 +114,14 @@ export function createReportMethodology(
     if (snapshot.temporal?.enabled) {
         methods.push(
             `时间分析采用 ${snapshot.temporal.field} 字段的精确匹配，只显示当前时间值对应的要素；缺少或无效时间值的要素不会进入该时间切片。`,
+        );
+    }
+
+    if (snapshot.spatialStatistics) {
+        methods.push(
+            snapshot.spatialStatistics.method === "hexbin"
+                ? `空间统计采用代表点六边形网格聚合，网格尺寸为 ${snapshot.spatialStatistics.cellSizeKm ?? 0} km；该高值网格结果不是 Getis-Ord Gi*、Moran's I 或其他统计显著性检验。Polygon 通过代表点归属网格，未执行 Polygon 与网格的真实相交面积计算。`
+                : "密度热力图使用 Feature 代表点及归一化权重进行 MapLibre 连续视觉表达，不生成统计显著性结论。",
         );
     }
 

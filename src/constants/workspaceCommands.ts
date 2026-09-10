@@ -102,6 +102,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-spatial-statistics",
+        label: "空间统计",
+        description: "打开密度热力图与六边形聚合分析",
+        keywords: ["spatial statistics", "density", "heatmap", "hexbin", "空间统计", "密度热点", "六边形"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-report-builder",
         label: "生成报告",
         description: "打开分析报告构建中心",

@@ -66,6 +66,18 @@ const temporalSchema = z.object({
     featureCount: z.number().int().nonnegative(),
 }).strict();
 
+const spatialStatisticsSchema = z.object({
+    method: z.enum(["heatmap", "hexbin"]),
+    inputFeatureCount: z.number().int().nonnegative(),
+    analysisPointCount: z.number().int().nonnegative(),
+    weightMode: z.enum(["count", "area"]),
+    cellSizeKm: finiteNumber.positive().optional(),
+    occupiedCellCount: z.number().int().nonnegative().optional(),
+    maxCellValue: finiteNumber.nonnegative().optional(),
+    maxCellShare: finiteNumber.min(0).max(1).optional(),
+    meanCenter: z.tuple([finiteNumber, finiteNumber]).nullable(),
+}).strict();
+
 export const AIReportContextSchema = z.object({
     projectName: z.string().min(1).max(160),
     datasetName: z.string().min(1).max(160),
@@ -77,6 +89,7 @@ export const AIReportContextSchema = z.object({
     dataQuality: dataQualitySchema,
     symbology: symbologySchema,
     temporal: temporalSchema.optional(),
+    spatialStatistics: spatialStatisticsSchema.optional(),
 }).strict();
 
 export const ReportInsightResponseSchema = z.object({

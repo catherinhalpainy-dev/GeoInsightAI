@@ -719,7 +719,9 @@ export function LayerPanel({
                         {layer.geometryType}
                         {" · "}
                         {layer.featureCount.toLocaleString("zh-CN")}
-                        {" features"}
+                        {layer.operation === "spatial-hexbin"
+                          ? " cells"
+                          : " features"}
                       </small>
                     </span>
                   </label>

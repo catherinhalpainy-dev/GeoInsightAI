@@ -328,6 +328,12 @@
   box-shadow: 0 0 0 1px #ef4444;
 }
 
+.analysis-layer-symbol.spatial-hexbin {
+  border-color: #2563eb;
+  background: rgba(96, 165, 250, 0.32);
+  clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
+}
+
 .analysis-layer-actions {
   display: flex;
   gap: 3px;

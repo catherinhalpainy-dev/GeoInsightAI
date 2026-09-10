@@ -59,6 +59,14 @@ import type {
     MapCaptureResult,
 } from "../../types/report";
 import type { TemporalConfig } from "../../types/temporal";
+import type {
+    SpatialRepresentativePointCollection,
+    SpatialStatisticsConfig,
+} from "../../types/spatialStatistics";
+import {
+    SPATIAL_HEATMAP_COLORS,
+    SPATIAL_HEXBIN_COLORS,
+} from "../../constants/spatialStatistics";
 
 import type {
     LayerStyle,
@@ -174,6 +182,12 @@ const ANALYSIS_LINE_PREFIX =
 
 const ANALYSIS_CIRCLE_PREFIX =
     "analysis-circle-";
+
+const SPATIAL_HEATMAP_SOURCE_ID =
+    "spatial-heatmap-source";
+
+const SPATIAL_HEATMAP_LAYER_ID =
+    "spatial-heatmap-layer";
 
 const OVERLAY_SOURCE_PREFIX =
     "overlay-source-";
@@ -295,6 +309,10 @@ interface MapViewProps {
 
     analysisResultLayers?:
     AnalysisResultLayer[];
+
+    spatialHeatmapData?: SpatialRepresentativePointCollection | null;
+
+    spatialStatisticsConfig?: SpatialStatisticsConfig;
 
     overlayLayers?:
     WorkspaceVectorLayer[];
@@ -2514,6 +2532,93 @@ function getAnalysisSourceId(
     return `${ANALYSIS_SOURCE_PREFIX}${layerId}`;
 }
 
+function clearSpatialHeatmap(map: maplibregl.Map) {
+    if (map.getLayer(SPATIAL_HEATMAP_LAYER_ID)) {
+        map.removeLayer(SPATIAL_HEATMAP_LAYER_ID);
+    }
+
+    if (map.getSource(SPATIAL_HEATMAP_SOURCE_ID)) {
+        map.removeSource(SPATIAL_HEATMAP_SOURCE_ID);
+    }
+}
+
+function updateSpatialHeatmap(
+    map: maplibregl.Map,
+    data: SpatialRepresentativePointCollection | null,
+    config: SpatialStatisticsConfig | undefined,
+) {
+    if (!data || data.features.length === 0 || !config) {
+        clearSpatialHeatmap(map);
+        return;
+    }
+
+    const existingSource = map.getSource(SPATIAL_HEATMAP_SOURCE_ID);
+
+    if (!existingSource) {
+        map.addSource(SPATIAL_HEATMAP_SOURCE_ID, {
+            type: "geojson",
+            data,
+        });
+    } else if (existingSource.type === "geojson") {
+        (existingSource as maplibregl.GeoJSONSource).setData(data);
+    }
+
+    if (!map.getLayer(SPATIAL_HEATMAP_LAYER_ID)) {
+        const colorExpression: ExpressionSpecification = [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0, SPATIAL_HEATMAP_COLORS.transparent,
+            0.2, SPATIAL_HEATMAP_COLORS.veryLow,
+            0.4, SPATIAL_HEATMAP_COLORS.low,
+            0.6, SPATIAL_HEATMAP_COLORS.medium,
+            0.8, SPATIAL_HEATMAP_COLORS.high,
+            1, SPATIAL_HEATMAP_COLORS.veryHigh,
+        ];
+        const weightExpression: ExpressionSpecification = [
+            "coalesce",
+            ["to-number", ["get", "normalizedWeight"]],
+            0,
+        ];
+
+        map.addLayer(
+            {
+                id: SPATIAL_HEATMAP_LAYER_ID,
+                type: "heatmap",
+                source: SPATIAL_HEATMAP_SOURCE_ID,
+                paint: {
+                    "heatmap-weight": weightExpression,
+                    "heatmap-intensity": config.heatmapIntensity,
+                    "heatmap-radius": config.heatmapRadius,
+                    "heatmap-opacity": 0.82,
+                    "heatmap-color": colorExpression,
+                },
+            },
+            map.getLayer(LAND_USE_FILL_LAYER_ID)
+                ? LAND_USE_FILL_LAYER_ID
+                : undefined,
+        );
+    }
+
+    map.setPaintProperty(
+        SPATIAL_HEATMAP_LAYER_ID,
+        "heatmap-radius",
+        config.heatmapRadius,
+    );
+    map.setPaintProperty(
+        SPATIAL_HEATMAP_LAYER_ID,
+        "heatmap-intensity",
+        config.heatmapIntensity,
+    );
+
+    if (map.getLayer(LAND_USE_FILL_LAYER_ID)) {
+        map.moveLayer(
+            SPATIAL_HEATMAP_LAYER_ID,
+            LAND_USE_FILL_LAYER_ID,
+        );
+    }
+}
+
 function getAnalysisFillLayerId(
     layerId: string,
 ) {
@@ -2668,6 +2773,18 @@ function syncAnalysisResultLayers(
             getAnalysisLineLayerId(layer.id);
         const isIntersection =
             layer.operation === "intersection";
+        const isSpatialHexbin =
+            layer.operation === "spatial-hexbin";
+        const hexbinFillExpression: ExpressionSpecification = [
+            "match",
+            ["get", "classIndex"],
+            0, SPATIAL_HEXBIN_COLORS[0],
+            1, SPATIAL_HEXBIN_COLORS[1],
+            2, SPATIAL_HEXBIN_COLORS[2],
+            3, SPATIAL_HEXBIN_COLORS[3],
+            4, SPATIAL_HEXBIN_COLORS[4],
+            SPATIAL_HEXBIN_COLORS[0],
+        ];
 
         if (!map.getLayer(fillLayerId)) {
             map.addLayer(
@@ -2681,8 +2798,12 @@ function syncAnalysisResultLayers(
                     paint: {
                         "fill-color": isIntersection
                             ? "#f59e0b"
-                            : "#8b5cf6",
-                        "fill-opacity": isIntersection
+                            : isSpatialHexbin
+                                ? hexbinFillExpression
+                                : "#8b5cf6",
+                        "fill-opacity": isSpatialHexbin
+                            ? 0.54
+                            : isIntersection
                             ? 0.16
                             : 0.14,
                     },
@@ -2703,7 +2824,9 @@ function syncAnalysisResultLayers(
                     paint: {
                         "line-color": isIntersection
                             ? "#d97706"
-                            : "#7c3aed",
+                            : isSpatialHexbin
+                                ? "#3b82f6"
+                                : "#7c3aed",
                         "line-width": 1.5,
                         "line-opacity": 0.85,
                     },
@@ -2927,6 +3050,8 @@ export function MapView({
     aoiPolygon = null,
     aoiQueryFeatures = [],
     analysisResultLayers = [],
+    spatialHeatmapData = null,
+    spatialStatisticsConfig,
     overlayLayers = [],
     rasterLayers = [],
     qualityIssueFeatures = {
@@ -3048,6 +3173,12 @@ export function MapView({
         useRef<AnalysisResultLayer[]>(
             analysisResultLayers,
         );
+
+    const latestSpatialHeatmapDataRef =
+        useRef<SpatialRepresentativePointCollection | null>(spatialHeatmapData);
+
+    const latestSpatialStatisticsConfigRef =
+        useRef<SpatialStatisticsConfig | undefined>(spatialStatisticsConfig);
 
     const latestOverlayLayersRef =
         useRef<WorkspaceVectorLayer[]>(overlayLayers);
@@ -3893,6 +4024,12 @@ export function MapView({
                     rasterOrderCacheRef.current,
                 );
 
+                updateSpatialHeatmap(
+                    map,
+                    latestSpatialHeatmapDataRef.current,
+                    latestSpatialStatisticsConfigRef.current,
+                );
+
                 syncOverlayLayers(
                     map,
                     latestOverlayLayersRef.current,
@@ -4230,6 +4367,11 @@ export function MapView({
             rasterSourceCacheRef.current,
             rasterOrderCacheRef.current,
         );
+        updateSpatialHeatmap(
+            map,
+            latestSpatialHeatmapDataRef.current,
+            latestSpatialStatisticsConfigRef.current,
+        );
     }, [rasterLayers]);
 
     useEffect(() => {
@@ -4251,6 +4393,23 @@ export function MapView({
     }, [
         overlayLayers,
     ]);
+
+    useEffect(() => {
+        latestSpatialHeatmapDataRef.current = spatialHeatmapData;
+        latestSpatialStatisticsConfigRef.current = spatialStatisticsConfig;
+
+        const map = mapRef.current;
+
+        if (!map?.isStyleLoaded()) {
+            return;
+        }
+
+        updateSpatialHeatmap(
+            map,
+            spatialHeatmapData,
+            spatialStatisticsConfig,
+        );
+    }, [spatialHeatmapData, spatialStatisticsConfig]);
 
     useEffect(() => {
         latestAnalysisResultLayersRef.current =
@@ -4498,6 +4657,12 @@ export function MapView({
                         rasterOrderCacheRef.current,
                     );
 
+                    updateSpatialHeatmap(
+                        map,
+                        latestSpatialHeatmapDataRef.current,
+                        latestSpatialStatisticsConfigRef.current,
+                    );
+
                     syncOverlayLayers(
                         map,
                         latestOverlayLayersRef.current,
@@ -4542,6 +4707,12 @@ export function MapView({
                     latestRasterLayersRef.current,
                     rasterSourceCacheRef.current,
                     rasterOrderCacheRef.current,
+                );
+
+                updateSpatialHeatmap(
+                    map,
+                    latestSpatialHeatmapDataRef.current,
+                    latestSpatialStatisticsConfigRef.current,
                 );
 
                 syncOverlayLayers(
@@ -5039,6 +5210,37 @@ export function MapView({
                         [bounds.maxLongitude, bounds.maxLatitude],
                     ],
                     { padding: 72, duration: 650, maxZoom: 17 },
+                );
+            }
+            return;
+        }
+
+        if (viewCommand.type === "fit-spatial-cell") {
+            const layer = latestAnalysisResultLayersRef.current.find(
+                (item) => item.id === viewCommand.layerId,
+            );
+            const feature = layer?.collection.features.find(
+                (item) =>
+                    item.properties.analysisOperation === "spatial-hexbin" &&
+                    item.properties.id === viewCommand.cellId,
+            );
+
+            if (!feature) {
+                return;
+            }
+
+            const bounds = calculateGeoJsonBounds({
+                type: "FeatureCollection",
+                features: [feature],
+            });
+
+            if (bounds) {
+                map.fitBounds(
+                    [
+                        [bounds.minLongitude, bounds.minLatitude],
+                        [bounds.maxLongitude, bounds.maxLatitude],
+                    ],
+                    { padding: 108, duration: 650, maxZoom: 16 },
                 );
             }
             return;

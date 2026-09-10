@@ -232,6 +232,15 @@ const analysisPropertiesSchema = z.union([
         analysisOperation: z.literal("dissolve"),
         landUseType: landUseTypeSchema.optional(),
     }),
+    z.object({
+        analysisOperation: z.literal("spatial-hexbin"),
+        id: z.string().min(1),
+        featureCount: z.number().int().nonnegative(),
+        value: z.number().finite().nonnegative(),
+        share: z.number().finite().min(0).max(1),
+        rank: z.number().int().positive(),
+        classIndex: z.number().int().min(0).max(4),
+    }).passthrough(),
 ]);
 
 const analysisGeometrySchema = z.discriminatedUnion("type", [
@@ -249,7 +258,7 @@ const analysisFeatureSchema = z.object({
 const analysisLayerSchema = z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-    operation: z.enum(["intersection", "dissolve", "centroid"]),
+    operation: z.enum(["intersection", "dissolve", "centroid", "spatial-hexbin"]),
     geometryType: z.enum(["Point", "Polygon", "MultiPolygon"]),
     visible: z.boolean(),
     createdAt: z.number().finite(),
@@ -258,6 +267,20 @@ const analysisLayerSchema = z.object({
         type: z.literal("FeatureCollection"),
         features: z.array(analysisFeatureSchema),
     }),
+    metadata: z.object({
+        method: z.literal("hexbin"),
+        inputSource: z.union([
+            z.enum(["filtered-primary", "buffer-query", "aoi-query"]),
+            z.object({
+                type: z.literal("overlay"),
+                layerId: z.string().min(1),
+            }),
+        ]),
+        weightMode: z.enum(["count", "area"]),
+        cellSizeKm: z.number().finite().positive(),
+        temporalValue: z.number().finite().optional(),
+        createdFromFeatureCount: z.number().int().nonnegative(),
+    }).optional(),
 });
 
 const queryConditionSchema = z.object({

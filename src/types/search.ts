@@ -23,6 +23,7 @@ export type WorkspaceCommandId =
     | "open-report-builder"
     | "open-data-sources"
     | "open-temporal"
+    | "open-spatial-statistics"
     | "open-agent"
     | "open-basemap"
     | "navigate-statistics"

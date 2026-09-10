@@ -6,6 +6,10 @@ import type {
     SymbologyMode,
 } from "./layerStyle";
 import type { TemporalFieldType } from "./temporal";
+import type {
+    SpatialStatisticsMethod,
+    SpatialWeightMode,
+} from "./spatialStatistics";
 
 export type ReportSectionType =
     | "executive-summary"
@@ -14,6 +18,7 @@ export type ReportSectionType =
     | "land-use-distribution"
     | "area-analysis"
     | "spatial-analysis"
+    | "spatial-statistics"
     | "data-quality"
     | "analysis-layers"
     | "methodology";
@@ -99,6 +104,18 @@ export interface ReportTemporalSnapshot {
     featureCount: number;
 }
 
+export interface ReportSpatialStatisticsSnapshot {
+    method: SpatialStatisticsMethod;
+    inputFeatureCount: number;
+    analysisPointCount: number;
+    weightMode: SpatialWeightMode;
+    cellSizeKm?: number;
+    occupiedCellCount?: number;
+    maxCellValue?: number;
+    maxCellShare?: number;
+    meanCenter: [number, number] | null;
+}
+
 export interface ReportSnapshot {
     id: string;
     generatedAt: number;
@@ -113,6 +130,7 @@ export interface ReportSnapshot {
     dataQuality: ReportDataQualitySnapshot;
     symbology: ReportSymbologySnapshot;
     temporal?: ReportTemporalSnapshot;
+    spatialStatistics?: ReportSpatialStatisticsSnapshot;
     map: ReportMapSnapshot;
 }
 
@@ -164,6 +182,7 @@ export interface AIReportContext {
     dataQuality: ReportDataQualitySnapshot;
     symbology: ReportSymbologySnapshot;
     temporal?: ReportTemporalSnapshot;
+    spatialStatistics?: ReportSpatialStatisticsSnapshot;
 }
 
 export interface MapCaptureResult {

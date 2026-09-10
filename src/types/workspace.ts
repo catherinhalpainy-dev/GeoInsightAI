@@ -18,6 +18,7 @@ export type WorkspacePanel =
     | "report-builder"
     | "data-sources"
     | "temporal"
+    | "spatial-statistics"
     | "agent"
     | null;
 
@@ -29,6 +30,7 @@ export type MapViewCommandType =
     | "fit-quality-issue"
     | "fit-search-result"
     | "fit-search-layer"
+    | "fit-spatial-cell"
     | "jump-to-coordinate"
     | "fit-selection"
     | "layer-up"
@@ -41,6 +43,7 @@ export type MapViewCommand =
             | "fit-overlay"
             | "fit-quality-issue"
             | "fit-search-layer"
+            | "fit-spatial-cell"
             | "jump-to-coordinate"
         >;
         requestId: number;
@@ -67,6 +70,12 @@ export type MapViewCommand =
         longitude: number;
         latitude: number;
         zoom: number;
+    }
+    | {
+        type: "fit-spatial-cell";
+        requestId: number;
+        layerId: string;
+        cellId: string;
     };
 
 export type BasemapType =
