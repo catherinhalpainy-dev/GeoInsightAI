@@ -29,6 +29,7 @@ import type {
     SpatialStatisticsSummary,
 } from "../../types/spatialStatistics";
 import { formatTemporalValue } from "../temporal/formatTemporalValue";
+import type { TemporalCompareSnapshot } from "../../types/mapCompare";
 
 export interface CreateReportSnapshotInput {
     projectName: string;
@@ -49,6 +50,7 @@ export interface CreateReportSnapshotInput {
         config: SpatialStatisticsConfig;
         summary: SpatialStatisticsSummary;
     } | null;
+    temporalComparison: TemporalCompareSnapshot | null;
     mapState: ProjectMapState;
     mapCapture: {
         dataUrl: string | null;
@@ -224,6 +226,19 @@ export function createReportSnapshot(
                     : null,
             }
             : undefined,
+        temporalComparison: input.temporalComparison
+            ? {
+                ...input.temporalComparison,
+                summary: {
+                    ...input.temporalComparison.summary,
+                    categories: input.temporalComparison.summary.categories.map(
+                        (item) => ({ ...item }),
+                    ),
+                },
+                beforeMap: { ...input.temporalComparison.beforeMap },
+                afterMap: { ...input.temporalComparison.afterMap },
+            }
+            : undefined,
         map,
     };
 }
@@ -255,6 +270,14 @@ export function createAIReportContext(snapshot: ReportSnapshot) {
                         snapshot.spatialStatistics.meanCenter[1],
                     ] as [number, number]
                     : null,
+            }
+            : undefined,
+        temporalComparison: snapshot.temporalComparison
+            ? {
+                ...snapshot.temporalComparison.summary,
+                categories: snapshot.temporalComparison.summary.categories.map(
+                    (item) => ({ ...item }),
+                ),
             }
             : undefined,
     };

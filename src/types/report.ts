@@ -10,6 +10,10 @@ import type {
     SpatialStatisticsMethod,
     SpatialWeightMode,
 } from "./spatialStatistics";
+import type {
+    TemporalCompareSnapshot,
+    TemporalCompareSummary,
+} from "./mapCompare";
 
 export type ReportSectionType =
     | "executive-summary"
@@ -19,6 +23,7 @@ export type ReportSectionType =
     | "area-analysis"
     | "spatial-analysis"
     | "spatial-statistics"
+    | "temporal-comparison"
     | "data-quality"
     | "analysis-layers"
     | "methodology";
@@ -131,6 +136,7 @@ export interface ReportSnapshot {
     symbology: ReportSymbologySnapshot;
     temporal?: ReportTemporalSnapshot;
     spatialStatistics?: ReportSpatialStatisticsSnapshot;
+    temporalComparison?: TemporalCompareSnapshot;
     map: ReportMapSnapshot;
 }
 
@@ -183,6 +189,7 @@ export interface AIReportContext {
     symbology: ReportSymbologySnapshot;
     temporal?: ReportTemporalSnapshot;
     spatialStatistics?: ReportSpatialStatisticsSnapshot;
+    temporalComparison?: TemporalCompareSummary;
 }
 
 export interface MapCaptureResult {

@@ -110,6 +110,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-temporal-compare",
+        label: "时序对比",
+        description: "对比同一数据集的两个时间切片",
+        keywords: ["temporal compare", "before after", "split map", "swipe", "时序对比", "分屏", "卷帘"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-report-builder",
         label: "生成报告",
         description: "打开分析报告构建中心",

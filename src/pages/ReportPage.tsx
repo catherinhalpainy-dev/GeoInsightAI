@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ReportLandUseChart } from "../components/report/ReportLandUseChart";
 import { useReportContext } from "../report/ReportProvider";
 import { createReportMethodology } from "../services/report/generateDeterministicInsights";
+import { formatTemporalValue } from "../services/temporal/formatTemporalValue";
 import type { ReportDraft, ReportSectionConfig } from "../types/report";
 import "../styles/report.css";
 
@@ -16,6 +17,11 @@ function formatAreaKm2(areaM2: number) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })} km²`;
+}
+
+function formatSigned(value: number, digits = 1) {
+    const formatted = Math.abs(value).toFixed(digits);
+    return value > 0 ? `+${formatted}` : value < 0 ? `-${formatted}` : formatted;
 }
 
 function renderSection(
@@ -152,6 +158,69 @@ function renderSection(
                             </p>
                         </>
                     ) : <p>快照生成时未包含空间统计结果。</p>}
+                </section>
+            );
+        }
+        case "temporal-comparison": {
+            const comparison = snapshot.temporalComparison;
+            if (!comparison) return null;
+            const summary = comparison.summary;
+            const temporalType = snapshot.temporal?.type ?? "year";
+            const categories = [...summary.categories]
+                .filter((item) => item.beforeCount > 0 || item.afterCount > 0)
+                .sort((first, second) =>
+                    Math.abs(second.shareDelta) - Math.abs(first.shareDelta),
+                )
+                .slice(0, 7);
+
+            return (
+                <section className="report-section report-temporal-comparison" key={section.id}>
+                    <h2>{heading}</h2>
+                    <p className="report-compare-range">
+                        {formatTemporalValue(summary.beforeTime, temporalType)} → {formatTemporalValue(summary.afterTime, temporalType)}
+                    </p>
+                    <div className="report-compare-maps">
+                        <figure>
+                            {comparison.beforeMap.dataUrl ? (
+                                <img src={comparison.beforeMap.dataUrl} alt={`${formatTemporalValue(summary.beforeTime, temporalType)} 前期地图快照`} />
+                            ) : (
+                                <div className="report-map-placeholder">地图快照不可用</div>
+                            )}
+                            <figcaption>BEFORE · {formatTemporalValue(summary.beforeTime, temporalType)}</figcaption>
+                        </figure>
+                        <figure>
+                            {comparison.afterMap.dataUrl ? (
+                                <img src={comparison.afterMap.dataUrl} alt={`${formatTemporalValue(summary.afterTime, temporalType)} 后期地图快照`} />
+                            ) : (
+                                <div className="report-map-placeholder">地图快照不可用</div>
+                            )}
+                            <figcaption>AFTER · {formatTemporalValue(summary.afterTime, temporalType)}</figcaption>
+                        </figure>
+                    </div>
+                    <dl className="report-analysis-metrics">
+                        <div>
+                            <dt>地块数量</dt>
+                            <dd>{summary.beforeFeatureCount} → {summary.afterFeatureCount}（{formatSigned(summary.featureCountDelta, 0)}）</dd>
+                        </div>
+                        <div>
+                            <dt>总面积</dt>
+                            <dd>{formatAreaKm2(summary.beforeTotalAreaM2)} → {formatAreaKm2(summary.afterTotalAreaM2)}</dd>
+                        </div>
+                    </dl>
+                    <table className="report-table report-compare-table">
+                        <thead><tr><th>用地类型</th><th>前期占比</th><th>后期占比</th><th>差异</th></tr></thead>
+                        <tbody>{categories.map((item) => (
+                            <tr key={item.key}>
+                                <td>{item.label}</td>
+                                <td>{(item.beforeShare * 100).toFixed(1)}%</td>
+                                <td>{(item.afterShare * 100).toFixed(1)}%</td>
+                                <td>{formatSigned(item.shareDelta * 100)} pp</td>
+                            </tr>
+                        ))}</tbody>
+                    </table>
+                    <p>
+                        本节基于相同属性筛选条件，分别对两个时间点进行独立统计比较；聚合差异不表示具体地块发生了用途转换。
+                    </p>
                 </section>
             );
         }

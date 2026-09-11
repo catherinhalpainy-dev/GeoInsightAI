@@ -78,6 +78,32 @@ const spatialStatisticsSchema = z.object({
     meanCenter: z.tuple([finiteNumber, finiteNumber]).nullable(),
 }).strict();
 
+const temporalCompareCategorySchema = z.object({
+    key: z.string().min(1).max(80),
+    label: z.string().min(1).max(80),
+    beforeCount: z.number().int().nonnegative(),
+    afterCount: z.number().int().nonnegative(),
+    countDelta: z.number().int(),
+    beforeAreaM2: finiteNumber.nonnegative(),
+    afterAreaM2: finiteNumber.nonnegative(),
+    areaDeltaM2: finiteNumber,
+    beforeShare: finiteNumber.min(0).max(1),
+    afterShare: finiteNumber.min(0).max(1),
+    shareDelta: finiteNumber.min(-1).max(1),
+}).strict();
+
+const temporalComparisonSchema = z.object({
+    beforeTime: finiteNumber,
+    afterTime: finiteNumber,
+    beforeFeatureCount: z.number().int().nonnegative(),
+    afterFeatureCount: z.number().int().nonnegative(),
+    featureCountDelta: z.number().int(),
+    beforeTotalAreaM2: finiteNumber.nonnegative(),
+    afterTotalAreaM2: finiteNumber.nonnegative(),
+    totalAreaDeltaM2: finiteNumber,
+    categories: z.array(temporalCompareCategorySchema).max(30),
+}).strict();
+
 export const AIReportContextSchema = z.object({
     projectName: z.string().min(1).max(160),
     datasetName: z.string().min(1).max(160),
@@ -90,6 +116,7 @@ export const AIReportContextSchema = z.object({
     symbology: symbologySchema,
     temporal: temporalSchema.optional(),
     spatialStatistics: spatialStatisticsSchema.optional(),
+    temporalComparison: temporalComparisonSchema.optional(),
 }).strict();
 
 export const ReportInsightResponseSchema = z.object({

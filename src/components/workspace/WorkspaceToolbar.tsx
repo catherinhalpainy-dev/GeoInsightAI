@@ -3,6 +3,7 @@ import {
   FileText,
   Database,
   Clock3,
+  Columns2,
   ChartScatter,
   SquarePen,
   ShieldCheck,
@@ -56,6 +57,7 @@ interface WorkspaceToolbarProps {
     file: File,
   ) => void;
   overlayImporting: boolean;
+  compareMode?: boolean;
 }
 
 export function WorkspaceToolbar({
@@ -70,6 +72,7 @@ export function WorkspaceToolbar({
   onMeasureChange,
   onAddOverlayLayer,
   overlayImporting,
+  compareMode = false,
 }: WorkspaceToolbarProps) {
   const overlayFileInputRef =
     useRef<HTMLInputElement | null>(null);
@@ -78,6 +81,7 @@ export function WorkspaceToolbar({
     <aside className="workspace-toolbar">
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "geometry-edit"
             ? "workspace-tool workspace-tool-module active"
@@ -94,6 +98,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activeTool === "select"
             ? "workspace-tool active"
@@ -109,6 +114,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           measureMode === "distance"
             ?
@@ -134,6 +140,7 @@ export function WorkspaceToolbar({
       </button>
       <button
         type="button"
+        disabled={compareMode}
         className={
           measureMode === "area"
             ?
@@ -155,6 +162,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "aoi-analysis"
             ? "workspace-tool workspace-tool-module active"
@@ -171,6 +179,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "geoprocessing"
             ? "workspace-tool workspace-tool-module active"
@@ -188,7 +197,7 @@ export function WorkspaceToolbar({
       <button
         type="button"
         className="workspace-tool workspace-tool-module"
-        disabled={overlayImporting}
+        disabled={overlayImporting || compareMode}
         title="向当前地图追加 GeoJSON 图层"
         onClick={() => {
           overlayFileInputRef.current?.click();
@@ -207,7 +216,7 @@ export function WorkspaceToolbar({
         type="file"
         accept=".geojson,.json,application/geo+json,application/json"
         aria-label="选择追加的 GeoJSON 图层"
-        disabled={overlayImporting}
+        disabled={overlayImporting || compareMode}
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
 
@@ -221,6 +230,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "data-sources"
             ? "workspace-tool workspace-tool-module active"
@@ -235,6 +245,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "temporal"
             ? "workspace-tool workspace-tool-module active"
@@ -250,6 +261,21 @@ export function WorkspaceToolbar({
       <button
         type="button"
         className={
+          activePanel === "temporal-compare"
+            ? "workspace-tool workspace-tool-module temporal-compare-tool active"
+            : "workspace-tool workspace-tool-module temporal-compare-tool"
+        }
+        onClick={() => onPanelToggle("temporal-compare")}
+        title="对比同一数据集的两个时间切片"
+      >
+        <Columns2 size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>时序对比</span>
+      </button>
+
+      <button
+        type="button"
+        disabled={compareMode}
+        className={
           activePanel === "spatial-statistics"
             ? "workspace-tool workspace-tool-module active"
             : "workspace-tool workspace-tool-module"
@@ -263,6 +289,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "data-quality"
             ? "workspace-tool workspace-tool-module active"
@@ -293,6 +320,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
         className={
           activeTool === "pan"
             ? "workspace-tool active"
@@ -308,6 +336,7 @@ export function WorkspaceToolbar({
 
       <button
         type="button"
+        disabled={compareMode}
 
         className=
         "workspace-tool"
@@ -337,9 +366,7 @@ export function WorkspaceToolbar({
           onFitSelected
         }
 
-        disabled={
-          !canFitSelected
-        }
+        disabled={compareMode || !canFitSelected}
 
         title={
           canFitSelected
@@ -378,6 +405,7 @@ export function WorkspaceToolbar({
       </button>
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "layers"
             ? "workspace-tool active"
@@ -392,6 +420,7 @@ export function WorkspaceToolbar({
       </button>
       <button
         type="button"
+        disabled={compareMode}
 
         className={
           activePanel ===
@@ -416,6 +445,7 @@ export function WorkspaceToolbar({
       </button>
       <button
         type="button"
+        disabled={compareMode}
         className={
           activePanel === "filter"
             ? "workspace-tool active"

@@ -1,4 +1,5 @@
 import type { TemporalConfig } from "../../types/temporal";
+import type { LandUseFeatureCollection } from "../../types/landUse";
 import {
     parseTemporalValue,
     readFeatureProperty,
@@ -22,6 +23,33 @@ export function filterFeaturesByTemporalConfig<Feature extends FeatureLike>(
             config.type,
         ) === config.current,
     );
+}
+
+export function filterFeaturesAtTemporalValue<Feature extends FeatureLike>(
+    features: readonly Feature[],
+    config: TemporalConfig,
+    temporalValue: number,
+) {
+    return filterFeaturesByTemporalConfig(features, {
+        ...config,
+        enabled: true,
+        current: temporalValue,
+    });
+}
+
+export function filterCollectionAtTemporalValue(
+    collection: LandUseFeatureCollection,
+    config: TemporalConfig,
+    temporalValue: number,
+): LandUseFeatureCollection {
+    return {
+        type: "FeatureCollection",
+        features: filterFeaturesAtTemporalValue(
+            collection.features,
+            config,
+            temporalValue,
+        ),
+    };
 }
 
 export function getAvailableTemporalValues<Feature extends FeatureLike>(

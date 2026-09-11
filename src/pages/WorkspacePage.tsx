@@ -35,6 +35,8 @@ import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
 import { TemporalConfigPanel } from "../components/temporal/TemporalConfigPanel";
 import { TimelineControl } from "../components/temporal/TimelineControl";
 import { SpatialStatisticsPanel } from "../components/workspace/SpatialStatisticsPanel";
+import { TemporalComparePanel } from "../components/compare/TemporalComparePanel";
+import { TemporalMapCompareView } from "../components/compare/TemporalMapCompareView";
 import {
     DataQualityPanel,
     type DataQualityTargetOption,
@@ -172,10 +174,19 @@ import {
 import { detectTemporalFields } from "../services/temporal/detectTemporalField";
 import {
     filterFeaturesByTemporalConfig,
+    filterCollectionAtTemporalValue,
     getAvailableTemporalValues,
 } from "../services/temporal/filterTemporalFeatures";
 import { calculateTemporalStatistics } from "../services/temporal/calculateTemporalStatistics";
 import { calculateTemporalChange } from "../services/temporal/calculateChange";
+import { calculateTemporalComparison } from "../services/temporal/calculateTemporalComparison";
+import { formatTemporalValue } from "../services/temporal/formatTemporalValue";
+import {
+    DEFAULT_TEMPORAL_MAP_COMPARE_CONFIG,
+    type TemporalCompareCaptureResult,
+    type TemporalCompareSnapshot,
+    type TemporalMapCompareConfig,
+} from "../types/mapCompare";
 import type {
     SpatialRepresentativePointCollection,
     SpatialStatisticsConfig,
@@ -434,6 +445,20 @@ export function WorkspacePage() {
     const [temporalConfig, setTemporalConfig] = useState<TemporalConfig>(() => ({
         ...(pendingProject?.workspace.temporalConfig ?? DEFAULT_TEMPORAL_CONFIG),
     }));
+    const [temporalCompareConfig, setTemporalCompareConfig] =
+        useState<TemporalMapCompareConfig>(() => ({
+            ...DEFAULT_TEMPORAL_MAP_COMPARE_CONFIG,
+            ...pendingProject?.workspace.temporalCompare,
+            enabled: false,
+        }));
+    const [temporalCompareSnapshot, setTemporalCompareSnapshot] =
+        useState<TemporalCompareSnapshot | null>(null);
+    const [temporalCompareError, setTemporalCompareError] =
+        useState<string | null>(null);
+    const [temporalCompareCapturing, setTemporalCompareCapturing] =
+        useState(false);
+    const [temporalCompareCaptureRequestId, setTemporalCompareCaptureRequestId] =
+        useState<number | null>(null);
     const [spatialStatisticsConfig, setSpatialStatisticsConfig] =
         useState<SpatialStatisticsConfig>(DEFAULT_SPATIAL_STATISTICS_CONFIG);
     const [spatialHeatmapData, setSpatialHeatmapData] =
@@ -508,6 +533,10 @@ export function WorkspacePage() {
     const mapCaptureSequenceRef = useRef(0);
     const mapCaptureResolverRef = useRef<
         ((result: MapCaptureResult) => void) | null
+    >(null);
+    const temporalCompareCaptureSequenceRef = useRef(0);
+    const temporalCompareCaptureResolverRef = useRef<
+        ((result: TemporalCompareCaptureResult) => void) | null
     >(null);
 
     useEffect(() => {
@@ -1577,6 +1606,17 @@ export function WorkspacePage() {
         );
     }
     function handlePanelToggle(panel: Exclude<WorkspacePanel, null>,) {
+        if (
+            temporalCompareConfig.enabled &&
+            panel !== "temporal-compare" &&
+            panel !== "basemap" &&
+            panel !== "report-builder"
+        ) {
+            setTemporalCompareError("请先退出时序对比模式。 ");
+            setActivePanel("temporal-compare");
+            return;
+        }
+
         if (geometryEditor.mode !== "idle") {
             setGeometryAbandonConfirmationOpen(true);
             return;
@@ -1673,6 +1713,13 @@ export function WorkspacePage() {
         () => getAvailableTemporalValues(filteredFeatures, temporalConfig),
         [filteredFeatures, temporalConfig],
     );
+    const temporalCompareValues = useMemo(
+        () => getAvailableTemporalValues(
+            dataset?.collection.features ?? [],
+            temporalConfig,
+        ),
+        [dataset, temporalConfig],
+    );
     useEffect(() => {
         if (
             !temporalConfig.enabled ||
@@ -1689,6 +1736,43 @@ export function WorkspacePage() {
     }, [
         temporalConfig,
         temporalValues,
+    ]);
+    useEffect(() => {
+        if (temporalCompareValues.length < 2) {
+            if (temporalCompareConfig.enabled) {
+                setTemporalCompareConfig((previous) => ({
+                    ...previous,
+                    enabled: false,
+                }));
+                setTemporalCompareError(
+                    "当前数据至少需要两个时间点才能进行时序对比。",
+                );
+            }
+            return;
+        }
+
+        const hasBefore = temporalCompareValues.includes(
+            temporalCompareConfig.beforeTime,
+        );
+        const hasAfter = temporalCompareValues.includes(
+            temporalCompareConfig.afterTime,
+        );
+
+        if (hasBefore && hasAfter) {
+            return;
+        }
+
+        setTemporalCompareConfig((previous) => ({
+            ...previous,
+            enabled: false,
+            beforeTime: temporalCompareValues[0],
+            afterTime: temporalCompareValues[temporalCompareValues.length - 1],
+        }));
+    }, [
+        temporalCompareConfig.afterTime,
+        temporalCompareConfig.beforeTime,
+        temporalCompareConfig.enabled,
+        temporalCompareValues,
     ]);
     const temporalStatistics = useMemo(
         () => temporalConfig.enabled
@@ -1981,6 +2065,48 @@ export function WorkspacePage() {
         }),
         [temporalFeatures],
     );
+    const temporalCompareBeforeCollection = useMemo(
+        () => filterCollectionAtTemporalValue(
+            filteredCollection,
+            temporalConfig,
+            temporalCompareConfig.beforeTime,
+        ),
+        [
+            filteredCollection,
+            temporalCompareConfig.beforeTime,
+            temporalConfig,
+        ],
+    );
+    const temporalCompareAfterCollection = useMemo(
+        () => filterCollectionAtTemporalValue(
+            filteredCollection,
+            temporalConfig,
+            temporalCompareConfig.afterTime,
+        ),
+        [
+            filteredCollection,
+            temporalCompareConfig.afterTime,
+            temporalConfig,
+        ],
+    );
+    const temporalCompareSummary = useMemo(
+        () => temporalConfig.enabled && temporalCompareValues.length >= 2
+            ? calculateTemporalComparison(
+                temporalCompareBeforeCollection,
+                temporalCompareAfterCollection,
+                temporalCompareConfig.beforeTime,
+                temporalCompareConfig.afterTime,
+            )
+            : null,
+        [
+            temporalCompareAfterCollection,
+            temporalCompareBeforeCollection,
+            temporalCompareConfig.afterTime,
+            temporalCompareConfig.beforeTime,
+            temporalCompareValues.length,
+            temporalConfig.enabled,
+        ],
+    );
     const geometryDraft = useMemo(
         () => createClosedPolygonGeometry(
             geometryEditor.draftCoordinates,
@@ -2062,6 +2188,152 @@ export function WorkspacePage() {
         ],
     );
 
+    const temporalCompareLayerStyle = useMemo<LayerStyle>(() => {
+        if (layerStyle.symbologyMode !== "graduated") {
+            return thematicLayerStyle;
+        }
+
+        const sharedClasses = createGraduatedClasses(
+            [
+                ...temporalCompareBeforeCollection.features,
+                ...temporalCompareAfterCollection.features,
+            ],
+            {
+                field: layerStyle.graduatedField,
+                method: layerStyle.classificationMethod,
+                classCount: layerStyle.classCount,
+                colors: getColorRampColors(
+                    layerStyle.colorRamp,
+                    layerStyle.classCount,
+                ),
+            },
+        );
+
+        return {
+            ...layerStyle,
+            graduatedClasses: sharedClasses,
+        };
+    }, [
+        layerStyle,
+        temporalCompareAfterCollection.features,
+        temporalCompareBeforeCollection.features,
+        thematicLayerStyle,
+    ]);
+
+    const createTemporalCompareSnapshot = useCallback((
+        capture: TemporalCompareCaptureResult,
+    ): TemporalCompareSnapshot | null => {
+        if (!temporalCompareSummary) {
+            return null;
+        }
+
+        return {
+            beforeTime: temporalCompareConfig.beforeTime,
+            afterTime: temporalCompareConfig.afterTime,
+            layout: temporalCompareConfig.layout,
+            summary: temporalCompareSummary,
+            beforeMap: capture.before,
+            afterMap: capture.after,
+            capturedAt: Date.now(),
+        };
+    }, [
+        temporalCompareConfig.afterTime,
+        temporalCompareConfig.beforeTime,
+        temporalCompareConfig.layout,
+        temporalCompareSummary,
+    ]);
+
+    const handleTemporalCompareCapture = useCallback((
+        result: TemporalCompareCaptureResult,
+    ) => {
+        if (result.requestId !== temporalCompareCaptureSequenceRef.current) {
+            return;
+        }
+
+        temporalCompareCaptureResolverRef.current?.(result);
+        temporalCompareCaptureResolverRef.current = null;
+        setTemporalCompareCaptureRequestId(null);
+    }, []);
+
+    function requestTemporalCompareCapture() {
+        return new Promise<TemporalCompareCaptureResult>((resolve) => {
+            temporalCompareCaptureResolverRef.current?.({
+                requestId: temporalCompareCaptureSequenceRef.current,
+                before: { dataUrl: null, error: "新的捕获请求已替换上一次请求。" },
+                after: { dataUrl: null, error: "新的捕获请求已替换上一次请求。" },
+            });
+            temporalCompareCaptureSequenceRef.current += 1;
+            temporalCompareCaptureResolverRef.current = resolve;
+            setTemporalCompareCaptureRequestId(
+                temporalCompareCaptureSequenceRef.current,
+            );
+        });
+    }
+
+    async function handleCaptureTemporalCompareSnapshot() {
+        if (!temporalCompareConfig.enabled || !temporalCompareSummary) {
+            setTemporalCompareError("请先进入时序对比。 ");
+            return;
+        }
+
+        setTemporalCompareCapturing(true);
+        setTemporalCompareError(null);
+        try {
+            const capture = await requestTemporalCompareCapture();
+            const snapshot = createTemporalCompareSnapshot(capture);
+            setTemporalCompareSnapshot(snapshot);
+
+            if (!capture.before.dataUrl && !capture.after.dataUrl) {
+                setTemporalCompareError(
+                    "两侧地图快照均不可用，统计对比仍可用于报告。",
+                );
+            }
+        } finally {
+            setTemporalCompareCapturing(false);
+        }
+    }
+
+    function handleEnterTemporalCompare() {
+        if (!temporalConfig.enabled) {
+            setTemporalCompareError("请先启用时间分析。 ");
+            return;
+        }
+        if (temporalCompareValues.length < 2) {
+            setTemporalCompareError("当前数据至少需要两个时间点才能进行时序对比。 ");
+            return;
+        }
+        if (temporalCompareConfig.beforeTime >= temporalCompareConfig.afterTime) {
+            setTemporalCompareError("后期时间应晚于前期时间。 ");
+            return;
+        }
+
+        clearMeasure();
+        setTemporalCompareError(null);
+        setTemporalCompareSnapshot(null);
+        setTemporalCompareConfig((previous) => ({
+            ...previous,
+            enabled: true,
+            syncCamera: previous.layout === "swipe" ? true : previous.syncCamera,
+        }));
+        setActivePanel("temporal-compare");
+    }
+
+    function handleExitTemporalCompare() {
+        setRestoreViewState((previous) => ({
+            requestId: (previous?.requestId ?? 0) + 1,
+            state: {
+                ...projectMapState,
+                basemap,
+            },
+        }));
+        setTemporalCompareConfig((previous) => ({
+            ...previous,
+            enabled: false,
+        }));
+        setTemporalCompareCapturing(false);
+        setTemporalCompareCaptureRequestId(null);
+    }
+
     function requestReportMapCapture() {
         return new Promise<MapCaptureResult>((resolve) => {
             mapCaptureResolverRef.current?.({
@@ -2104,7 +2376,28 @@ export function WorkspacePage() {
         setReportBuilderMessage("正在捕获地图并生成分析快照...");
 
         try {
-            const mapCapture = await requestReportMapCapture();
+            let comparisonSnapshot = temporalCompareSnapshot;
+            let mapCapture: MapCaptureResult;
+
+            if (temporalCompareConfig.enabled) {
+                const comparisonCapture = await requestTemporalCompareCapture();
+                comparisonSnapshot = createTemporalCompareSnapshot(
+                    comparisonCapture,
+                );
+                setTemporalCompareSnapshot(comparisonSnapshot);
+                mapCapture = {
+                    requestId: comparisonCapture.requestId,
+                    dataUrl: comparisonCapture.after.dataUrl ??
+                        comparisonCapture.before.dataUrl,
+                    error: comparisonCapture.after.dataUrl ||
+                        comparisonCapture.before.dataUrl
+                        ? null
+                        : comparisonCapture.after.error ??
+                            comparisonCapture.before.error,
+                };
+            } else {
+                mapCapture = await requestReportMapCapture();
+            }
             const snapshot = createReportSnapshot({
                 projectName: projectMeta?.name ?? "未命名工程",
                 workspaceRevision,
@@ -2126,6 +2419,7 @@ export function WorkspacePage() {
                         summary: spatialStatisticsSummary,
                     }
                     : null,
+                temporalComparison: comparisonSnapshot,
                 mapState: { ...projectMapState, basemap },
                 mapCapture: {
                     dataUrl: mapCapture.dataUrl,
@@ -2220,6 +2514,17 @@ export function WorkspacePage() {
         panel: Exclude<WorkspacePanel, null>,
     ) {
         if (
+            temporalCompareConfig.enabled &&
+            panel !== "temporal-compare" &&
+            panel !== "basemap" &&
+            panel !== "report-builder"
+        ) {
+            setTemporalCompareError("请先退出时序对比模式。 ");
+            setActivePanel("temporal-compare");
+            return false;
+        }
+
+        if (
             geometryEditor.mode !== "idle" &&
             panel !== "geometry-edit"
         ) {
@@ -2268,6 +2573,15 @@ export function WorkspacePage() {
             return "请先保存或取消当前几何编辑";
         }
 
+        if (
+            temporalCompareConfig.enabled &&
+            commandId !== "open-basemap" &&
+            commandId !== "open-report-builder" &&
+            commandId !== "open-temporal-compare"
+        ) {
+            return "请先退出时序对比模式";
+        }
+
         return null;
     }
 
@@ -2276,6 +2590,10 @@ export function WorkspacePage() {
     ) {
         if (result.type === "command") {
             return getWorkspaceCommandDisabledReason(result.commandId);
+        }
+
+        if (temporalCompareConfig.enabled) {
+            return "请先退出时序对比模式";
         }
 
         if (result.type === "coordinate") {
@@ -2352,6 +2670,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("data-sources");
             case "open-temporal":
                 return openWorkspacePanelFromSearch("temporal");
+            case "open-temporal-compare":
+                return openWorkspacePanelFromSearch("temporal-compare");
             case "open-spatial-statistics":
                 return openWorkspacePanelFromSearch("spatial-statistics");
             case "open-agent":
@@ -2589,6 +2909,16 @@ export function WorkspacePage() {
                 bufferResult,
                 bufferSpatialQueryResult: spatialQueryResult,
                 temporalConfig,
+                ...(temporalCompareConfig.beforeTime < temporalCompareConfig.afterTime
+                    ? {
+                        temporalCompare: {
+                            layout: temporalCompareConfig.layout,
+                            beforeTime: temporalCompareConfig.beforeTime,
+                            afterTime: temporalCompareConfig.afterTime,
+                            syncCamera: temporalCompareConfig.syncCamera,
+                        },
+                    }
+                    : {}),
             },
         }
         : null;
@@ -2674,6 +3004,15 @@ export function WorkspacePage() {
         setTemporalConfig({
             ...(project.workspace.temporalConfig ?? DEFAULT_TEMPORAL_CONFIG),
         });
+        setTemporalCompareConfig({
+            ...DEFAULT_TEMPORAL_MAP_COMPARE_CONFIG,
+            ...project.workspace.temporalCompare,
+            enabled: false,
+        });
+        setTemporalCompareSnapshot(null);
+        setTemporalCompareError(null);
+        setTemporalCompareCapturing(false);
+        setTemporalCompareCaptureRequestId(null);
         setActivePanel(null);
         setActiveTool("select");
         setMapViewCommand(null);
@@ -2725,6 +3064,10 @@ export function WorkspacePage() {
             analysisResultLayers,
             basemap,
             temporalConfig,
+            temporalCompareConfig.layout,
+            temporalCompareConfig.beforeTime,
+            temporalCompareConfig.afterTime,
+            temporalCompareConfig.syncCamera,
         ];
         const previousReferences = persistentReferencesRef.current;
         const changed = previousReferences !== null &&
@@ -2769,6 +3112,10 @@ export function WorkspacePage() {
         state.dataset,
         state.filters,
         temporalConfig,
+        temporalCompareConfig.afterTime,
+        temporalCompareConfig.beforeTime,
+        temporalCompareConfig.layout,
+        temporalCompareConfig.syncCamera,
     ]);
 
     if (!dataset ||
@@ -4231,6 +4578,7 @@ export function WorkspacePage() {
                     void handleAddOverlayLayer(file);
                 }}
                 overlayImporting={overlayImporting}
+                compareMode={temporalCompareConfig.enabled}
             />
 
             <main className="workspace-map-area">
@@ -4241,14 +4589,35 @@ export function WorkspacePage() {
                         <p>
                             {dataset.name}
                             {" · "}
-                            当前 {temporalFeatures.length}
-                            {" / "}
-                            {totalFeatureCount} 条要素
+                            {temporalCompareConfig.enabled && temporalCompareSummary
+                                ? `前期 ${temporalCompareSummary.beforeFeatureCount} / 后期 ${temporalCompareSummary.afterFeatureCount} 条要素`
+                                : `当前 ${temporalFeatures.length} / ${totalFeatureCount} 条要素`}
                         </p>
                     </div>
                 </header>
 
                 <div className="workspace-map-wrapper">
+                    {temporalCompareConfig.enabled ? (
+                        <TemporalMapCompareView
+                            beforeCollection={temporalCompareBeforeCollection}
+                            afterCollection={temporalCompareAfterCollection}
+                            beforeLabel={formatTemporalValue(
+                                temporalCompareConfig.beforeTime,
+                                temporalConfig.type,
+                            )}
+                            afterLabel={formatTemporalValue(
+                                temporalCompareConfig.afterTime,
+                                temporalConfig.type,
+                            )}
+                            config={temporalCompareConfig}
+                            layerStyle={temporalCompareLayerStyle}
+                            basemap={basemap}
+                            initialViewState={{ ...projectMapState, basemap }}
+                            captureRequestId={temporalCompareCaptureRequestId}
+                            onCapture={handleTemporalCompareCapture}
+                            onViewStateChange={handleProjectMapStateChange}
+                        />
+                    ) : (
                     <MapView
                         collection={
                             temporalCollection
@@ -4353,6 +4722,7 @@ export function WorkspacePage() {
 
                         onGeometryActiveVertexChange={geometryEditor.setActiveVertex}
                     />
+                    )}
 
                     {overlayImportError && (
                         <div
@@ -4372,7 +4742,7 @@ export function WorkspacePage() {
                         </div>
                     )}
 
-                    <MeasureResult
+                    {!temporalCompareConfig.enabled && <MeasureResult
 
                         mode={
                             measureMode
@@ -4390,9 +4760,9 @@ export function WorkspacePage() {
 
                         onClear={clearMeasure}
 
-                    />
+                    />}
 
-                    <TimelineControl
+                    {!temporalCompareConfig.enabled && <TimelineControl
                         config={temporalConfig}
                         values={temporalValues}
                         onCurrentChange={(current) => {
@@ -4401,9 +4771,9 @@ export function WorkspacePage() {
                                 current,
                             }));
                         }}
-                    />
+                    />}
 
-                    {temporalFeatures.length === 0 && (
+                    {!temporalCompareConfig.enabled && temporalFeatures.length === 0 && (
                         <div className="map-empty-overlay">
                             <strong>
                                 {temporalConfig.enabled
@@ -4672,6 +5042,10 @@ export function WorkspacePage() {
                     draft={reportDraft}
                     currentWorkspaceRevision={workspaceRevision}
                     hasDataQualityReport={dataQualityReport !== null}
+                    hasTemporalComparison={
+                        temporalCompareConfig.enabled ||
+                        temporalCompareSnapshot !== null
+                    }
                     snapshotStatus={reportSnapshotStatus}
                     aiStatus={reportAiStatus}
                     message={reportBuilderMessage}
@@ -4709,6 +5083,32 @@ export function WorkspacePage() {
                     statistics={temporalStatistics}
                     change={temporalChange}
                     onApply={setTemporalConfig}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
+
+            {activePanel === "temporal-compare" && (
+                <TemporalComparePanel
+                    temporalConfig={temporalConfig}
+                    availableValues={temporalCompareValues}
+                    config={temporalCompareConfig}
+                    summary={temporalCompareSummary}
+                    snapshot={temporalCompareSnapshot}
+                    capturing={temporalCompareCapturing}
+                    error={temporalCompareError}
+                    onConfigChange={(config) => {
+                        setTemporalCompareConfig(config);
+                        setTemporalCompareError(null);
+                        setTemporalCompareSnapshot(null);
+                    }}
+                    onEnter={handleEnterTemporalCompare}
+                    onExit={handleExitTemporalCompare}
+                    onCapture={() => {
+                        void handleCaptureTemporalCompareSnapshot();
+                    }}
+                    onOpenTemporalConfig={() => {
+                        setActivePanel("temporal");
+                    }}
                     onClose={() => setActivePanel(null)}
                 />
             )}

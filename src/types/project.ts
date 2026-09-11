@@ -30,6 +30,7 @@ import type {
     BasemapType,
 } from "./workspace";
 import type { TemporalConfig } from "./temporal";
+import type { TemporalMapCompareProjectConfig } from "./mapCompare";
 
 export const GEOINSIGHT_PROJECT_VERSION = 1;
 export const GEOINSIGHT_PROJECT_FORMAT = "geoinsight-project" as const;
@@ -66,6 +67,7 @@ export interface ProjectWorkspaceState {
     bufferResult: BufferAnalysisResult | null;
     bufferSpatialQueryResult: SpatialQueryResult | null;
     temporalConfig?: TemporalConfig;
+    temporalCompare?: TemporalMapCompareProjectConfig;
 }
 
 export interface ProjectMapState {

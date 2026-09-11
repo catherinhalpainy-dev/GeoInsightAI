@@ -18,6 +18,7 @@ export type WorkspacePanel =
     | "report-builder"
     | "data-sources"
     | "temporal"
+    | "temporal-compare"
     | "spatial-statistics"
     | "agent"
     | null;

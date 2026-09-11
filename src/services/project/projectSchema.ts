@@ -367,6 +367,16 @@ const temporalConfigSchema = z.object({
     { message: "启用的时间配置无效" },
 );
 
+const temporalCompareSchema = z.object({
+    layout: z.enum(["split", "swipe"]),
+    beforeTime: z.number().finite(),
+    afterTime: z.number().finite(),
+    syncCamera: z.boolean(),
+}).refine(
+    (config) => config.beforeTime < config.afterTime,
+    { message: "时序对比前后期配置无效" },
+);
+
 export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
     format: z.literal(GEOINSIGHT_PROJECT_FORMAT),
     version: z.literal(GEOINSIGHT_PROJECT_VERSION),
@@ -414,5 +424,6 @@ export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
         bufferResult: bufferResultSchema.nullable(),
         bufferSpatialQueryResult: spatialQueryResultSchema.nullable(),
         temporalConfig: temporalConfigSchema.optional(),
+        temporalCompare: temporalCompareSchema.optional(),
     }),
 });

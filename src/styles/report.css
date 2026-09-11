@@ -170,6 +170,26 @@
 .report-map-placeholder { display: grid; place-content: center; gap: 4px; color: #64748b; text-align: center; }
 .report-map-placeholder strong { color: #334155; font-size: 13px; }
 .report-map-placeholder span { font-size: 10px; }
+
+.report-compare-range {
+  margin: 0 0 14px;
+  color: #0f766e;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.report-compare-maps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.report-compare-maps figure { min-width: 0; margin: 0; }
+.report-compare-maps img,
+.report-compare-maps .report-map-placeholder { width: 100%; aspect-ratio: 16 / 10; object-fit: contain; }
+.report-compare-maps figcaption { margin-top: 5px; color: #64748b; font-size: 9px; text-align: center; }
+.report-compare-table { margin-top: 14px; }
 .report-caption { margin: 6px 0 0; color: #94a3b8 !important; font-size: 9px !important; }
 
 .report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }

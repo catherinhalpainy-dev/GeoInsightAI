@@ -28,6 +28,7 @@ interface ReportBuilderPanelProps {
     draft: ReportDraft | null;
     currentWorkspaceRevision: number;
     hasDataQualityReport: boolean;
+    hasTemporalComparison: boolean;
     snapshotStatus: ReportSnapshotStatus;
     aiStatus: ReportAiStatus;
     message: string | null;
@@ -49,16 +50,22 @@ const SECTION_DEFINITIONS: readonly {
     { type: "area-analysis", title: "面积分析" },
     { type: "spatial-analysis", title: "空间分析结果" },
     { type: "spatial-statistics", title: "空间统计" },
+    { type: "temporal-comparison", title: "时序对比" },
     { type: "data-quality", title: "数据质量" },
     { type: "analysis-layers", title: "分析结果图层" },
     { type: "methodology", title: "方法说明" },
 ];
 
-function createDefaultSections(hasDataQualityReport: boolean) {
+function createDefaultSections(
+    hasDataQualityReport: boolean,
+    hasTemporalComparison: boolean,
+) {
     return SECTION_DEFINITIONS.map((section, order) => ({
         id: crypto.randomUUID(),
         ...section,
-        enabled: section.type !== "data-quality" || hasDataQualityReport,
+        enabled:
+            (section.type !== "data-quality" || hasDataQualityReport) &&
+            (section.type !== "temporal-comparison" || hasTemporalComparison),
         order,
     }));
 }
@@ -67,6 +74,7 @@ export function ReportBuilderPanel({
     draft,
     currentWorkspaceRevision,
     hasDataQualityReport,
+    hasTemporalComparison,
     snapshotStatus,
     aiStatus,
     message,
@@ -80,7 +88,10 @@ export function ReportBuilderPanel({
     const [subtitle, setSubtitle] = useState("GeoInsight AI Analysis");
     const [author, setAuthor] = useState("");
     const [sections, setSections] = useState<ReportSectionConfig[]>(
-        () => createDefaultSections(hasDataQualityReport),
+        () => createDefaultSections(
+            hasDataQualityReport,
+            hasTemporalComparison,
+        ),
     );
 
     useEffect(() => {
@@ -189,9 +200,12 @@ export function ReportBuilderPanel({
                                         type="checkbox"
                                         checked={section.enabled}
                                         disabled={
-                                            section.type === "data-quality" &&
-                                            !hasDataQualityReport &&
-                                            !draft?.snapshot.dataQuality.available
+                                            (section.type === "data-quality" &&
+                                                !hasDataQualityReport &&
+                                                !draft?.snapshot.dataQuality.available) ||
+                                            (section.type === "temporal-comparison" &&
+                                                !hasTemporalComparison &&
+                                                !draft?.snapshot.temporalComparison)
                                         }
                                         onChange={(event) => updateSections(
                                             sections.map((item) => item.id === section.id

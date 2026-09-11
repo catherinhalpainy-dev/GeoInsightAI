@@ -40,6 +40,24 @@ export function generateDeterministicInsights(
         });
     }
 
+    if (snapshot.temporalComparison) {
+        const comparison = snapshot.temporalComparison.summary;
+        const leadingChange = [...comparison.categories]
+            .filter((item) => item.beforeCount > 0 || item.afterCount > 0)
+            .sort((first, second) =>
+                Math.abs(second.shareDelta) - Math.abs(first.shareDelta),
+            )[0];
+        const categorySentence = leadingChange
+            ? `${leadingChange.label}数量占比由 ${(leadingChange.beforeShare * 100).toFixed(1)}% 变为 ${(leadingChange.afterShare * 100).toFixed(1)}%，相差 ${(leadingChange.shareDelta * 100).toFixed(1)} 个百分点。`
+            : "当前时间切片没有可比较的用地分类。";
+
+        insights.push({
+            category: "distribution",
+            title: "时序聚合对比",
+            content: `${comparison.beforeTime} 至 ${comparison.afterTime}，当前时间切片中的要素数量由 ${comparison.beforeFeatureCount.toLocaleString("zh-CN")} 变为 ${comparison.afterFeatureCount.toLocaleString("zh-CN")}，相差 ${comparison.featureCountDelta.toLocaleString("zh-CN")} 个。${categorySentence}该结果不表示具体地块发生了用途转换。`,
+        });
+    }
+
     if (snapshot.spatialAnalysis.spatialQueryFeatureCount > 0) {
         insights.push({
             category: "spatial",
@@ -115,6 +133,17 @@ export function createReportMethodology(
         methods.push(
             `时间分析采用 ${snapshot.temporal.field} 字段的精确匹配，只显示当前时间值对应的要素；缺少或无效时间值的要素不会进入该时间切片。`,
         );
+    }
+
+    if (snapshot.temporalComparison) {
+        methods.push(
+            "时序对比使用同一数据集、同一属性筛选规则和统一专题符号体系，对两个时间点进行并列比较。聚合差异不用于推断具体地块的用途转化关系。",
+        );
+        if (snapshot.symbology.mode === "graduated") {
+            methods.push(
+                "时序对比分级阈值基于两个时间点的合并值域计算，以保证两侧颜色可比。",
+            );
+        }
     }
 
     if (snapshot.spatialStatistics) {

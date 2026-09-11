@@ -88,20 +88,7 @@ import {
     calculateGeoJsonBounds,
 } from "../../services/gis/calculateGeoJsonBounds";
 import { buildWmsTileUrl } from "../../services/gis/wms";
-
-const BASEMAP_STYLES: Record<
-    BasemapType,
-    string
-> = {
-    dark:
-        "https://tiles.openfreemap.org/styles/dark",
-
-    light:
-        "https://tiles.openfreemap.org/styles/positron",
-
-    blank:
-        "/map_style_blank.json",
-};
+import { BASEMAP_STYLES } from "../../constants/basemaps";
 
 const SELECTED_FILL_LAYER_ID =
     "land-use-selected-fill";
