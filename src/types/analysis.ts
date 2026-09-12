@@ -63,7 +63,8 @@ export type GeoprocessingOperation =
 
 export type AnalysisOperation =
     | GeoprocessingOperation
-    | "spatial-hexbin";
+    | "spatial-hexbin"
+    | "workflow";
 
 export type GeoprocessingInputSource =
     | "current-filtered"
@@ -104,7 +105,12 @@ export type AnalysisResultProperties =
     | IntersectionResultProperties
     | DissolveResultProperties
     | CentroidResultProperties
-    | SpatialHexbinProperties;
+    | SpatialHexbinProperties
+    | WorkflowResultProperties;
+
+export type WorkflowResultProperties = Record<string, unknown> & {
+    analysisOperation: "workflow";
+};
 
 export type AnalysisResultGeometry =
     | Point
@@ -138,6 +144,13 @@ export interface AnalysisResultLayer {
         cellSizeKm: number;
         temporalValue?: number;
         createdFromFeatureCount: number;
+    } | {
+        method: "workflow";
+        workflowId: string;
+        workflowName: string;
+        workflowRunId: string;
+        createdFromFeatureCount: number;
+        stepCount: number;
     };
 }
 

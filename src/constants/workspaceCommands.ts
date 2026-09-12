@@ -110,6 +110,14 @@ export const WORKSPACE_COMMANDS: readonly WorkspaceCommandDefinition[] = [
         requiredState: "dataset",
     },
     {
+        id: "open-workflow-builder",
+        label: "分析工作流",
+        description: "构建、验证并运行可复用 GIS 分析模型",
+        keywords: ["workflow", "model builder", "pipeline", "工作流", "分析模型"],
+        category: "tool",
+        requiredState: "dataset",
+    },
+    {
         id: "open-temporal-compare",
         label: "时序对比",
         description: "对比同一数据集的两个时间切片",

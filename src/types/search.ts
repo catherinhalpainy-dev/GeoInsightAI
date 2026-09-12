@@ -25,6 +25,7 @@ export type WorkspaceCommandId =
     | "open-temporal"
     | "open-temporal-compare"
     | "open-spatial-statistics"
+    | "open-workflow-builder"
     | "open-agent"
     | "open-basemap"
     | "navigate-statistics"

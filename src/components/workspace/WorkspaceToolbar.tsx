@@ -5,6 +5,7 @@ import {
   Clock3,
   Columns2,
   ChartScatter,
+  Boxes,
   SquarePen,
   ShieldCheck,
   SquareDashed,
@@ -94,6 +95,21 @@ export function WorkspaceToolbar({
       >
         <SquarePen size={21} strokeWidth={1.9} aria-hidden="true" />
         <span>几何编辑</span>
+      </button>
+
+      <button
+        type="button"
+        disabled={compareMode}
+        className={
+          activePanel === "workflow-builder"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("workflow-builder")}
+        title="构建并运行可复用的顺序 GIS 分析模型"
+      >
+        <Boxes size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>工作流</span>
       </button>
 
       <button

@@ -879,3 +879,4 @@
   background: #fee2e2;
   color: #b91c1c;
 }
+.agent-workflow-action{display:flex;align-items:center;gap:8px;margin-top:10px}.agent-workflow-action button{border:1px solid #99f6e4;border-radius:7px;background:#f0fdfa;padding:7px 10px;color:#0f766e}.agent-workflow-action p{margin:0;font-size:11px;color:#64748b}

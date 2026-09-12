@@ -25,6 +25,10 @@ interface AgentPanelProps {
     onClose: () => void;
     canUndo: boolean;
     onUndo: () => void;
+    onSaveAsWorkflow: (plan: AgentPlan) => {
+        success: boolean;
+        message: string;
+    };
 }
 
 type AgentUiStatus =
@@ -244,6 +248,7 @@ export function AgentPanel({
     onClose,
     canUndo,
     onUndo,
+    onSaveAsWorkflow,
 }: AgentPanelProps) {
     const [message, setMessage] = useState("");
     const [status, setStatus] = useState<AgentUiStatus>("idle");
@@ -254,6 +259,7 @@ export function AgentPanel({
         useState<AgentExecutionEvent[]>([]);
     const [stoppedAtStep, setStoppedAtStep] =
         useState<number | null>(null);
+    const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
 
     const isBusy =
         status === "planning" || status === "executing";
@@ -284,6 +290,7 @@ export function AgentPanel({
         setLatestExecutionEvents([]);
         setStatus("planning");
         setPlan(null);
+        setWorkflowMessage(null);
         setThreadId(null);
 
         try {
@@ -520,6 +527,21 @@ export function AgentPanel({
                                 >
                                     撤销整个计划
                                 </button>
+                            </div>
+                        )}
+
+                        {plan.commands.length > 0 && (status === "completed" || status === "failed") && (
+                            <div className="agent-workflow-action">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const result = onSaveAsWorkflow(plan);
+                                        setWorkflowMessage(result.message);
+                                    }}
+                                >
+                                    保存为工作流
+                                </button>
+                                {workflowMessage && <p>{workflowMessage}</p>}
                             </div>
                         )}
 

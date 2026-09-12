@@ -35,6 +35,7 @@ import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
 import { TemporalConfigPanel } from "../components/temporal/TemporalConfigPanel";
 import { TimelineControl } from "../components/temporal/TimelineControl";
 import { SpatialStatisticsPanel } from "../components/workspace/SpatialStatisticsPanel";
+import { WorkflowBuilderPanel, type WorkflowInputOption } from "../components/workflow/WorkflowBuilderPanel";
 import { TemporalComparePanel } from "../components/compare/TemporalComparePanel";
 import { TemporalMapCompareView } from "../components/compare/TemporalMapCompareView";
 import {
@@ -204,6 +205,18 @@ import {
     createHexbinAnalysis,
     supportsAreaWeight,
 } from "../services/gis/spatialStatistics";
+import type {
+    AnalysisWorkflow,
+    WorkflowExecutionContext,
+    WorkflowFeatureCollection,
+    WorkflowRunRecord,
+    WorkflowRunStatus,
+} from "../types/workflow";
+import { WORKFLOW_TEMPLATES, createWorkflowFromTemplate } from "../constants/workflowTemplates";
+import { createWorkflowOutputLayer, executeWorkflow } from "../services/workflow/workflowExecutor";
+import { validateWorkflow } from "../services/workflow/workflowValidator";
+import { deserializeWorkflow, duplicateWorkflow, exportWorkflowFile } from "../services/workflow/workflowSerializer";
+import { agentPlanToWorkflow } from "../services/workflow/agentPlanToWorkflow";
 // section 表示一个独立的页面功能区域
 
 interface AgentSnapshot {
@@ -473,6 +486,23 @@ export function WorkspacePage() {
         useState<SpatialStatisticsRunRequest | null>(null);
     const [spatialStatisticsResultLayerId, setSpatialStatisticsResultLayerId] =
         useState<string | null>(null);
+    const [workflows, setWorkflows] = useState<AnalysisWorkflow[]>(
+        () => pendingProject?.workspace.workflows ?? [],
+    );
+    const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
+        () => pendingProject?.workspace.workflows?.[0]?.id ?? null,
+    );
+    const [workflowRunStatus, setWorkflowRunStatus] =
+        useState<WorkflowRunStatus>("idle");
+    const [workflowRunHistory, setWorkflowRunHistory] =
+        useState<WorkflowRunRecord[]>([]);
+    const [latestWorkflowRun, setLatestWorkflowRun] =
+        useState<WorkflowRunRecord | null>(null);
+    const [workflowPreview, setWorkflowPreview] =
+        useState<WorkflowFeatureCollection | null>(null);
+    const [latestWorkflowSnapshot, setLatestWorkflowSnapshot] =
+        useState<AnalysisWorkflow | null>(null);
+    const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
     const [overlayImportError, setOverlayImportError] =
         useState<string | null>(null);
     const [overlayImporting, setOverlayImporting] =
@@ -2016,6 +2046,231 @@ export function WorkspacePage() {
             cellId,
         }));
     }
+
+    const selectedWorkflow = workflows.find(
+        (workflow) => workflow.id === selectedWorkflowId,
+    ) ?? null;
+    const workflowValidationIssues = useMemo(
+        () => selectedWorkflow ? validateWorkflow(selectedWorkflow) : [],
+        [selectedWorkflow],
+    );
+    const workflowInputOptions = useMemo<WorkflowInputOption[]>(() => {
+        const options: WorkflowInputOption[] = [
+            {
+                value: "primary",
+                label: "Primary Dataset",
+                input: { type: "primary" },
+                featureCount: dataset?.collection.features.length ?? 0,
+            },
+            {
+                value: "current-filtered-primary",
+                label: "Current Filtered Primary",
+                input: { type: "current-filtered-primary" },
+                featureCount: temporalFeatures.length,
+            },
+            ...overlayLayers.map((layer) => ({
+                value: `overlay:${layer.id}`,
+                label: `Overlay · ${layer.name}`,
+                input: { type: "overlay" as const, layerId: layer.id },
+                featureCount: layer.featureCount,
+            })),
+            ...analysisResultLayers.map((layer) => ({
+                value: `analysis-result:${layer.id}`,
+                label: `Analysis · ${layer.name}`,
+                input: { type: "analysis-result" as const, layerId: layer.id },
+                featureCount: layer.featureCount,
+            })),
+        ];
+        if (selectedWorkflow) {
+            const selectedKey = selectedWorkflow.input.type === "overlay" || selectedWorkflow.input.type === "analysis-result"
+                ? `${selectedWorkflow.input.type}:${selectedWorkflow.input.layerId}`
+                : selectedWorkflow.input.type;
+            if (!options.some((option) => option.value === selectedKey)) {
+                options.push({ value: selectedKey, label: "Missing input", input: selectedWorkflow.input, featureCount: 0, missing: true });
+            }
+        }
+        return options;
+    }, [analysisResultLayers, dataset, overlayLayers, selectedWorkflow, temporalFeatures.length]);
+
+    function resolveWorkflowInput(workflow: AnalysisWorkflow): {
+        collection: WorkflowFeatureCollection;
+        sourceLayerId: string;
+    } {
+        if (!dataset) throw new Error("当前没有主数据集。");
+        if (workflow.input.type === "primary") return { collection: dataset.collection, sourceLayerId: dataset.id };
+        if (workflow.input.type === "current-filtered-primary") return {
+            collection: { type: "FeatureCollection", features: temporalFeatures },
+            sourceLayerId: dataset.id,
+        };
+        if (workflow.input.type === "overlay") {
+            const layerId = workflow.input.layerId;
+            const layer = overlayLayers.find((item) => item.id === layerId);
+            if (!layer) throw new Error("工作流输入 Overlay 图层不存在。");
+            return { collection: layer.collection, sourceLayerId: layer.id };
+        }
+        const layerId = workflow.input.layerId;
+        const layer = analysisResultLayers.find((item) => item.id === layerId);
+        if (!layer) throw new Error("工作流输入分析结果图层不存在。");
+        return { collection: layer.collection, sourceLayerId: layer.id };
+    }
+
+    function handleNewWorkflow() {
+        const now = Date.now();
+        const workflow: AnalysisWorkflow = {
+            id: crypto.randomUUID(),
+            name: "未命名分析模型",
+            description: "",
+            createdAt: now,
+            updatedAt: now,
+            input: { type: "current-filtered-primary" },
+            steps: [],
+            output: { mode: "analysis-layer", name: "分析结果" },
+        };
+        setWorkflows((previous) => [...previous, workflow]);
+        setSelectedWorkflowId(workflow.id);
+        setWorkflowMessage("已创建新工作流。请添加步骤并保存。");
+    }
+
+    function handleCreateWorkflowFromTemplate(templateId: string) {
+        const template = WORKFLOW_TEMPLATES.find((item) => item.id === templateId);
+        if (!template) return;
+        const workflow = createWorkflowFromTemplate(template);
+        setWorkflows((previous) => [...previous, workflow]);
+        setSelectedWorkflowId(workflow.id);
+        setWorkflowMessage(`已从模板创建：${workflow.name}`);
+    }
+
+    function handleSaveWorkflow(workflow: AnalysisWorkflow) {
+        setWorkflows((previous) => previous.some((item) => item.id === workflow.id)
+            ? previous.map((item) => item.id === workflow.id ? workflow : item)
+            : [...previous, workflow]);
+        setSelectedWorkflowId(workflow.id);
+        setWorkflowMessage("工作流定义已保存。");
+    }
+
+    function handleDuplicateWorkflow(workflowId: string) {
+        const source = workflows.find((item) => item.id === workflowId);
+        if (!source) return;
+        const duplicate = duplicateWorkflow(source);
+        setWorkflows((previous) => [...previous, duplicate]);
+        setSelectedWorkflowId(duplicate.id);
+        setWorkflowMessage("已创建独立副本，所有步骤均使用新的 ID。");
+    }
+
+    function handleDeleteWorkflow(workflowId: string) {
+        setWorkflows((previous) => previous.filter((item) => item.id !== workflowId));
+        setSelectedWorkflowId((current) => current === workflowId
+            ? workflows.find((item) => item.id !== workflowId)?.id ?? null
+            : current);
+        setWorkflowMessage("工作流定义已删除；既有分析结果图层保持不变。");
+    }
+
+    async function handleImportWorkflow(file: File) {
+        try {
+            const workflow = deserializeWorkflow(await file.text());
+            setWorkflows((previous) => [...previous, workflow]);
+            setSelectedWorkflowId(workflow.id);
+            setWorkflowMessage("工作流已通过 Zod 校验并以新 ID 导入。");
+        } catch (error) {
+            setWorkflowMessage(error instanceof Error ? error.message : "工作流导入失败。");
+        }
+    }
+
+    async function handleRunWorkflow(workflow: AnalysisWorkflow) {
+        setWorkflowRunStatus("running");
+        setWorkflowMessage(null);
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        try {
+            const input = resolveWorkflowInput(workflow);
+            const context: WorkflowExecutionContext = {
+                workingCollection: input.collection,
+                originalCollection: input.collection,
+                sourceLayerId: input.sourceLayerId,
+                selectedFeature,
+                aoi: aoiPolygon,
+                bufferGeometry: null,
+                temporalConfig,
+                intermediateOutputs: {},
+            };
+            const result = executeWorkflow(workflow, context);
+            setLatestWorkflowRun(result.run);
+            setLatestWorkflowSnapshot(workflow);
+            setWorkflowRunHistory((previous) => [result.run, ...previous].slice(0, 10));
+            setWorkflowRunStatus(result.success ? "completed" : "failed");
+            setWorkflowPreview(result.success ? result.output : null);
+            if (result.context.bufferGeometry) {
+                const areaM2 = calculateBufferAreaM2(result.context.bufferGeometry);
+                const bufferStep = workflow.steps.find((step) => step.enabled && step.type === "create-buffer");
+                setBufferFeature(result.context.bufferGeometry);
+                setBufferResult({ distance: bufferStep?.type === "create-buffer" ? bufferStep.distanceM : 0, unit: "meter", areaM2, areaKm2: areaM2 / 1_000_000, featureCount: 1 });
+                setBufferError(null);
+            }
+            if (result.outputLayer) setAnalysisResultLayers((previous) => [...previous, result.outputLayer!]);
+            if (result.spatialStatisticsSummary) {
+                const hexbinStep = [...workflow.steps].reverse().find((step) => step.enabled && step.type === "hexbin");
+                setSpatialStatisticsSummary(result.spatialStatisticsSummary);
+                if (hexbinStep?.type === "hexbin") setSpatialStatisticsConfig((previous) => ({ ...previous, method: "hexbin", weightMode: hexbinStep.weightMode, cellSizeKm: hexbinStep.cellSizeKm }));
+            }
+            setWorkflowMessage(result.success ? "工作流已按本地同步执行上下文完成。" : result.run.errorMessage ?? "工作流执行失败。");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "工作流执行失败。";
+            const now = Date.now();
+            const failedStepId = workflow.steps.find((step) => step.enabled)?.id ?? null;
+            const run: WorkflowRunRecord = {
+                id: crypto.randomUUID(),
+                workflowId: workflow.id,
+                workflowName: workflow.name,
+                startedAt: now,
+                finishedAt: now,
+                durationMs: 0,
+                status: "failed",
+                steps: workflow.steps.map((step) => ({
+                    stepId: step.id,
+                    stepType: step.type,
+                    status: step.id === failedStepId ? "failed" : "skipped",
+                    startedAt: now,
+                    finishedAt: now,
+                    durationMs: 0,
+                    inputFeatureCount: 0,
+                    outputFeatureCount: 0,
+                    message: step.id === failedStepId ? message : "因输入预检失败未执行。",
+                })),
+                inputFeatureCount: 0,
+                outputFeatureCount: 0,
+                errorMessage: message,
+            };
+            setWorkflowRunStatus("failed");
+            setLatestWorkflowRun(run);
+            setWorkflowRunHistory((previous) => [run, ...previous].slice(0, 10));
+            setWorkflowMessage(message);
+        }
+    }
+
+    function handleAddWorkflowPreviewLayer() {
+        if (!workflowPreview || !latestWorkflowRun || !latestWorkflowSnapshot) return;
+        try {
+            const fallback = resolveWorkflowInput(latestWorkflowSnapshot).collection;
+            const layer = createWorkflowOutputLayer(latestWorkflowSnapshot, latestWorkflowRun.id, latestWorkflowRun.inputFeatureCount, workflowPreview, fallback);
+            setAnalysisResultLayers((previous) => [...previous, layer]);
+            setLatestWorkflowRun((previous) => previous ? { ...previous, outputLayerId: layer.id } : previous);
+            setWorkflowMessage("预览结果已添加为分析结果图层。");
+        } catch (error) {
+            setWorkflowMessage(error instanceof Error ? error.message : "无法添加预览结果。");
+        }
+    }
+
+    function handleFitWorkflowResult(layerId: string) {
+        setMapViewCommand((previous) => ({ type: "fit-search-layer", requestId: (previous?.requestId ?? 0) + 1, layerType: "analysis", layerId }));
+    }
+
+    function handleSaveAgentPlanAsWorkflow(plan: AgentPlan) {
+        const conversion = agentPlanToWorkflow(plan);
+        if (!conversion.workflow) return { success: false, message: conversion.message ?? "该计划无法转换。" };
+        setWorkflows((previous) => [...previous, conversion.workflow!]);
+        setSelectedWorkflowId(conversion.workflow.id);
+        setWorkflowMessage("Agent Plan 已保存为可复用工作流。");
+        return { success: true, message: "已保存为工作流。" };
+    }
     const qualitySourceCollection = useMemo<
         DataQualityFeatureCollection | null
     >(
@@ -2674,6 +2929,8 @@ export function WorkspacePage() {
                 return openWorkspacePanelFromSearch("temporal-compare");
             case "open-spatial-statistics":
                 return openWorkspacePanelFromSearch("spatial-statistics");
+            case "open-workflow-builder":
+                return openWorkspacePanelFromSearch("workflow-builder");
             case "open-agent":
                 return openWorkspacePanelFromSearch("agent");
             case "open-basemap":
@@ -2909,6 +3166,7 @@ export function WorkspacePage() {
                 bufferResult,
                 bufferSpatialQueryResult: spatialQueryResult,
                 temporalConfig,
+                workflows,
                 ...(temporalCompareConfig.beforeTime < temporalCompareConfig.afterTime
                     ? {
                         temporalCompare: {
@@ -3013,6 +3271,14 @@ export function WorkspacePage() {
         setTemporalCompareError(null);
         setTemporalCompareCapturing(false);
         setTemporalCompareCaptureRequestId(null);
+        setWorkflows(project.workspace.workflows ?? []);
+        setSelectedWorkflowId(project.workspace.workflows?.[0]?.id ?? null);
+        setWorkflowRunStatus("idle");
+        setWorkflowRunHistory([]);
+        setLatestWorkflowRun(null);
+        setWorkflowPreview(null);
+        setLatestWorkflowSnapshot(null);
+        setWorkflowMessage(null);
         setActivePanel(null);
         setActiveTool("select");
         setMapViewCommand(null);
@@ -3068,6 +3334,7 @@ export function WorkspacePage() {
             temporalCompareConfig.beforeTime,
             temporalCompareConfig.afterTime,
             temporalCompareConfig.syncCamera,
+            workflows,
         ];
         const previousReferences = persistentReferencesRef.current;
         const changed = previousReferences !== null &&
@@ -3116,6 +3383,7 @@ export function WorkspacePage() {
         temporalCompareConfig.beforeTime,
         temporalCompareConfig.layout,
         temporalCompareConfig.syncCamera,
+        workflows,
     ]);
 
     if (!dataset ||
@@ -3887,7 +4155,7 @@ export function WorkspacePage() {
         bufferQueryFeatureCount: spatialQueryFeatures.length,
         aoiQueryFeatureCount: aoiQueryFeatures.length,
         analysisLayers: analysisResultLayers.flatMap(
-            (layer) => layer.operation === "spatial-hexbin"
+            (layer) => layer.operation === "spatial-hexbin" || layer.operation === "workflow"
                 ? []
                 : [{
                 id: layer.id,
@@ -5128,6 +5396,43 @@ export function WorkspacePage() {
                 />
             )}
 
+            {activePanel === "workflow-builder" && (
+                <WorkflowBuilderPanel
+                    workflows={workflows}
+                    selectedWorkflowId={selectedWorkflowId}
+                    inputOptions={workflowInputOptions}
+                    temporalValues={temporalCompareValues}
+                    runStatus={workflowRunStatus}
+                    latestRun={latestWorkflowRun}
+                    runHistory={workflowRunHistory}
+                    validationIssues={workflowValidationIssues}
+                    previewFeatureCount={workflowPreview?.features.length ?? null}
+                    message={workflowMessage}
+                    onSelect={(workflowId) => {
+                        setSelectedWorkflowId(workflowId);
+                        setWorkflowMessage(null);
+                    }}
+                    onSave={handleSaveWorkflow}
+                    onNew={handleNewWorkflow}
+                    onTemplate={handleCreateWorkflowFromTemplate}
+                    onDuplicate={handleDuplicateWorkflow}
+                    onDelete={handleDeleteWorkflow}
+                    onRun={(workflow) => { void handleRunWorkflow(workflow); }}
+                    onImport={(file) => { void handleImportWorkflow(file); }}
+                    onExport={exportWorkflowFile}
+                    onAddPreviewLayer={handleAddWorkflowPreviewLayer}
+                    onExportPreview={() => {
+                        if (workflowPreview) exportFeatureCollection(
+                            workflowPreview,
+                            `geoinsight-workflow-preview-${Date.now()}.geojson`,
+                        );
+                    }}
+                    onFitResult={handleFitWorkflowResult}
+                    onOpenLayers={() => setActivePanel("layers")}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
+
             {activePanel === "geometry-edit" && (
                 <GeometryEditPanel
                     mode={geometryEditor.mode}
@@ -5191,6 +5496,7 @@ export function WorkspacePage() {
                     }
                     canUndo={lastAgentSnapshot !== null}
                     onUndo={handleUndoAgentAction}
+                    onSaveAsWorkflow={handleSaveAgentPlanAsWorkflow}
                 />
             )}
 

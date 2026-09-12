@@ -334,6 +334,11 @@
   clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
 }
 
+.analysis-layer-symbol.workflow {
+  border-color: #0f766e;
+  background: rgba(20, 184, 166, 0.2);
+}
+
 .analysis-layer-actions {
   display: flex;
   gap: 3px;

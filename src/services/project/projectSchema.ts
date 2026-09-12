@@ -9,6 +9,7 @@ import {
     GEOINSIGHT_PROJECT_FORMAT,
     GEOINSIGHT_PROJECT_VERSION,
 } from "../../types/project";
+import { analysisWorkflowSchema } from "../workflow/workflowSchema";
 
 const publicHttpUrlSchema = z.string().refine((value) => {
     try {
@@ -241,6 +242,9 @@ const analysisPropertiesSchema = z.union([
         rank: z.number().int().positive(),
         classIndex: z.number().int().min(0).max(4),
     }).passthrough(),
+    z.object({
+        analysisOperation: z.literal("workflow"),
+    }).passthrough(),
 ]);
 
 const analysisGeometrySchema = z.discriminatedUnion("type", [
@@ -258,7 +262,7 @@ const analysisFeatureSchema = z.object({
 const analysisLayerSchema = z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-    operation: z.enum(["intersection", "dissolve", "centroid", "spatial-hexbin"]),
+    operation: z.enum(["intersection", "dissolve", "centroid", "spatial-hexbin", "workflow"]),
     geometryType: z.enum(["Point", "Polygon", "MultiPolygon"]),
     visible: z.boolean(),
     createdAt: z.number().finite(),
@@ -267,20 +271,30 @@ const analysisLayerSchema = z.object({
         type: z.literal("FeatureCollection"),
         features: z.array(analysisFeatureSchema),
     }),
-    metadata: z.object({
-        method: z.literal("hexbin"),
-        inputSource: z.union([
-            z.enum(["filtered-primary", "buffer-query", "aoi-query"]),
-            z.object({
-                type: z.literal("overlay"),
-                layerId: z.string().min(1),
-            }),
-        ]),
-        weightMode: z.enum(["count", "area"]),
-        cellSizeKm: z.number().finite().positive(),
-        temporalValue: z.number().finite().optional(),
-        createdFromFeatureCount: z.number().int().nonnegative(),
-    }).optional(),
+    metadata: z.discriminatedUnion("method", [
+        z.object({
+            method: z.literal("hexbin"),
+            inputSource: z.union([
+                z.enum(["filtered-primary", "buffer-query", "aoi-query"]),
+                z.object({
+                    type: z.literal("overlay"),
+                    layerId: z.string().min(1),
+                }),
+            ]),
+            weightMode: z.enum(["count", "area"]),
+            cellSizeKm: z.number().finite().positive(),
+            temporalValue: z.number().finite().optional(),
+            createdFromFeatureCount: z.number().int().nonnegative(),
+        }).strict(),
+        z.object({
+            method: z.literal("workflow"),
+            workflowId: z.string().min(1),
+            workflowName: z.string().min(1),
+            workflowRunId: z.string().min(1),
+            createdFromFeatureCount: z.number().int().nonnegative(),
+            stepCount: z.number().int().nonnegative(),
+        }).strict(),
+    ]).optional(),
 });
 
 const queryConditionSchema = z.object({
@@ -425,5 +439,6 @@ export const geoInsightProjectSchema: z.ZodType<GeoInsightProject> = z.object({
         bufferSpatialQueryResult: spatialQueryResultSchema.nullable(),
         temporalConfig: temporalConfigSchema.optional(),
         temporalCompare: temporalCompareSchema.optional(),
+        workflows: z.array(analysisWorkflowSchema).default([]),
     }),
 });
