@@ -1,0 +1,145 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "planning-residential",
+        "name": "滨江居住组团",
+        "plannedUse": "居住用地"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3052,
+              30.5252
+            ],
+            [
+              114.3119,
+              30.5252
+            ],
+            [
+              114.3119,
+              30.5359
+            ],
+            [
+              114.3052,
+              30.5359
+            ],
+            [
+              114.3052,
+              30.5252
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "planning-commercial",
+        "name": "滨江商业服务区",
+        "plannedUse": "商业服务业用地"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3119,
+              30.5252
+            ],
+            [
+              114.315,
+              30.5252
+            ],
+            [
+              114.315,
+              30.5359
+            ],
+            [
+              114.3119,
+              30.5359
+            ],
+            [
+              114.3119,
+              30.5252
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "planning-public",
+        "name": "公共服务设施片区",
+        "plannedUse": "公共管理与公共服务用地"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.315,
+              30.5252
+            ],
+            [
+              114.3185,
+              30.5252
+            ],
+            [
+              114.3185,
+              30.5359
+            ],
+            [
+              114.315,
+              30.5359
+            ],
+            [
+              114.315,
+              30.5252
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "planning-green",
+        "name": "滨水生态绿廊",
+        "plannedUse": "公园绿地"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3052,
+              30.5359
+            ],
+            [
+              114.3185,
+              30.5359
+            ],
+            [
+              114.3185,
+              30.5387
+            ],
+            [
+              114.3052,
+              30.5387
+            ],
+            [
+              114.3052,
+              30.5359
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

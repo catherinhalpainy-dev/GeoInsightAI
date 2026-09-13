@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "demo:generate": "node scripts/generateDemoProject.mjs",
     "server": "tsx watch server/index.ts",
     "start": "tsx server/index.ts"
   },

@@ -11,6 +11,10 @@ import {
 } from "react-router-dom";
 
 import {
+  ArrowRight,
+  Bot,
+  FileBarChart,
+  MapPinned,
   Trash2,
 } from "lucide-react";
 
@@ -23,10 +27,6 @@ import {
 } from "../app/inspectLandUseDataset";
 
 import {
-  MockLandUseDataset,
-} from "../data/mockLandUse";
-
-import {
   LAND_USE_LABELS,
 } from "../constants/landUse";
 
@@ -37,6 +37,10 @@ import {
 import "../styles/importWorkbench.css";
 import { useProjectContext } from "../project/ProjectProvider";
 import { deserializeProject } from "../services/project/projectSerializer";
+import {
+  createDemoProjectInstance,
+  loadDemoProject,
+} from "../services/demo/loadDemoProject";
 
 const ImportSpatialPreview = lazy(() =>
   import("../components/import/ImportSpatialPreview").then((module) => ({
@@ -106,8 +110,11 @@ export function DataImportPage() {
     removeStoredProject,
   } = useProjectContext();
   const projectFileInputRef = useRef<HTMLInputElement | null>(null);
+  const importSectionRef = useRef<HTMLElement | null>(null);
   const [projectOpenError, setProjectOpenError] =
     useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoLoadError, setDemoLoadError] = useState<string | null>(null);
 
   const [
     selectedFile,
@@ -284,24 +291,28 @@ export function DataImportPage() {
     }
   }
 
-  function handleLoadExample() {
-    if (!canReplaceCurrentProject()) {
+  async function handleOpenDemoProject() {
+    if (demoLoading || !canReplaceCurrentProject()) {
       return;
     }
 
-    resetProjectForImport();
-    setSelectedFile(null);
+    setDemoLoading(true);
+    setDemoLoadError(null);
+    setProjectOpenError(null);
 
-    dispatch({
-      type: "PREVIEW_DATASET",
-      payload: {
-        dataset:
-          MockLandUseDataset,
-        warnings: [],
-      },
-    });
-
-    setActiveTab("data");
+    try {
+      const template = await loadDemoProject();
+      activateProject(createDemoProjectInstance(template));
+      navigate("/workspace");
+    } catch (error) {
+      setDemoLoadError(
+        error instanceof Error
+          ? `示例项目加载失败：${error.message}`
+          : "示例项目加载失败，请稍后重试或使用数据导入功能。",
+      );
+    } finally {
+      setDemoLoading(false);
+    }
   }
 
   function handleLoadToMap() {
@@ -408,9 +419,91 @@ export function DataImportPage() {
 
   return (
     <section className="import-workbench">
-      <header className="import-workbench-header">
+      <section className="product-hero" aria-labelledby="product-hero-title">
+        <div className="product-hero-content">
+          <span className="product-hero-eyebrow">GEOINSIGHT AI · SPATIAL ANALYSIS WORKSPACE</span>
+          <h1 id="product-hero-title">GeoInsight AI</h1>
+          <h2>AI 驱动的 WebGIS 空间分析工作台</h2>
+          <p>
+            面向地块空间分析与辅助审查，将空间数据、GIS 分析与受约束的 AI
+            计划编排整合到浏览器中。
+          </p>
+
+          <div className="product-hero-actions">
+            <button
+              type="button"
+              className="product-demo-button"
+              disabled={demoLoading}
+              onClick={() => void handleOpenDemoProject()}
+            >
+              <MapPinned size={17} aria-hidden="true" />
+              {demoLoading ? "正在加载示例项目..." : "打开示例项目"}
+              {!demoLoading && <ArrowRight size={15} aria-hidden="true" />}
+            </button>
+            <button
+              type="button"
+              className="product-import-button"
+              onClick={() => importSectionRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })}
+            >
+              导入空间数据
+            </button>
+          </div>
+
+          {demoLoadError && (
+            <p className="product-demo-error" role="alert">
+              {demoLoadError}
+            </p>
+          )}
+        </div>
+
+        <div className="product-hero-scene" aria-hidden="true">
+          <div className="product-scene-map">
+            <span className="scene-boundary" />
+            <span className="scene-planning" />
+            <span className="scene-restriction" />
+            <span className="scene-road scene-road-one" />
+            <span className="scene-road scene-road-two" />
+            <span className="scene-water" />
+            <span className="scene-target" />
+          </div>
+          <div className="product-scene-caption">
+            <strong>滨江地块开发条件分析</strong>
+            <span>目标地块 · 规划用途 · 限制区域 · 周边条件</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="product-capabilities" aria-label="核心能力">
+        <article>
+          <MapPinned size={20} aria-hidden="true" />
+          <div>
+            <h2>空间分析</h2>
+            <p>在浏览器中完成空间查询、缓冲区、相交分析与指标统计。</p>
+          </div>
+        </article>
+        <article>
+          <Bot size={20} aria-hidden="true" />
+          <div>
+            <h2>GIS Agent</h2>
+            <p>使用自然语言生成受约束、可审核的 GIS 分析计划。</p>
+          </div>
+        </article>
+        <article>
+          <FileBarChart size={20} aria-hidden="true" />
+          <div>
+            <h2>分析报告</h2>
+            <p>将地图、空间计算结果与分析结论形成可打印报告。</p>
+          </div>
+        </article>
+      </section>
+
+      <header ref={importSectionRef} className="import-workbench-header">
         <div>
-          <h1>数据导入</h1>
+          <span className="import-section-eyebrow">DATA IMPORT</span>
+          <h2>导入空间数据</h2>
 
           <p>
             导入城市用地
@@ -424,10 +517,8 @@ export function DataImportPage() {
             GeoJSON · 已支持
           </span>
 
-          <span>
-            CSV / Shapefile ·
-            后续支持
-          </span>
+          <span>CSV · 工作台支持</span>
+          <span>Shapefile · 暂未支持</span>
         </div>
       </header>
 
@@ -543,19 +634,6 @@ export function DataImportPage() {
               }}
             />
           </section>
-
-          <button
-            type="button"
-            className="import-example-button"
-            onClick={
-              handleLoadExample
-            }
-            disabled={
-              isImporting
-            }
-          >
-            加载示例数据
-          </button>
 
           {selectedFile && (
             <article className="import-file-card">

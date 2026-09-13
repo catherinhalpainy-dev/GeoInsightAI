@@ -1,0 +1,257 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-001",
+        "name": "滨江大道",
+        "roadClass": "主干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3045,
+            30.5322
+          ],
+          [
+            114.3195,
+            30.5322
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-002",
+        "name": "临江路",
+        "roadClass": "次干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3048,
+            30.5285
+          ],
+          [
+            114.3188,
+            30.5285
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-003",
+        "name": "青石路",
+        "roadClass": "次干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.309,
+            30.5248
+          ],
+          [
+            114.309,
+            30.5375
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-004",
+        "name": "规划一路",
+        "roadClass": "支路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3145,
+            30.5248
+          ],
+          [
+            114.3145,
+            30.5378
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-005",
+        "name": "创新大道",
+        "roadClass": "主干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.307,
+            30.5262
+          ],
+          [
+            114.3162,
+            30.5348
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-006",
+        "name": "北湖街",
+        "roadClass": "支路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.306,
+            30.5345
+          ],
+          [
+            114.317,
+            30.5345
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-007",
+        "name": "目标地块支路",
+        "roadClass": "支路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3102,
+            30.5292
+          ],
+          [
+            114.3137,
+            30.533
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-008",
+        "name": "北环路",
+        "roadClass": "主干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3045,
+            30.5375
+          ],
+          [
+            114.3195,
+            30.5375
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-009",
+        "name": "东环路",
+        "roadClass": "主干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3192,
+            30.5248
+          ],
+          [
+            114.3192,
+            30.5388
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-010",
+        "name": "南港路",
+        "roadClass": "次干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3045,
+            30.5238
+          ],
+          [
+            114.319,
+            30.5238
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-011",
+        "name": "西堤路",
+        "roadClass": "次干路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3032,
+            30.5245
+          ],
+          [
+            114.3032,
+            30.5385
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "road-012",
+        "name": "科创北路",
+        "roadClass": "支路"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3168,
+            30.536
+          ],
+          [
+            114.3215,
+            30.5395
+          ]
+        ]
+      }
+    }
+  ]
+}

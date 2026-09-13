@@ -1,0 +1,113 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "restriction-river-buffer",
+        "name": "滨江河道保护带",
+        "restrictionType": "河道保护带",
+        "level": "严格控制"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.31245,
+              30.5295
+            ],
+            [
+              114.31355,
+              30.5295
+            ],
+            [
+              114.31355,
+              30.5335
+            ],
+            [
+              114.31245,
+              30.5335
+            ],
+            [
+              114.31245,
+              30.5295
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "restriction-ecological",
+        "name": "北侧生态保育区",
+        "restrictionType": "生态保护区",
+        "level": "限制建设"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3053,
+              30.5338
+            ],
+            [
+              114.3081,
+              30.5338
+            ],
+            [
+              114.3081,
+              30.5372
+            ],
+            [
+              114.3053,
+              30.5372
+            ],
+            [
+              114.3053,
+              30.5338
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "restriction-power-corridor",
+        "name": "高压走廊控制区",
+        "restrictionType": "高压走廊",
+        "level": "控制建设"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3162,
+              30.5255
+            ],
+            [
+              114.317,
+              30.5255
+            ],
+            [
+              114.317,
+              30.5324
+            ],
+            [
+              114.3162,
+              30.5324
+            ],
+            [
+              114.3162,
+              30.5255
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

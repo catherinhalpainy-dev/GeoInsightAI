@@ -1,0 +1,92 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "water-001",
+        "name": "滨江河",
+        "waterType": "河流"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3038,
+            30.526
+          ],
+          [
+            114.308,
+            30.5263
+          ],
+          [
+            114.312,
+            30.5264
+          ],
+          [
+            114.316,
+            30.5261
+          ],
+          [
+            114.32,
+            30.5258
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "water-002",
+        "name": "东排水渠",
+        "waterType": "人工水渠"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.3173,
+            30.5255
+          ],
+          [
+            114.3171,
+            30.5295
+          ],
+          [
+            114.3175,
+            30.5335
+          ],
+          [
+            114.3172,
+            30.538
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "water-003",
+        "name": "北湖连通渠",
+        "waterType": "人工水渠"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.305,
+            30.5367
+          ],
+          [
+            114.309,
+            30.5365
+          ],
+          [
+            114.313,
+            30.5369
+          ]
+        ]
+      }
+    }
+  ]
+}

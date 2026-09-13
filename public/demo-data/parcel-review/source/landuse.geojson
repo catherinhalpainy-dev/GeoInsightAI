@@ -1,0 +1,745 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-001",
+        "landUseType": "residential",
+        "areaM2": 38022.42,
+        "districtCode": "420101",
+        "builtYear": null
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.306,
+              30.526
+            ],
+            [
+              114.3081,
+              30.526
+            ],
+            [
+              114.3081,
+              30.5277
+            ],
+            [
+              114.306,
+              30.5277
+            ],
+            [
+              114.306,
+              30.526
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-002",
+        "landUseType": "commercial",
+        "areaM2": 38022.42,
+        "districtCode": "420101",
+        "builtYear": 2005
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.30839999999999,
+              30.526
+            ],
+            [
+              114.31049999999999,
+              30.526
+            ],
+            [
+              114.31049999999999,
+              30.5277
+            ],
+            [
+              114.30839999999999,
+              30.5277
+            ],
+            [
+              114.30839999999999,
+              30.526
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-003",
+        "landUseType": "industrial",
+        "areaM2": 38022.42,
+        "districtCode": "420102",
+        "builtYear": 2006
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3108,
+              30.526
+            ],
+            [
+              114.3129,
+              30.526
+            ],
+            [
+              114.3129,
+              30.5277
+            ],
+            [
+              114.3108,
+              30.5277
+            ],
+            [
+              114.3108,
+              30.526
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-004",
+        "landUseType": "green",
+        "areaM2": 38022.42,
+        "districtCode": "420102",
+        "builtYear": 2007
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3132,
+              30.526
+            ],
+            [
+              114.3153,
+              30.526
+            ],
+            [
+              114.3153,
+              30.5277
+            ],
+            [
+              114.3132,
+              30.5277
+            ],
+            [
+              114.3132,
+              30.526
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-005",
+        "landUseType": "public",
+        "areaM2": 38022.42,
+        "districtCode": "420103",
+        "builtYear": 2008
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3156,
+              30.526
+            ],
+            [
+              114.3177,
+              30.526
+            ],
+            [
+              114.3177,
+              30.5277
+            ],
+            [
+              114.3156,
+              30.5277
+            ],
+            [
+              114.3156,
+              30.526
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-006",
+        "landUseType": "transportation",
+        "areaM2": 38021.64,
+        "districtCode": "420101",
+        "builtYear": 2009
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.306,
+              30.528
+            ],
+            [
+              114.3081,
+              30.528
+            ],
+            [
+              114.3081,
+              30.5297
+            ],
+            [
+              114.306,
+              30.5297
+            ],
+            [
+              114.306,
+              30.528
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-007",
+        "landUseType": "other",
+        "areaM2": 38021.64,
+        "districtCode": "420101",
+        "builtYear": null
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.30839999999999,
+              30.528
+            ],
+            [
+              114.31049999999999,
+              30.528
+            ],
+            [
+              114.31049999999999,
+              30.5297
+            ],
+            [
+              114.30839999999999,
+              30.5297
+            ],
+            [
+              114.30839999999999,
+              30.528
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-008",
+        "landUseType": "residential",
+        "areaM2": 38021.64,
+        "districtCode": "420102",
+        "builtYear": 2011
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3108,
+              30.528
+            ],
+            [
+              114.3129,
+              30.528
+            ],
+            [
+              114.3129,
+              30.5297
+            ],
+            [
+              114.3108,
+              30.5297
+            ],
+            [
+              114.3108,
+              30.528
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-009",
+        "landUseType": "commercial",
+        "areaM2": 38021.64,
+        "districtCode": "420102",
+        "builtYear": 2012
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3132,
+              30.528
+            ],
+            [
+              114.3153,
+              30.528
+            ],
+            [
+              114.3153,
+              30.5297
+            ],
+            [
+              114.3132,
+              30.5297
+            ],
+            [
+              114.3132,
+              30.528
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-010",
+        "landUseType": "industrial",
+        "areaM2": 38021.64,
+        "districtCode": "420103",
+        "builtYear": 2013
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3156,
+              30.528
+            ],
+            [
+              114.3177,
+              30.528
+            ],
+            [
+              114.3177,
+              30.5297
+            ],
+            [
+              114.3156,
+              30.5297
+            ],
+            [
+              114.3156,
+              30.528
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-011",
+        "landUseType": "green",
+        "areaM2": 38020.86,
+        "districtCode": "420101",
+        "builtYear": 2014
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.306,
+              30.53
+            ],
+            [
+              114.3081,
+              30.53
+            ],
+            [
+              114.3081,
+              30.5317
+            ],
+            [
+              114.306,
+              30.5317
+            ],
+            [
+              114.306,
+              30.53
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-012",
+        "landUseType": "public",
+        "areaM2": 38020.86,
+        "districtCode": "420101",
+        "builtYear": 2015
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.30839999999999,
+              30.53
+            ],
+            [
+              114.31049999999999,
+              30.53
+            ],
+            [
+              114.31049999999999,
+              30.5317
+            ],
+            [
+              114.30839999999999,
+              30.5317
+            ],
+            [
+              114.30839999999999,
+              30.53
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-target-001",
+        "landUseType": "commercial",
+        "areaM2": 38020.86,
+        "districtCode": "420102",
+        "builtYear": 2012
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3108,
+              30.53
+            ],
+            [
+              114.3129,
+              30.53
+            ],
+            [
+              114.3129,
+              30.5317
+            ],
+            [
+              114.3108,
+              30.5317
+            ],
+            [
+              114.3108,
+              30.53
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-014",
+        "landUseType": "other",
+        "areaM2": 38020.86,
+        "districtCode": "420102",
+        "builtYear": 2017
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3132,
+              30.53
+            ],
+            [
+              114.3153,
+              30.53
+            ],
+            [
+              114.3153,
+              30.5317
+            ],
+            [
+              114.3132,
+              30.5317
+            ],
+            [
+              114.3132,
+              30.53
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-015",
+        "landUseType": "residential",
+        "areaM2": 38020.86,
+        "districtCode": "420103",
+        "builtYear": 2018
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3156,
+              30.53
+            ],
+            [
+              114.3177,
+              30.53
+            ],
+            [
+              114.3177,
+              30.5317
+            ],
+            [
+              114.3156,
+              30.5317
+            ],
+            [
+              114.3156,
+              30.53
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-016",
+        "landUseType": "commercial",
+        "areaM2": 38020.08,
+        "districtCode": "420101",
+        "builtYear": 2019
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.306,
+              30.532
+            ],
+            [
+              114.3081,
+              30.532
+            ],
+            [
+              114.3081,
+              30.5337
+            ],
+            [
+              114.306,
+              30.5337
+            ],
+            [
+              114.306,
+              30.532
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-017",
+        "landUseType": "industrial",
+        "areaM2": 38020.08,
+        "districtCode": "420101",
+        "builtYear": 2020
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.30839999999999,
+              30.532
+            ],
+            [
+              114.31049999999999,
+              30.532
+            ],
+            [
+              114.31049999999999,
+              30.5337
+            ],
+            [
+              114.30839999999999,
+              30.5337
+            ],
+            [
+              114.30839999999999,
+              30.532
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-018",
+        "landUseType": "green",
+        "areaM2": 38020.08,
+        "districtCode": "420102",
+        "builtYear": 2021
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3108,
+              30.532
+            ],
+            [
+              114.3129,
+              30.532
+            ],
+            [
+              114.3129,
+              30.5337
+            ],
+            [
+              114.3108,
+              30.5337
+            ],
+            [
+              114.3108,
+              30.532
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-019",
+        "landUseType": "public",
+        "areaM2": 38020.08,
+        "districtCode": "420102",
+        "builtYear": null
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3132,
+              30.532
+            ],
+            [
+              114.3153,
+              30.532
+            ],
+            [
+              114.3153,
+              30.5337
+            ],
+            [
+              114.3132,
+              30.5337
+            ],
+            [
+              114.3132,
+              30.532
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "parcel-020",
+        "landUseType": "transportation",
+        "areaM2": 38020.08,
+        "districtCode": "420103",
+        "builtYear": 2023
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              114.3156,
+              30.532
+            ],
+            [
+              114.3177,
+              30.532
+            ],
+            [
+              114.3177,
+              30.5337
+            ],
+            [
+              114.3156,
+              30.5337
+            ],
+            [
+              114.3156,
+              30.532
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
