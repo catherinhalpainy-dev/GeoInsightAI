@@ -5,7 +5,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../app/AppProvider";
 import { MapView } from "../components/map/MapView";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LandUseFeatureCollection, LandUseFeature } from "../types/landUse";
 import { FilterPanel } from "../components/filter/FilterPanel";
 import { WorkspaceToolbar } from "../components/workspace/WorkspaceToolbar";
@@ -15,7 +15,6 @@ import { LayerPanel } from "../components/layers/LayerPanel";
 import { DEFAULT_LAYER_STYLE, type LayerStyle } from "../types/layerStyle";
 import { LayerStylePanel } from "../components/layers/LayerStylePanel";
 
-import { AgentPanel } from "../components/agent/AgentPanel";
 import type {
     AgentCommand,
     AgentContext,
@@ -28,20 +27,12 @@ import { FeatureInfoPanel } from "../components/workspace/FeatureInfoPanel";
 import { BasemapPanel } from "../components/workspace/BasemapPanel";
 import { FeatureTablePanel, } from "../components/workspace/FeatureTablePanel";
 import { AoiAnalysisPanel } from "../components/workspace/AoiAnalysisPanel";
-import { GeoprocessingPanel } from "../components/workspace/GeoprocessingPanel";
 import { BatchEditPanel } from "../components/workspace/BatchEditPanel";
-import { GeometryEditPanel } from "../components/workspace/GeometryEditPanel";
 import { DataSourcePanel } from "../components/workspace/DataSourcePanel";
-import { TemporalConfigPanel } from "../components/temporal/TemporalConfigPanel";
 import { TimelineControl } from "../components/temporal/TimelineControl";
-import { SpatialStatisticsPanel } from "../components/workspace/SpatialStatisticsPanel";
-import { WorkflowBuilderPanel, type WorkflowInputOption } from "../components/workflow/WorkflowBuilderPanel";
-import { TemporalComparePanel } from "../components/compare/TemporalComparePanel";
+import type { WorkflowInputOption } from "../components/workflow/WorkflowBuilderPanel";
 import { TemporalMapCompareView } from "../components/compare/TemporalMapCompareView";
-import {
-    DataQualityPanel,
-    type DataQualityTargetOption,
-} from "../components/workspace/DataQualityPanel";
+import type { DataQualityTargetOption } from "../components/workspace/DataQualityPanel";
 
 import { MeasureResult } from "../components/map/measure/MeasureResult";
 import { useMeasure } from "../hooks/useMeasure";
@@ -148,10 +139,7 @@ import type {
     WorkspaceCommandId,
     WorkspaceSearchResult,
 } from "../types/search";
-import {
-    ReportBuilderPanel,
-    type ReportBuilderConfig,
-} from "../components/report/ReportBuilderPanel";
+import type { ReportBuilderConfig } from "../components/report/ReportBuilderPanel";
 import { useReportContext } from "../report/ReportProvider";
 import {
     createAIReportContext,
@@ -218,6 +206,60 @@ import { validateWorkflow } from "../services/workflow/workflowValidator";
 import { deserializeWorkflow, duplicateWorkflow, exportWorkflowFile } from "../services/workflow/workflowSerializer";
 import { agentPlanToWorkflow } from "../services/workflow/agentPlanToWorkflow";
 // section 表示一个独立的页面功能区域
+
+const AgentPanel = lazy(() =>
+    import("../components/agent/AgentPanel").then((module) => ({
+        default: module.AgentPanel,
+    })),
+);
+const GeoprocessingPanel = lazy(() =>
+    import("../components/workspace/GeoprocessingPanel").then((module) => ({
+        default: module.GeoprocessingPanel,
+    })),
+);
+const GeometryEditPanel = lazy(() =>
+    import("../components/workspace/GeometryEditPanel").then((module) => ({
+        default: module.GeometryEditPanel,
+    })),
+);
+const TemporalConfigPanel = lazy(() =>
+    import("../components/temporal/TemporalConfigPanel").then((module) => ({
+        default: module.TemporalConfigPanel,
+    })),
+);
+const SpatialStatisticsPanel = lazy(() =>
+    import("../components/workspace/SpatialStatisticsPanel").then((module) => ({
+        default: module.SpatialStatisticsPanel,
+    })),
+);
+const WorkflowBuilderPanel = lazy(() =>
+    import("../components/workflow/WorkflowBuilderPanel").then((module) => ({
+        default: module.WorkflowBuilderPanel,
+    })),
+);
+const TemporalComparePanel = lazy(() =>
+    import("../components/compare/TemporalComparePanel").then((module) => ({
+        default: module.TemporalComparePanel,
+    })),
+);
+const DataQualityPanel = lazy(() =>
+    import("../components/workspace/DataQualityPanel").then((module) => ({
+        default: module.DataQualityPanel,
+    })),
+);
+const ReportBuilderPanel = lazy(() =>
+    import("../components/report/ReportBuilderPanel").then((module) => ({
+        default: module.ReportBuilderPanel,
+    })),
+);
+
+function LazyPanelFallback() {
+    return (
+        <aside className="workspace-panel" aria-live="polite" aria-busy="true">
+            <p>正在加载工具面板…</p>
+        </aside>
+    );
+}
 
 interface AgentSnapshot {
     filters: LandUseFilters;
@@ -5062,6 +5104,7 @@ export function WorkspacePage() {
             {/* workspacepage持有唯一的activePanel
             子组件通过callback请求修改 */}
 
+            <Suspense fallback={<LazyPanelFallback />}>
             {activePanel === "filter" && (
                 <FilterPanel />
             )}
@@ -5499,6 +5542,7 @@ export function WorkspacePage() {
                     onSaveAsWorkflow={handleSaveAgentPlanAsWorkflow}
                 />
             )}
+            </Suspense>
 
 
         </section>

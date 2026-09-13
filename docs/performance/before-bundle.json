@@ -1,0 +1,46 @@
+{
+  "capturedAt": "2026-09-12T00:00:00+08:00",
+  "build": {
+    "tool": "vite 8.1.5",
+    "modulesTransformed": 2927,
+    "durationSeconds": 1.76,
+    "passed": true,
+    "lintPassed": true,
+    "largeChunkWarning": true
+  },
+  "measurement": {
+    "rawBytesDefinition": "uncompressed on-disk bytes of minified production asset",
+    "gzipMethod": ".NET GZipStream CompressionLevel.Optimal"
+  },
+  "assets": [
+    {
+      "file": "assets/index-Baij5TNH.css",
+      "type": "css",
+      "rawBytes": 216764,
+      "gzipBytes": 33824,
+      "initial": true
+    },
+    {
+      "file": "assets/index-DldIG1tq.js",
+      "type": "js",
+      "rawBytes": 3275359,
+      "gzipBytes": 946982,
+      "initial": true
+    }
+  ],
+  "summary": {
+    "jsRawBytes": 3275359,
+    "jsGzipBytes": 946982,
+    "cssRawBytes": 216764,
+    "cssGzipBytes": 33824,
+    "jsChunkCount": 1,
+    "largestJsChunkRawBytes": 3275359,
+    "largestInitialJsChunkRawBytes": 3275359,
+    "initialJsRawBytes": 3275359,
+    "initialJsGzipBytes": 946982
+  },
+  "browserMetrics": {
+    "status": "not-obtained",
+    "reason": "No browser instance was available to the browser automation runtime."
+  }
+}

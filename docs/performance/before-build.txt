@@ -1,0 +1,38 @@
+GeoInsight AI performance baseline
+Captured: 2026-09-12 (Asia/Shanghai)
+Environment: Windows, Node/Vite project production build
+
+Command: npm run build
+Exit code: 0
+
+> geoinsightai@0.0.0 build
+> tsc -b && vite build
+
+vite v8.1.5 building client environment for production...
+transforming... 2927 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.46 kB | gzip:   0.29 kB
+dist/assets/index-Baij5TNH.css    216.76 kB | gzip:  34.02 kB
+dist/assets/index-DldIG1tq.js   3,275.35 kB | gzip: 957.51 kB
+
+build completed in 1.76s
+
+Warning: Some chunks are larger than 500 kB after minification.
+
+Command: npm run lint
+Exit code: 0
+
+> geoinsightai@0.0.0 lint
+> oxlint
+
+No lint diagnostics.
+
+Notes:
+- The production JS asset is minified. "raw bytes" in before-bundle.json means
+  the uncompressed on-disk bytes of that minified production asset.
+- "gzipBytes" is recomputed with the same .NET GZipStream method that will be
+  used for the after build, so the before/after comparison is internally consistent.
+- Browser runtime metrics were not captured because no browser instance was
+  available to the browser automation runtime. No FCP/LCP/commit estimates were made.
+

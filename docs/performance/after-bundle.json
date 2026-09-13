@@ -1,0 +1,48 @@
+{
+  "capturedAt": "2026-09-12T00:00:00+08:00",
+  "build": {
+    "tool": "vite 8.1.5",
+    "runtime": "node v24.13.0",
+    "modulesTransformed": 2921,
+    "durationSeconds": 1.17,
+    "passed": true,
+    "lintPassed": true,
+    "largeChunkWarning": true
+  },
+  "measurement": {
+    "rawBytesDefinition": "uncompressed on-disk bytes of minified production assets",
+    "gzipMethod": ".NET GZipStream CompressionLevel.Optimal",
+    "initialDefinition": "module scripts and modulepreload links emitted in dist/index.html"
+  },
+  "initialJsAssets": [
+    { "file": "assets/index-IEwx9RPp.js", "rawBytes": 352404, "gzipBytes": 107901 },
+    { "file": "assets/jsx-runtime-KJkY8l8U.js", "rawBytes": 8535, "gzipBytes": 3268 },
+    { "file": "assets/landUse-Bp-5Ovh8.js", "rawBytes": 499, "gzipBytes": 313 }
+  ],
+  "largestAsyncJsAssets": [
+    { "file": "assets/layerStyle-BD1wL5rc.js", "rawBytes": 1074313, "gzipBytes": 282999 },
+    { "file": "assets/WorkspacePage-BNeJ8g-f.js", "rawBytes": 594213, "gzipBytes": 154505 },
+    { "file": "assets/Echart-FMPuHaN6.js", "rawBytes": 525952, "gzipBytes": 175658 }
+  ],
+  "summary": {
+    "jsRawBytes": 2687803,
+    "jsGzipBytes": 771164,
+    "cssRawBytes": 216775,
+    "cssGzipBytes": 39445,
+    "jsChunkCount": 34,
+    "largestJsChunkRawBytes": 1074313,
+    "largestInitialJsChunkRawBytes": 352404,
+    "initialJsRawBytes": 361438,
+    "initialJsGzipBytes": 111482
+  },
+  "comparisonToBefore": {
+    "initialJsRawReductionPercent": 88.96,
+    "initialJsGzipReductionPercent": 88.23,
+    "allJsRawReductionPercent": 17.94,
+    "allJsGzipReductionPercent": 18.57
+  },
+  "browserMetrics": {
+    "status": "not-obtained",
+    "reason": "No browser instance was available to the browser automation runtime."
+  }
+}

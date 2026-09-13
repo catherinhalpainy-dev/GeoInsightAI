@@ -1,0 +1,49 @@
+{
+  "environment": {
+    "runtime": "v24.13.0",
+    "platform": "win32-x64",
+    "runsPerScenario": 5,
+    "clock": "node:perf_hooks performance.now"
+  },
+  "results": [
+    {
+      "size": 1000,
+      "jsonBytes": 298498,
+      "filteredFeatureCount": 141,
+      "jsonParse": { "runs": [2.056, 2.011, 1.987, 2.038, 2.233], "medianMs": 2.038 },
+      "validation": { "runs": [3.133, 1.842, 0.847, 1.099, 0.902], "medianMs": 1.099 },
+      "filter": { "runs": [0.168, 0.085, 0.102, 0.026, 0.027], "medianMs": 0.085 },
+      "aoiIntersects": { "runs": [14.823, 5.115, 2.858, 5.464, 4.282], "medianMs": 5.115 },
+      "bufferSingleFeature": { "runs": [12.384, 1.135, 1.042, 0.769, 0.943], "medianMs": 1.042 },
+      "intersection": { "runs": [34.437, 23.352, 19.948, 18.245, 14.017], "medianMs": 19.948 },
+      "dissolveByLandUseType": { "runs": [13.245, 15.94, 13.244, 13.694, 12.153], "medianMs": 13.245 },
+      "dataQuality": { "runs": [164.313, 37.384, 24.537, 23.252, 23.295], "medianMs": 24.537 }
+    },
+    {
+      "size": 5000,
+      "jsonBytes": 1497741,
+      "filteredFeatureCount": 714,
+      "jsonParse": { "runs": [9.45, 9.614, 8.607, 10.944, 9.018], "medianMs": 9.45 },
+      "validation": { "runs": [3.71, 2.305, 3.971, 2.435, 1.352], "medianMs": 2.435 },
+      "filter": { "runs": [0.116, 0.148, 0.099, 0.094, 0.102], "medianMs": 0.102 },
+      "aoiIntersects": { "runs": [15.052, 9.315, 7.963, 9.794, 8.643], "medianMs": 9.315 },
+      "bufferSingleFeature": { "runs": [1.031, 0.925, 0.749, 0.786, 0.75], "medianMs": 0.786 },
+      "intersection": { "runs": [53.07, 52.189, 61.62, 55.718, 72.159], "medianMs": 55.718 },
+      "dissolveByLandUseType": { "runs": [79.601, 66.486, 63.098, 71.831, 79.224], "medianMs": 71.831 },
+      "dataQuality": { "runs": [188.335, 316.331, 287.023, 312.006, 321.284], "medianMs": 312.006 }
+    },
+    {
+      "size": 10000,
+      "jsonBytes": 2998645,
+      "filteredFeatureCount": 1428,
+      "jsonParse": { "runs": [41.326, 47.446, 36.764, 54.328, 51.236], "medianMs": 47.446 },
+      "validation": { "runs": [14.892, 7.521, 8.52, 10.549, 5.833], "medianMs": 8.52 },
+      "filter": { "runs": [2.965, 0.471, 0.433, 0.408, 0.389], "medianMs": 0.433 },
+      "aoiIntersects": { "runs": [44.168, 44.428, 49.715, 41.186, 39.058], "medianMs": 44.168 },
+      "bufferSingleFeature": { "runs": [4.146, 0.608, 1.489, 1.738, 1.28], "medianMs": 1.489 },
+      "intersection": { "runs": [275.446, 238.877, 226.418, 199.007, 201.773], "medianMs": 226.418 },
+      "dissolveByLandUseType": { "runs": [267.869, 270.14, 255.264, 240.756, 392.824], "medianMs": 267.869 },
+      "dataQuality": { "runs": [662.705, 559.762, 605.681, 635.654, 536.753], "medianMs": 605.681 }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+GeoInsight AI performance result
+Captured: 2026-09-12 (Asia/Shanghai)
+Environment: Windows 11, Node v24.13.0, Vite 8.1.5 production build
+
+Command: npm run build
+Exit code: 0
+
+> geoinsightai@0.0.0 build
+> tsc -b && vite build
+
+vite v8.1.5 building client environment for production...
+transforming... 2921 modules transformed.
+rendering chunks...
+computing gzip size...
+
+Initial HTML dependencies:
+- assets/index-IEwx9RPp.js: 352.40 kB | gzip 108.94 kB
+- assets/jsx-runtime-KJkY8l8U.js: 8.53 kB | gzip 3.26 kB
+- assets/landUse-Bp-5Ovh8.js: 0.49 kB | gzip 0.31 kB
+
+Largest async chunks:
+- assets/layerStyle-BD1wL5rc.js: 1,074.31 kB | gzip 285.97 kB
+- assets/WorkspacePage-BNeJ8g-f.js: 594.21 kB | gzip 156.11 kB
+- assets/Echart-FMPuHaN6.js: 525.95 kB | gzip 177.84 kB
+
+All JavaScript assets: 2,687,803 raw bytes; 771,164 gzip bytes; 34 files.
+Initial JavaScript dependencies: 361,438 raw bytes; 111,482 gzip bytes; 3 files.
+All CSS assets: 216,775 raw bytes; 39,445 gzip bytes; 12 files.
+
+build completed in 1.17s
+
+Warning: Three asynchronous chunks remain larger than 500 kB after minification.
+
+Command: npm run lint
+Exit code: 0
+
+> geoinsightai@0.0.0 lint
+> oxlint
+
+No lint diagnostics.
+
+Notes:
+- Exact gzip bytes were recomputed with .NET GZipStream
+  CompressionLevel.Optimal, matching before-bundle.json.
+- Browser runtime metrics were not captured because the in-app automation
+  runtime reported no available browser. No estimates were substituted.

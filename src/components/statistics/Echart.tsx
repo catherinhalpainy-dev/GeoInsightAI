@@ -1,7 +1,25 @@
-import * as echarts
-    from "echarts";
+import {
+    BarChart,
+    PieChart,
+} from "echarts/charts";
+import {
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+} from "echarts/components";
+import * as echarts from "echarts/core";
 import type { EChartsOption } from "echarts";
+import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
+
+echarts.use([
+    BarChart,
+    PieChart,
+    GridComponent,
+    LegendComponent,
+    TooltipComponent,
+    CanvasRenderer,
+]);
 
 interface EChartProps {
     option: EChartsOption;

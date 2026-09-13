@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useRef,
   useState,
   type DragEvent,
@@ -32,17 +34,15 @@ import {
   parseLandUseGeoJson,
 } from "../utils/parseLandUseGeoJson";
 
-import {
-  MapView,
-} from "../components/map/MapView";
-
-import {
-  DEFAULT_LAYER_STYLE,
-} from "../types/layerStyle";
-
 import "../styles/importWorkbench.css";
 import { useProjectContext } from "../project/ProjectProvider";
 import { deserializeProject } from "../services/project/projectSerializer";
+
+const ImportSpatialPreview = lazy(() =>
+  import("../components/import/ImportSpatialPreview").then((module) => ({
+    default: module.ImportSpatialPreview,
+  })),
+);
 
 
 const MAX_FILE_SIZE_BYTES =
@@ -1123,18 +1123,17 @@ export function DataImportPage() {
 
                   {activeTab ===
                     "spatial" && (
-                    <div className="import-spatial-preview">
-                      <MapView
-                        collection={
-                          dataset
-                            .collection
-                        }
-                        interactionMode="pan"
-                        layerStyle={
-                          DEFAULT_LAYER_STYLE
-                        }
+                    <Suspense
+                      fallback={(
+                        <div className="import-spatial-preview" aria-live="polite">
+                          正在加载空间预览…
+                        </div>
+                      )}
+                    >
+                      <ImportSpatialPreview
+                        collection={dataset.collection}
                       />
-                    </div>
+                    </Suspense>
                   )}
                 </div>
               </section>

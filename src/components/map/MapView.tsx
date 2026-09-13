@@ -2635,6 +2635,10 @@ function isManagedAnalysisLayerId(
 function syncAnalysisResultLayers(
     map: maplibregl.Map,
     layers: AnalysisResultLayer[],
+    collectionCache: Map<
+        string,
+        AnalysisResultLayer["collection"]
+    >,
 ) {
     const desiredSourceIds = new Set(
         layers.map(
@@ -2686,6 +2690,14 @@ function syncAnalysisResultLayers(
         if (map.getSource(sourceId)) {
             map.removeSource(sourceId);
         }
+
+        collectionCache.delete(sourceId);
+    }
+
+    for (const sourceId of collectionCache.keys()) {
+        if (!desiredSourceIds.has(sourceId)) {
+            collectionCache.delete(sourceId);
+        }
     }
 
     const beforeLayerId =
@@ -2708,17 +2720,24 @@ function syncAnalysisResultLayers(
                 : "none";
         const existingSource =
             map.getSource(sourceId);
+        const previousCollection =
+            collectionCache.get(sourceId);
 
         if (!existingSource) {
             map.addSource(sourceId, {
                 type: "geojson",
                 data: layer.collection,
             });
-        } else if (existingSource.type === "geojson") {
+            collectionCache.set(sourceId, layer.collection);
+        } else if (
+            existingSource.type === "geojson" &&
+            previousCollection !== layer.collection
+        ) {
             (
                 existingSource as
                 maplibregl.GeoJSONSource
             ).setData(layer.collection);
+            collectionCache.set(sourceId, layer.collection);
         }
 
         if (layer.geometryType === "Point") {
@@ -3214,6 +3233,13 @@ export function MapView({
     const rasterOrderCacheRef = useRef({
         signature: "",
     });
+
+    const analysisCollectionCacheRef = useRef(
+        new Map<
+            string,
+            AnalysisResultLayer["collection"]
+        >(),
+    );
 
     const latestOnAoiPointAddRef =
         useRef(onAoiPointAdd);
@@ -4065,6 +4091,7 @@ export function MapView({
                 syncAnalysisResultLayers(
                     map,
                     latestAnalysisResultLayersRef.current,
+                    analysisCollectionCacheRef.current,
                 );
 
                 updateDataQualityLayers(
@@ -4411,6 +4438,7 @@ export function MapView({
         syncAnalysisResultLayers(
             map,
             analysisResultLayers,
+            analysisCollectionCacheRef.current,
         );
     }, [
         analysisResultLayers,
@@ -4661,6 +4689,7 @@ export function MapView({
                     syncAnalysisResultLayers(
                         map,
                         latestAnalysisResultLayersRef.current,
+                        analysisCollectionCacheRef.current,
                     );
 
                     updateDataQualityLayers(
@@ -4713,6 +4742,7 @@ export function MapView({
                 syncAnalysisResultLayers(
                     map,
                     latestAnalysisResultLayersRef.current,
+                    analysisCollectionCacheRef.current,
                 );
 
                 updateDataQualityLayers(
