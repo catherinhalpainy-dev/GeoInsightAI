@@ -21,6 +21,7 @@ export type WorkspacePanel =
     | "temporal-compare"
     | "spatial-statistics"
     | "workflow-builder"
+    | "parcel-analysis"
     | "agent"
     | null;
 

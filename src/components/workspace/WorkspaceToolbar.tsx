@@ -5,6 +5,7 @@ import {
   Clock3,
   Columns2,
   ChartScatter,
+  ClipboardCheck,
   Boxes,
   SquarePen,
   ShieldCheck,
@@ -80,6 +81,21 @@ export function WorkspaceToolbar({
 
   return (
     <aside className="workspace-toolbar">
+      <button
+        type="button"
+        disabled={compareMode}
+        className={
+          activePanel === "parcel-analysis"
+            ? "workspace-tool workspace-tool-module active"
+            : "workspace-tool workspace-tool-module"
+        }
+        onClick={() => onPanelToggle("parcel-analysis")}
+        title="对当前地块执行规划、限制区域和周边条件辅助审查"
+      >
+        <ClipboardCheck size={21} strokeWidth={1.9} aria-hidden="true" />
+        <span>地块分析</span>
+      </button>
+
       <button
         type="button"
         disabled={compareMode}

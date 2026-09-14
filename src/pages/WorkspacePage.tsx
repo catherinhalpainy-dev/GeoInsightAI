@@ -91,6 +91,7 @@ import { fetchRemoteGeoJson } from "../services/import/remoteGeoJson";
 import { applyLandUseFilters } from "../utils/applyLandUseFilters";
 import { useEditHistory } from "../hooks/useEditHistory";
 import { useGeometryEditor } from "../hooks/useGeometryEditor";
+import { useParcelAnalysis } from "../hooks/useParcelAnalysis";
 import type {
     EditTransaction,
     LandUsePropertyChanges,
@@ -230,6 +231,11 @@ const TemporalConfigPanel = lazy(() =>
 const SpatialStatisticsPanel = lazy(() =>
     import("../components/workspace/SpatialStatisticsPanel").then((module) => ({
         default: module.SpatialStatisticsPanel,
+    })),
+);
+const ParcelAnalysisPanel = lazy(() =>
+    import("../components/parcel-analysis/ParcelAnalysisPanel").then((module) => ({
+        default: module.ParcelAnalysisPanel,
     })),
 );
 const WorkflowBuilderPanel = lazy(() =>
@@ -575,6 +581,7 @@ export function WorkspacePage() {
     const skipNextFilterQueryInvalidationRef = useRef(false);
     const editHistory = useEditHistory(30);
     const geometryEditor = useGeometryEditor();
+    const parcelAnalysis = useParcelAnalysis(selectedFeature, overlayLayers);
     const projectSnapshotInputRef =
         useRef<Omit<ProjectSnapshotInput, "project"> | null>(null);
     const persistenceBlockerRef = useRef<string | null>(null);
@@ -4977,6 +4984,8 @@ export function WorkspacePage() {
 
                         spatialStatisticsConfig={spatialStatisticsConfig}
 
+                        parcelAnalysisArtifacts={parcelAnalysis.runState.artifacts}
+
                         overlayLayers={overlayLayers}
 
                         rasterLayers={rasterLayers}
@@ -5435,6 +5444,20 @@ export function WorkspacePage() {
                     onRun={handleRunSpatialStatistics}
                     onClearHeatmap={handleClearSpatialHeatmap}
                     onFitHotspot={handleFitSpatialHotspot}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
+
+            {activePanel === "parcel-analysis" && (
+                <ParcelAnalysisPanel
+                    selectedFeature={selectedFeature}
+                    overlayLayers={overlayLayers}
+                    bindings={parcelAnalysis.bindings}
+                    validationErrors={parcelAnalysis.validationErrors}
+                    runState={parcelAnalysis.runState}
+                    onBindingChange={parcelAnalysis.setBinding}
+                    onRun={() => { void parcelAnalysis.run(); }}
+                    onClear={parcelAnalysis.clear}
                     onClose={() => setActivePanel(null)}
                 />
             )}

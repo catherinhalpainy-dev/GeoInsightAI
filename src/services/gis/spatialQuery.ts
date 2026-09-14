@@ -7,7 +7,9 @@ import {
 } from "@turf/area";
 import type {
     Feature,
+    FeatureCollection,
     GeoJsonProperties,
+    Geometry,
     MultiPolygon,
     Polygon,
 } from "geojson";
@@ -47,10 +49,7 @@ function hasValidCoordinates(
         return false;
     }
 
-    if (
-        geometry.type !== "Polygon" &&
-        geometry.type !== "MultiPolygon"
-    ) {
+    if (geometry.type === "GeometryCollection") {
         return false;
     }
 
@@ -60,45 +59,46 @@ function hasValidCoordinates(
         coordinates.length > 0;
 }
 
+export function queryCollectionByGeometry<
+    FeatureGeometry extends Geometry,
+    Properties extends GeoJsonProperties,
+>(
+    collection: FeatureCollection<FeatureGeometry, Properties>,
+    queryGeometry: SpatialQueryGeometry,
+    relation: SpatialQueryRelation,
+): Array<Feature<FeatureGeometry, Properties>> {
+    if (
+        (relation !== "intersects" && relation !== "within") ||
+        !hasValidCoordinates(queryGeometry) ||
+        !Array.isArray(collection.features)
+    ) {
+        return [];
+    }
+
+    return collection.features.filter((feature) => {
+        if (!hasValidCoordinates(feature)) {
+            return false;
+        }
+
+        try {
+            return relation === "within"
+                ? booleanWithin(feature, queryGeometry)
+                : booleanIntersects(feature, queryGeometry);
+        } catch {
+            return false;
+        }
+    });
+}
+
 export function queryFeaturesByGeometry(
     collection: LandUseFeatureCollection,
     queryGeometry: SpatialQueryGeometry,
     relation: SpatialQueryRelation,
 ): LandUseFeature[] {
-    if (
-        (
-            relation !== "intersects" &&
-            relation !== "within"
-        ) ||
-        !hasValidCoordinates(queryGeometry)
-    ) {
-        return [];
-    }
-
-    if (!Array.isArray(collection.features)) {
-        return [];
-    }
-
-    return collection.features.filter(
-        (feature) => {
-            if (!hasValidCoordinates(feature)) {
-                return false;
-            }
-
-            try {
-                return relation === "within"
-                    ? booleanWithin(
-                        feature,
-                        queryGeometry,
-                    )
-                    : booleanIntersects(
-                        feature,
-                        queryGeometry,
-                    );
-            } catch {
-                return false;
-            }
-        },
+    return queryCollectionByGeometry(
+        collection,
+        queryGeometry,
+        relation,
     );
 }
 

@@ -99,19 +99,6 @@ function createPolygonCollection(
     };
 }
 
-function clonePolygonGeometry(
-    geometry: Polygon,
-): Polygon {
-    return {
-        type: "Polygon",
-        coordinates: geometry.coordinates.map(
-            (ring) => ring.map(
-                (position) => [...position],
-            ),
-        ),
-    };
-}
-
 function isValidLandUsePolygon(
     feature: LandUseFeature,
 ): boolean {
@@ -142,6 +129,55 @@ function isValidOverlayPolygon(
     }
 }
 
+function cloneOverlayPolygonGeometry(
+    geometry: Polygon | MultiPolygon,
+): Polygon | MultiPolygon {
+    return structuredClone(geometry);
+}
+
+export function intersectPolygonFeatures<
+    Properties extends GeoJsonProperties,
+>(
+    first: OverlayPolygonFeature,
+    second: OverlayPolygonFeature,
+    properties: Properties,
+): Feature<Polygon | MultiPolygon, Properties> | null {
+    if (!isValidOverlayPolygon(first) || !isValidOverlayPolygon(second)) {
+        throw new Error("叠加输入不是有效的 Polygon 或 MultiPolygon");
+    }
+
+    return intersect<Properties>(
+        createPolygonCollection([first, second]),
+        { properties },
+    );
+}
+
+export function unionPolygonFeatures<
+    Properties extends GeoJsonProperties,
+>(
+    features: OverlayPolygonFeature[],
+    properties: Properties,
+): Feature<Polygon | MultiPolygon, Properties> | null {
+    const validFeatures = features.filter(isValidOverlayPolygon);
+
+    if (validFeatures.length === 0) {
+        return null;
+    }
+
+    if (validFeatures.length === 1) {
+        return {
+            type: "Feature",
+            geometry: cloneOverlayPolygonGeometry(validFeatures[0].geometry),
+            properties,
+        };
+    }
+
+    return union<Properties>(
+        createPolygonCollection(validFeatures),
+        { properties },
+    );
+}
+
 function unionFeatureGroup(
     features: LandUseFeature[],
     properties: DissolveResultProperties,
@@ -157,30 +193,10 @@ function unionFeatureGroup(
         return null;
     }
 
-    if (validFeatures.length === 1) {
-        return {
-            type: "Feature",
-            geometry: clonePolygonGeometry(
-                validFeatures[0].geometry,
-            ),
-            properties: {
-                ...properties,
-            },
-        };
-    }
-
     try {
-        return union<DissolveResultProperties>(
-            createPolygonCollection(
-                validFeatures.map(
-                    toTurfPolygonFeature,
-                ),
-            ),
-            {
-                properties: {
-                    ...properties,
-                },
-            },
+        return unionPolygonFeatures(
+            validFeatures.map(toTurfPolygonFeature),
+            { ...properties },
         );
     } catch {
         throw new Error(
@@ -223,16 +239,11 @@ export function intersectFeaturesWithGeometry(
         };
 
         try {
-            const result =
-                intersect<IntersectionResultProperties>(
-                    createPolygonCollection([
-                        toTurfPolygonFeature(feature),
-                        overlayGeometry,
-                    ]),
-                    {
-                        properties,
-                    },
-                );
+            const result = intersectPolygonFeatures(
+                toTurfPolygonFeature(feature),
+                overlayGeometry,
+                properties,
+            );
 
             if (
                 result &&
@@ -395,6 +406,17 @@ export function calculateAnalysisAreaM2(
         return Number.isFinite(calculatedArea)
             ? calculatedArea
             : 0;
+    } catch {
+        return 0;
+    }
+}
+
+export function calculatePolygonFeatureAreaM2(
+    feature: OverlayPolygonFeature,
+): number {
+    try {
+        const calculatedArea = area(feature);
+        return Number.isFinite(calculatedArea) ? calculatedArea : 0;
     } catch {
         return 0;
     }

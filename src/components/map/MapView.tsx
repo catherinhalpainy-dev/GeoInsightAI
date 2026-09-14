@@ -10,6 +10,7 @@ import maplibregl, {
 } from "maplibre-gl";
 import type {
     Feature,
+    GeoJSON,
     GeoJsonProperties,
     LineString,
     Point,
@@ -63,6 +64,7 @@ import type {
     SpatialRepresentativePointCollection,
     SpatialStatisticsConfig,
 } from "../../types/spatialStatistics";
+import type { ParcelAnalysisArtifacts } from "../../types/parcelAnalysis";
 import {
     SPATIAL_HEATMAP_COLORS,
     SPATIAL_HEXBIN_COLORS,
@@ -175,6 +177,21 @@ const SPATIAL_HEATMAP_SOURCE_ID =
 
 const SPATIAL_HEATMAP_LAYER_ID =
     "spatial-heatmap-layer";
+
+const PARCEL_ANALYSIS_BUFFER_SOURCE_ID = "parcel-analysis-buffer-source";
+const PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID = "parcel-analysis-buffer-fill";
+const PARCEL_ANALYSIS_BUFFER_LINE_LAYER_ID = "parcel-analysis-buffer-line";
+const PARCEL_ANALYSIS_PLANNING_SOURCE_ID = "parcel-analysis-planning-source";
+const PARCEL_ANALYSIS_PLANNING_FILL_LAYER_ID = "parcel-analysis-planning-fill";
+const PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID = "parcel-analysis-planning-line";
+const PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID = "parcel-analysis-restriction-source";
+const PARCEL_ANALYSIS_RESTRICTION_FILL_LAYER_ID = "parcel-analysis-restriction-fill";
+const PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID = "parcel-analysis-restriction-line";
+const PARCEL_ANALYSIS_ROADS_SOURCE_ID = "parcel-analysis-roads-source";
+const PARCEL_ANALYSIS_ROADS_LAYER_ID = "parcel-analysis-roads";
+const PARCEL_ANALYSIS_WATER_SOURCE_ID = "parcel-analysis-water-source";
+const PARCEL_ANALYSIS_WATER_FILL_LAYER_ID = "parcel-analysis-water-fill";
+const PARCEL_ANALYSIS_WATER_LINE_LAYER_ID = "parcel-analysis-water-line";
 
 const OVERLAY_SOURCE_PREFIX =
     "overlay-source-";
@@ -300,6 +317,8 @@ interface MapViewProps {
     spatialHeatmapData?: SpatialRepresentativePointCollection | null;
 
     spatialStatisticsConfig?: SpatialStatisticsConfig;
+
+    parcelAnalysisArtifacts?: ParcelAnalysisArtifacts | null;
 
     overlayLayers?:
     WorkspaceVectorLayer[];
@@ -1924,6 +1943,128 @@ function updateDataQualityLayers(
     map.setFilter(DATA_QUALITY_SELECTED_CIRCLE_LAYER_ID, selectedFilter);
 }
 
+function ensureParcelAnalysisLayers(map: maplibregl.Map) {
+    const emptyData = { type: "FeatureCollection" as const, features: [] };
+    const sourceIds = [
+        PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
+        PARCEL_ANALYSIS_PLANNING_SOURCE_ID,
+        PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID,
+        PARCEL_ANALYSIS_ROADS_SOURCE_ID,
+        PARCEL_ANALYSIS_WATER_SOURCE_ID,
+    ];
+    for (const sourceId of sourceIds) {
+        if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, { type: "geojson", data: emptyData });
+        }
+    }
+
+    const beforeLayerId = map.getLayer(SELECTION_SET_FILL_LAYER_ID)
+        ? SELECTION_SET_FILL_LAYER_ID
+        : map.getLayer(SELECTED_FILL_LAYER_ID) ? SELECTED_FILL_LAYER_ID : undefined;
+
+    if (!map.getLayer(PARCEL_ANALYSIS_PLANNING_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_PLANNING_FILL_LAYER_ID,
+            type: "fill",
+            source: PARCEL_ANALYSIS_PLANNING_SOURCE_ID,
+            paint: { "fill-color": "#477faa", "fill-opacity": 0.16 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID,
+            type: "line",
+            source: PARCEL_ANALYSIS_PLANNING_SOURCE_ID,
+            paint: { "line-color": "#356b95", "line-width": 1.5, "line-opacity": 0.9 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID,
+            type: "fill",
+            source: PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
+            paint: { "fill-color": "#159c90", "fill-opacity": 0.045 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_BUFFER_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_BUFFER_LINE_LAYER_ID,
+            type: "line",
+            source: PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
+            paint: {
+                "line-color": "#19877e",
+                "line-width": 1.5,
+                "line-opacity": 0.85,
+                "line-dasharray": [2, 2],
+            },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_RESTRICTION_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_RESTRICTION_FILL_LAYER_ID,
+            type: "fill",
+            source: PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID,
+            paint: { "fill-color": "#c96c45", "fill-opacity": 0.28 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID,
+            type: "line",
+            source: PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID,
+            paint: { "line-color": "#a44d34", "line-width": 2, "line-opacity": 0.95 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_ROADS_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_ROADS_LAYER_ID,
+            type: "line",
+            source: PARCEL_ANALYSIS_ROADS_SOURCE_ID,
+            paint: { "line-color": "#7d5f43", "line-width": 3, "line-opacity": 0.9 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_WATER_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_WATER_FILL_LAYER_ID,
+            type: "fill",
+            source: PARCEL_ANALYSIS_WATER_SOURCE_ID,
+            filter: ["==", ["geometry-type"], "Polygon"],
+            paint: { "fill-color": "#4c84a6", "fill-opacity": 0.18 },
+        }, beforeLayerId);
+    }
+    if (!map.getLayer(PARCEL_ANALYSIS_WATER_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: PARCEL_ANALYSIS_WATER_LINE_LAYER_ID,
+            type: "line",
+            source: PARCEL_ANALYSIS_WATER_SOURCE_ID,
+            paint: { "line-color": "#3f789b", "line-width": 2.5, "line-opacity": 0.88 },
+        }, beforeLayerId);
+    }
+}
+
+function updateParcelAnalysisLayers(
+    map: maplibregl.Map,
+    artifacts: ParcelAnalysisArtifacts | null,
+) {
+    ensureParcelAnalysisLayers(map);
+    const empty = { type: "FeatureCollection" as const, features: [] };
+    const setData = (sourceId: string, data: GeoJSON) => {
+        const source = map.getSource(sourceId);
+        if (source?.type === "geojson") (source as maplibregl.GeoJSONSource).setData(data);
+    };
+    setData(
+        PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
+        artifacts
+            ? { type: "FeatureCollection", features: [artifacts.buffer500m] }
+            : empty,
+    );
+    setData(PARCEL_ANALYSIS_PLANNING_SOURCE_ID, artifacts?.planningIntersections ?? empty);
+    setData(PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID, artifacts?.restrictionIntersections ?? empty);
+    setData(PARCEL_ANALYSIS_ROADS_SOURCE_ID, artifacts?.roadsWithinBuffer ?? empty);
+    setData(PARCEL_ANALYSIS_WATER_SOURCE_ID, artifacts?.waterWithinBuffer ?? empty);
+    moveInteractionLayersAboveSearch(map);
+}
+
 function moveInteractionLayersAboveSearch(map: maplibregl.Map) {
     const layerIds = [
         SPATIAL_QUERY_FILL_LAYER_ID,
@@ -2134,6 +2275,15 @@ function isOverlayHigherLayer(
         layerId === SEARCH_RESULT_CIRCLE_LAYER_ID ||
         layerId === SEARCH_LOCATION_RING_LAYER_ID ||
         layerId === SEARCH_LOCATION_POINT_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_BUFFER_LINE_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_PLANNING_FILL_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_RESTRICTION_FILL_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_ROADS_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_WATER_FILL_LAYER_ID ||
+        layerId === PARCEL_ANALYSIS_WATER_LINE_LAYER_ID ||
         layerId === HOVER_OUTLINE_LAYER_ID ||
         layerId === SELECTED_FILL_LAYER_ID ||
         layerId === SELECTED_OUTLINE_LAYER_ID ||
@@ -3058,6 +3208,7 @@ export function MapView({
     analysisResultLayers = [],
     spatialHeatmapData = null,
     spatialStatisticsConfig,
+    parcelAnalysisArtifacts = null,
     overlayLayers = [],
     rasterLayers = [],
     qualityIssueFeatures = {
@@ -3185,6 +3336,9 @@ export function MapView({
 
     const latestSpatialStatisticsConfigRef =
         useRef<SpatialStatisticsConfig | undefined>(spatialStatisticsConfig);
+
+    const latestParcelAnalysisArtifactsRef =
+        useRef<ParcelAnalysisArtifacts | null>(parcelAnalysisArtifacts);
 
     const latestOverlayLayersRef =
         useRef<WorkspaceVectorLayer[]>(overlayLayers);
@@ -4100,6 +4254,11 @@ export function MapView({
                     latestSelectedQualityIssueIdRef.current,
                 );
 
+                updateParcelAnalysisLayers(
+                    map,
+                    latestParcelAnalysisArtifactsRef.current,
+                );
+
                 updateSearchLayers(
                     map,
                     latestSearchResultFeatureRef.current,
@@ -4467,6 +4626,13 @@ export function MapView({
     ]);
 
     useEffect(() => {
+        latestParcelAnalysisArtifactsRef.current = parcelAnalysisArtifacts;
+        const map = mapRef.current;
+        if (!map?.isStyleLoaded()) return;
+        updateParcelAnalysisLayers(map, parcelAnalysisArtifacts);
+    }, [parcelAnalysisArtifacts]);
+
+    useEffect(() => {
         latestSearchResultFeatureRef.current = searchResultFeature;
         latestSearchLocationRef.current = searchLocation;
 
@@ -4698,6 +4864,11 @@ export function MapView({
                         latestSelectedQualityIssueIdRef.current,
                     );
 
+                    updateParcelAnalysisLayers(
+                        map,
+                        latestParcelAnalysisArtifactsRef.current,
+                    );
+
                     updateSearchLayers(
                         map,
                         latestSearchResultFeatureRef.current,
@@ -4749,6 +4920,11 @@ export function MapView({
                     map,
                     latestQualityIssueFeaturesRef.current,
                     latestSelectedQualityIssueIdRef.current,
+                );
+
+                updateParcelAnalysisLayers(
+                    map,
+                    latestParcelAnalysisArtifactsRef.current,
                 );
 
                 updateSearchLayers(
