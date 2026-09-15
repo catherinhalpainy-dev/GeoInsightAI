@@ -206,6 +206,39 @@ const commandSchemas = [
         required: ["type", "layerId", "visible"],
         additionalProperties: false,
     },
+    {
+        type: "object",
+        properties: { type: { const: "parcel_quality_check" } },
+        required: ["type"],
+        additionalProperties: false,
+    },
+    {
+        type: "object",
+        properties: { type: { const: "parcel_planning_analysis" } },
+        required: ["type"],
+        additionalProperties: false,
+    },
+    {
+        type: "object",
+        properties: { type: { const: "parcel_restriction_analysis" } },
+        required: ["type"],
+        additionalProperties: false,
+    },
+    {
+        type: "object",
+        properties: {
+            type: { const: "parcel_surroundings_analysis" },
+            distanceM: { const: 500 },
+        },
+        required: ["type", "distanceM"],
+        additionalProperties: false,
+    },
+    {
+        type: "object",
+        properties: { type: { const: "parcel_finalize_analysis" } },
+        required: ["type"],
+        additionalProperties: false,
+    },
 ] as const;
 
 export const AGENT_PLAN_TOOL = {
@@ -229,6 +262,10 @@ export const AGENT_PLAN_TOOL = {
                     type: "array",
                     maxItems: 8,
                     items: { oneOf: commandSchemas },
+                },
+                domain: {
+                    type: "string",
+                    enum: ["general-gis", "parcel-analysis"],
                 },
             },
             required: ["summary", "requiresConfirmation", "commands"],

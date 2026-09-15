@@ -18,6 +18,7 @@ import type {
     ParcelAnalysisArtifacts,
     ParcelAnalysisExecutionContext,
     ParcelAnalysisLayerBindings,
+    ParcelAnalysisPartialResults,
     ParcelAnalysisRunOutput,
     ParcelLineArtifactCollection,
     ParcelPlanningArtifactProperties,
@@ -516,31 +517,56 @@ export function assembleParcelAnalysis(
     restrictions: ParcelRestrictionExecutionResult,
     surroundings: ParcelSurroundingsExecutionResult,
 ): ParcelAnalysisRunOutput {
-    const targetAreaM2 = calculatePolygonFeatureAreaM2(targetAsPolygon(context.targetFeature));
+    return assembleParcelAnalysisResult(context.targetFeature, context.bindings, {
+        quality,
+        planning,
+        restrictions,
+        surroundings,
+    });
+}
+
+export function assembleParcelAnalysisResult(
+    targetFeature: LandUseFeature,
+    bindings: ParcelAnalysisLayerBindings,
+    partial: ParcelAnalysisPartialResults,
+): ParcelAnalysisRunOutput {
+    const targetAreaM2 = calculatePolygonFeatureAreaM2(targetAsPolygon(targetFeature));
     return {
         result: {
             id: crypto.randomUUID(),
             generatedAt: Date.now(),
             target: {
-                featureId: context.targetFeature.properties.id,
-                landUseType: context.targetFeature.properties.landUseType,
+                featureId: targetFeature.properties.id,
+                landUseType: targetFeature.properties.landUseType,
                 areaM2: targetAreaM2,
-                builtYear: context.targetFeature.properties.builtYear,
-                districtCode: context.targetFeature.properties.districtCode,
+                builtYear: targetFeature.properties.builtYear,
+                districtCode: targetFeature.properties.districtCode,
             },
-            quality,
-            planning: planning.result,
-            restrictions: restrictions.result,
-            surroundings: surroundings.result,
-            sources: { ...context.bindings },
+            quality: partial.quality,
+            planning: partial.planning?.result ?? null,
+            restrictions: partial.restrictions?.result ?? null,
+            surroundings: partial.surroundings?.result ?? null,
+            sources: { ...bindings },
         },
         artifacts: {
-            targetFeature: context.targetFeature,
-            planningIntersections: planning.intersections,
-            restrictionIntersections: restrictions.intersections,
-            buffer500m: surroundings.buffer500m,
-            roadsWithinBuffer: surroundings.roadsWithinBuffer,
-            waterWithinBuffer: surroundings.waterWithinBuffer,
+            targetFeature,
+            planningIntersections: partial.planning?.intersections ?? {
+                type: "FeatureCollection",
+                features: [],
+            },
+            restrictionIntersections: partial.restrictions?.intersections ?? {
+                type: "FeatureCollection",
+                features: [],
+            },
+            buffer500m: partial.surroundings?.buffer500m ?? null,
+            roadsWithinBuffer: partial.surroundings?.roadsWithinBuffer ?? {
+                type: "FeatureCollection",
+                features: [],
+            },
+            waterWithinBuffer: partial.surroundings?.waterWithinBuffer ?? {
+                type: "FeatureCollection",
+                features: [],
+            },
         },
     };
 }

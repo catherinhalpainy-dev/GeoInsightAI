@@ -109,6 +109,23 @@ export const SetAnalysisLayerVisibilityCommandSchema = z.object({
     visible: z.boolean(),
 }).strict();
 
+export const ParcelQualityCheckCommandSchema = z.object({
+    type: z.literal("parcel_quality_check"),
+}).strict();
+export const ParcelPlanningAnalysisCommandSchema = z.object({
+    type: z.literal("parcel_planning_analysis"),
+}).strict();
+export const ParcelRestrictionAnalysisCommandSchema = z.object({
+    type: z.literal("parcel_restriction_analysis"),
+}).strict();
+export const ParcelSurroundingsAnalysisCommandSchema = z.object({
+    type: z.literal("parcel_surroundings_analysis"),
+    distanceM: z.literal(500),
+}).strict();
+export const ParcelFinalizeAnalysisCommandSchema = z.object({
+    type: z.literal("parcel_finalize_analysis"),
+}).strict();
+
 export const AgentCommandSchema = z.discriminatedUnion("type", [
     ApplyFilterCommandSchema,
     ClearFiltersCommandSchema,
@@ -121,6 +138,11 @@ export const AgentCommandSchema = z.discriminatedUnion("type", [
     RunGeoprocessingCommandSchema,
     UpdateSymbologyCommandSchema,
     SetAnalysisLayerVisibilityCommandSchema,
+    ParcelQualityCheckCommandSchema,
+    ParcelPlanningAnalysisCommandSchema,
+    ParcelRestrictionAnalysisCommandSchema,
+    ParcelSurroundingsAnalysisCommandSchema,
+    ParcelFinalizeAnalysisCommandSchema,
 ]);
 export type AgentCommand = z.infer<typeof AgentCommandSchema>;
 
@@ -128,6 +150,7 @@ export const AgentPlanSchema = z.object({
     summary: z.string().min(1),
     requiresConfirmation: z.boolean(),
     commands: z.array(AgentCommandSchema).max(8),
+    domain: z.enum(["general-gis", "parcel-analysis"]).optional(),
 }).strict();
 export type AgentPlan = z.infer<typeof AgentPlanSchema>;
 
@@ -151,6 +174,14 @@ const SymbologySummarySchema = z.object({
     colorRamp: ColorRampSchema.nullable(),
 }).strict();
 
+const AgentParcelLayerSummarySchema = z.object({
+    id: z.string().nullable(),
+    name: z.string().nullable(),
+    geometryKind: z.enum(["point", "line", "polygon", "mixed"]).nullable(),
+    featureCount: z.number().int().nonnegative(),
+    available: z.boolean(),
+}).strict();
+
 export const AgentContextSchema = z.object({
     datasetName: z.string(),
     featureCount: z.number().int().nonnegative(),
@@ -164,7 +195,18 @@ export const AgentContextSchema = z.object({
     selectedFeature: z.object({
         id: z.string(),
         landUseType: LandUseTypeSchema.optional(),
+        areaM2: z.number().finite().nonnegative(),
     }).strict().nullable(),
+    workspaceRevision: z.number().int().nonnegative(),
+    parcelAnalysis: z.object({
+        planningLayer: z.lazy(() => AgentParcelLayerSummarySchema),
+        restrictionLayer: z.lazy(() => AgentParcelLayerSummarySchema),
+        roadLayer: z.lazy(() => AgentParcelLayerSummarySchema),
+        waterLayer: z.lazy(() => AgentParcelLayerSummarySchema),
+        administrativeLayer: z.lazy(() => AgentParcelLayerSummarySchema),
+        standardSurroundingDistanceM: z.literal(500),
+        hasResult: z.boolean(),
+    }).strict(),
     hasBuffer: z.boolean(),
     bufferDistanceM: z.number().positive().nullable(),
     hasAoi: z.boolean(),

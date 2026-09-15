@@ -19,6 +19,7 @@ import type {
     AgentCommand,
     AgentContext,
     AgentExecutionEvent,
+    AgentParcelLayerSummary,
     AgentPlan,
     AgentPlanExecutionResult,
 } from "../types/agent";
@@ -92,6 +93,19 @@ import { applyLandUseFilters } from "../utils/applyLandUseFilters";
 import { useEditHistory } from "../hooks/useEditHistory";
 import { useGeometryEditor } from "../hooks/useGeometryEditor";
 import { useParcelAnalysis } from "../hooks/useParcelAnalysis";
+import type {
+    ParcelAnalysisLayerBindings,
+    ParcelAnalysisPartialResults,
+    ParcelAnalysisRunOutput,
+} from "../types/parcelAnalysis";
+import {
+    analyzeParcelPlanningUse,
+    analyzeParcelQuality,
+    analyzeParcelRestrictions,
+    analyzeParcelSurroundings,
+    assembleParcelAnalysisResult,
+} from "../services/gis/parcelAnalysis";
+import { getAgentCommandPresentation } from "../services/agent/describeAgentCommand";
 import type {
     EditTransaction,
     LandUsePropertyChanges,
@@ -283,6 +297,7 @@ interface AgentSnapshot {
     analysisResultLayers: AnalysisResultLayer[];
     geoprocessingSummary: GeoprocessingRunSummary | null;
     geoprocessingError: string | null;
+    parcelAnalysis: ParcelAnalysisRunOutput | null;
 }
 
 const EMPTY_LAND_USE_COLLECTION: LandUseFeatureCollection = {
@@ -301,6 +316,16 @@ interface AgentExecutionContext {
     aoiQueryFeatures: LandUseFeature[];
     aoiAnalysisResult: AoiAnalysisResult | null;
     analysisResultLayers: AnalysisResultLayer[];
+    parcel: {
+        targetFeature: LandUseFeature;
+        bindings: ParcelAnalysisLayerBindings;
+        planningLayer: WorkspaceVectorLayer | null;
+        restrictionLayer: WorkspaceVectorLayer | null;
+        roadLayer: WorkspaceVectorLayer | null;
+        waterLayer: WorkspaceVectorLayer | null;
+        administrativeLayer: WorkspaceVectorLayer | null;
+        partial: Partial<ParcelAnalysisPartialResults>;
+    } | null;
 }
 
 interface GeoprocessingExecutionResult {
@@ -312,11 +337,34 @@ type AgentCommandExecutionResult =
     | {
         success: true;
         message: string;
+        facts?: string[];
     }
     | {
         success: false;
         message: string;
+        facts?: string[];
     };
+
+function createAgentParcelLayerSummary(
+    layerId: string | null,
+    overlayLayers: WorkspaceVectorLayer[],
+    allowedKinds: WorkspaceVectorLayer["geometryKind"][],
+): AgentParcelLayerSummary {
+    const layer = layerId
+        ? overlayLayers.find(({ id }) => id === layerId)
+        : null;
+    return {
+        id: layer?.id ?? null,
+        name: layer?.name ?? null,
+        geometryKind: layer?.geometryKind ?? null,
+        featureCount: layer?.featureCount ?? 0,
+        available: Boolean(
+            layer &&
+            layer.collection.features.length > 0 &&
+            allowedKinds.includes(layer.geometryKind),
+        ),
+    };
+}
 
 function areAoiFeaturesEqual(
     first: AoiFeature | null,
@@ -4194,8 +4242,39 @@ export function WorkspacePage() {
                 id: selectedFeature.properties.id,
                 landUseType:
                     selectedFeature.properties.landUseType,
+                areaM2: selectedFeature.properties.areaM2,
             }
             : null,
+        workspaceRevision,
+        parcelAnalysis: {
+            planningLayer: createAgentParcelLayerSummary(
+                parcelAnalysis.bindings.planningLayerId,
+                overlayLayers,
+                ["polygon", "mixed"],
+            ),
+            restrictionLayer: createAgentParcelLayerSummary(
+                parcelAnalysis.bindings.restrictionLayerId,
+                overlayLayers,
+                ["polygon", "mixed"],
+            ),
+            roadLayer: createAgentParcelLayerSummary(
+                parcelAnalysis.bindings.roadLayerId,
+                overlayLayers,
+                ["line", "mixed"],
+            ),
+            waterLayer: createAgentParcelLayerSummary(
+                parcelAnalysis.bindings.waterLayerId,
+                overlayLayers,
+                ["line", "polygon", "mixed"],
+            ),
+            administrativeLayer: createAgentParcelLayerSummary(
+                parcelAnalysis.bindings.administrativeLayerId,
+                overlayLayers,
+                ["polygon", "mixed"],
+            ),
+            standardSurroundingDistanceM: 500,
+            hasResult: parcelAnalysis.runState.result !== null,
+        },
         hasBuffer: bufferFeature !== null,
         bufferDistanceM: bufferResult?.distance ?? null,
         hasAoi: aoiPolygon !== null,
@@ -4302,10 +4381,28 @@ export function WorkspacePage() {
                     ? { ...geoprocessingSummary }
                     : null,
             geoprocessingError,
+            parcelAnalysis:
+                parcelAnalysis.runState.result && parcelAnalysis.runState.artifacts
+                    ? structuredClone({
+                        result: parcelAnalysis.runState.result,
+                        artifacts: parcelAnalysis.runState.artifacts,
+                    })
+                    : null,
         };
     }
 
     function createAgentExecutionContext(): AgentExecutionContext {
+        const resolveParcelLayer = (
+            layerId: string | null,
+            allowedKinds: WorkspaceVectorLayer["geometryKind"][],
+        ) => {
+            const layer = layerId
+                ? overlayLayers.find(({ id }) => id === layerId)
+                : null;
+            return layer && allowedKinds.includes(layer.geometryKind)
+                ? structuredClone(layer)
+                : null;
+        };
         return {
             filters: {
                 ...state.filters,
@@ -4335,6 +4432,18 @@ export function WorkspacePage() {
                 analysisResultLayers.map(
                     (layer) => ({ ...layer }),
                 ),
+            parcel: selectedFeature
+                ? {
+                    targetFeature: structuredClone(selectedFeature),
+                    bindings: { ...parcelAnalysis.bindings },
+                    planningLayer: resolveParcelLayer(parcelAnalysis.bindings.planningLayerId, ["polygon", "mixed"]),
+                    restrictionLayer: resolveParcelLayer(parcelAnalysis.bindings.restrictionLayerId, ["polygon", "mixed"]),
+                    roadLayer: resolveParcelLayer(parcelAnalysis.bindings.roadLayerId, ["line", "mixed"]),
+                    waterLayer: resolveParcelLayer(parcelAnalysis.bindings.waterLayerId, ["line", "polygon", "mixed"]),
+                    administrativeLayer: resolveParcelLayer(parcelAnalysis.bindings.administrativeLayerId, ["polygon", "mixed"]),
+                    partial: {},
+                }
+                : null,
         };
     }
 
@@ -4721,6 +4830,111 @@ export function WorkspacePage() {
                             : "已隐藏分析结果图层。",
                     };
                 }
+
+                case "parcel_quality_check": {
+                    if (!executionContext.parcel) {
+                        return { success: false, message: "请先选择一个目标地块。" };
+                    }
+                    const quality = analyzeParcelQuality(executionContext.parcel.targetFeature);
+                    executionContext.parcel.partial.quality = quality;
+                    if (quality.status === "error") {
+                        return {
+                            success: false,
+                            message: "目标地块存在阻断性质量错误，已停止后续分析。",
+                            facts: [`错误 ${quality.errorCount} 项`, `警告 ${quality.warningCount} 项`],
+                        };
+                    }
+                    return {
+                        success: true,
+                        message: quality.status === "warning" ? "地块质量检查完成，存在需要关注的警告。" : "地块质量检查通过。",
+                        facts: [`错误 ${quality.errorCount} 项`, `警告 ${quality.warningCount} 项`],
+                    };
+                }
+
+                case "parcel_planning_analysis": {
+                    const parcel = executionContext.parcel;
+                    if (!parcel?.partial.quality) return { success: false, message: "规划分析前必须先完成地块质量检查。" };
+                    if (!parcel.planningLayer) return { success: false, message: "当前未绑定可用的规划图层。" };
+                    const planning = analyzeParcelPlanningUse(parcel.targetFeature, parcel.planningLayer);
+                    parcel.partial.planning = planning;
+                    return {
+                        success: true,
+                        message: "规划用途叠加分析完成。",
+                        facts: [
+                            `主导规划用途：${planning.result.dominantUse ?? "未覆盖"}`,
+                            `规划覆盖率：${(planning.result.coverageRatio * 100).toFixed(1)}%`,
+                        ],
+                    };
+                }
+
+                case "parcel_restriction_analysis": {
+                    const parcel = executionContext.parcel;
+                    if (!parcel?.partial.quality) return { success: false, message: "限制分析前必须先完成地块质量检查。" };
+                    if (!parcel.restrictionLayer) return { success: false, message: "当前未绑定可用的限制要素图层。" };
+                    const restrictions = analyzeParcelRestrictions(parcel.targetFeature, parcel.restrictionLayer);
+                    parcel.partial.restrictions = restrictions;
+                    return {
+                        success: true,
+                        message: "限制要素叠加分析完成。",
+                        facts: [
+                            `限制重叠面积：${restrictions.result.overlapAreaM2.toLocaleString("zh-CN", { maximumFractionDigits: 0 })} m²`,
+                            `限制重叠比例：${(restrictions.result.overlapRatio * 100).toFixed(1)}%`,
+                        ],
+                    };
+                }
+
+                case "parcel_surroundings_analysis": {
+                    const parcel = executionContext.parcel;
+                    if (!parcel?.partial.quality) return { success: false, message: "周边分析前必须先完成地块质量检查。" };
+                    if (!parcel.roadLayer || command.distanceM !== 500) {
+                        return { success: false, message: "周边分析需要可用道路图层，且范围固定为 500 米。" };
+                    }
+                    const surroundings = analyzeParcelSurroundings(
+                        parcel.targetFeature,
+                        parcel.roadLayer,
+                        parcel.waterLayer,
+                        parcel.administrativeLayer,
+                    );
+                    parcel.partial.surroundings = surroundings;
+                    return {
+                        success: true,
+                        message: surroundings.warnings.length > 0
+                            ? `周边分析完成；${surroundings.warnings.join(" ")}`
+                            : "500 米周边分析完成。",
+                        facts: [
+                            `500 米范围道路：${surroundings.result.roadFeatureCount} 条`,
+                            surroundings.result.waterConfigured
+                                ? `500 米范围水系：${surroundings.result.waterFeatureCount ?? "无法确定"}`
+                                : "水系：未分析（未绑定数据源）",
+                            surroundings.result.administrativeConfigured
+                                ? `行政区：${surroundings.result.administrativeAreaName ?? "未匹配"}`
+                                : "行政区：未分析（未绑定数据源）",
+                        ],
+                    };
+                }
+
+                case "parcel_finalize_analysis": {
+                    const parcel = executionContext.parcel;
+                    if (!parcel?.partial.quality) return { success: false, message: "没有可汇总的地块质量检查结果。" };
+                    const output = assembleParcelAnalysisResult(
+                        parcel.targetFeature,
+                        parcel.bindings,
+                        parcel.partial as ParcelAnalysisPartialResults,
+                    );
+                    parcelAnalysis.commit(output, "agent");
+                    return {
+                        success: true,
+                        message: "地块分析结果已生成，并写入统一地块分析看板。",
+                        facts: [
+                            `目标地块：${output.result.target.featureId}`,
+                            `完成内容：${[
+                                output.result.planning ? "规划" : null,
+                                output.result.restrictions ? "限制" : null,
+                                output.result.surroundings ? "周边" : null,
+                            ].filter(Boolean).join("、") || "质量检查"}`,
+                        ],
+                    };
+                }
             }
         } catch (error) {
             return {
@@ -4735,13 +4949,16 @@ export function WorkspacePage() {
     function isAgentMutationCommand(
         command: AgentCommand,
     ) {
+        if (command.type.startsWith("parcel_")) {
+            return command.type === "parcel_finalize_analysis";
+        }
         return command.type !== "fit_map_bounds" &&
             command.type !== "navigate_statistics";
     }
 
-    function handleExecuteAgentPlan(
+    async function handleExecuteAgentPlan(
         plan: AgentPlan,
-    ): AgentPlanExecutionResult {
+    ): Promise<AgentPlanExecutionResult> {
         const snapshot = createAgentSnapshot();
         const executionContext = createAgentExecutionContext();
         const events: AgentExecutionEvent[] = [];
@@ -4753,19 +4970,30 @@ export function WorkspacePage() {
             index += 1
         ) {
             const command = plan.commands[index];
+            const startedAt = Date.now();
             const result = executeAgentCommand(
                 command,
                 executionContext,
             );
+            const finishedAt = Date.now();
             const event: AgentExecutionEvent = {
                 commandType: command.type,
+                title: getAgentCommandPresentation(command, agentContext).title,
                 status: result.success ? "success" : "error",
                 message: result.message,
-                timestamp: Date.now(),
+                facts: result.facts,
+                timestamp: finishedAt,
                 stepIndex: index,
+                startedAt,
+                finishedAt,
+                durationMs: finishedAt - startedAt,
             };
 
             events.push(event);
+            setAgentExecutionEvents((previous) => [
+                ...previous,
+                event,
+            ]);
 
             if (
                 result.success &&
@@ -4777,23 +5005,16 @@ export function WorkspacePage() {
             }
 
             if (!result.success) {
-                setAgentExecutionEvents((previous) => [
-                    ...previous,
-                    ...events,
-                ]);
                 return {
                     events,
                     completed: false,
                     stoppedAtStep: index,
                 };
             }
-        }
 
-        if (events.length > 0) {
-            setAgentExecutionEvents((previous) => [
-                ...previous,
-                ...events,
-            ]);
+            await new Promise<void>((resolve) => {
+                window.requestAnimationFrame(() => resolve());
+            });
         }
 
         return {
@@ -4842,6 +5063,7 @@ export function WorkspacePage() {
         setGeoprocessingError(
             lastAgentSnapshot.geoprocessingError,
         );
+        parcelAnalysis.restore(lastAgentSnapshot.parcelAnalysis);
         setLastAgentSnapshot(null);
     }
 
@@ -5458,6 +5680,7 @@ export function WorkspacePage() {
                     onBindingChange={parcelAnalysis.setBinding}
                     onRun={() => { void parcelAnalysis.run(); }}
                     onClear={parcelAnalysis.clear}
+                    onOpenAgent={() => setActivePanel("agent")}
                     onClose={() => setActivePanel(null)}
                 />
             )}
@@ -5562,6 +5785,7 @@ export function WorkspacePage() {
                     }
                     canUndo={lastAgentSnapshot !== null}
                     onUndo={handleUndoAgentAction}
+                    onOpenParcelAnalysis={() => setActivePanel("parcel-analysis")}
                     onSaveAsWorkflow={handleSaveAgentPlanAsWorkflow}
                 />
             )}

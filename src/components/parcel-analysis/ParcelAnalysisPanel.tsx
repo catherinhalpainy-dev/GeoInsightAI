@@ -4,6 +4,7 @@ import {
     LoaderCircle,
     Play,
     RotateCcw,
+    Sparkles,
     TriangleAlert,
     X,
     XCircle,
@@ -32,6 +33,7 @@ interface ParcelAnalysisPanelProps {
     ) => void;
     onRun: () => void;
     onClear: () => void;
+    onOpenAgent?: () => void;
     onClose: () => void;
 }
 
@@ -100,6 +102,7 @@ export function ParcelAnalysisPanel({
     onBindingChange,
     onRun,
     onClear,
+    onOpenAgent,
     onClose,
 }: ParcelAnalysisPanelProps) {
     const polygonLayers = overlayLayers.filter(({ geometryKind }) =>
@@ -112,6 +115,9 @@ export function ParcelAnalysisPanel({
         geometryKind === "line" || geometryKind === "polygon" || geometryKind === "mixed",
     );
     const result = runState.result;
+    const planning = result?.planning ?? null;
+    const restrictions = result?.restrictions ?? null;
+    const surroundings = result?.surroundings ?? null;
     const canRun = Boolean(selectedFeature) && validationErrors.length === 0 && runState.status !== "running";
 
     return (
@@ -205,6 +211,11 @@ export function ParcelAnalysisPanel({
                                 <RotateCcw size={14} /> 清除结果
                             </button>
                         )}
+                        {onOpenAgent && (
+                            <button type="button" onClick={onOpenAgent}>
+                                <Sparkles size={14} /> 使用 GIS 分析助手
+                            </button>
+                        )}
                     </div>
                 </section>
 
@@ -231,70 +242,70 @@ export function ParcelAnalysisPanel({
                             <time>{new Date(result.generatedAt).toLocaleString("zh-CN")}</time>
                         </div>
 
-                        <div className="parcel-result-group">
+                        {planning ? <div className="parcel-result-group">
                             <h3>规划用途</h3>
                             <dl>
-                                <div><dt>主要规划用途</dt><dd>{result.planning.dominantUse ?? "未识别"}</dd></div>
-                                <div><dt>规划覆盖比例</dt><dd>{formatRatio(result.planning.coverageRatio)}</dd></div>
-                                <div><dt>未覆盖面积</dt><dd>{formatArea(result.planning.uncoveredAreaM2)}</dd></div>
+                                <div><dt>主要规划用途</dt><dd>{planning.dominantUse ?? "未识别"}</dd></div>
+                                <div><dt>规划覆盖比例</dt><dd>{formatRatio(planning.coverageRatio)}</dd></div>
+                                <div><dt>未覆盖面积</dt><dd>{formatArea(planning.uncoveredAreaM2)}</dd></div>
                             </dl>
-                            {result.planning.items.map((item) => (
+                            {planning.items.map((item) => (
                                 <div className="parcel-detail-row" key={item.plannedUse}>
                                     <span>{item.plannedUse}</span>
                                     <strong>{formatArea(item.areaM2)} · {formatRatio(item.ratio)}</strong>
                                 </div>
                             ))}
-                            {result.planning.hasOverlappingPlanningZones && (
+                            {planning.hasOverlappingPlanningZones && (
                                 <p className="parcel-status-warning">规划分区存在重叠，分类面积可能重复累计。</p>
                             )}
-                        </div>
+                        </div> : null}
 
-                        <div className="parcel-result-group">
+                        {restrictions ? <div className="parcel-result-group">
                             <h3>限制区域</h3>
-                            <p className={result.restrictions.hasConflict ? "parcel-status-conflict" : "parcel-status-ok"}>
-                                {result.restrictions.hasConflict
+                            <p className={restrictions.hasConflict ? "parcel-status-conflict" : "parcel-status-ok"}>
+                                {restrictions.hasConflict
                                     ? "检测到限制区域空间重叠，需要进一步业务审查"
                                     : "未检测到限制区域空间重叠"}
                             </p>
                             <dl>
-                                <div><dt>去重重叠面积</dt><dd>{formatArea(result.restrictions.overlapAreaM2)}</dd></div>
-                                <div><dt>地块占比</dt><dd>{formatRatio(result.restrictions.overlapRatio)}</dd></div>
+                                <div><dt>去重重叠面积</dt><dd>{formatArea(restrictions.overlapAreaM2)}</dd></div>
+                                <div><dt>地块占比</dt><dd>{formatRatio(restrictions.overlapRatio)}</dd></div>
                             </dl>
-                            {result.restrictions.items.map((item) => (
+                            {restrictions.items.map((item) => (
                                 <div className="parcel-detail-row" key={item.restrictionType}>
                                     <span>{item.restrictionType}</span>
                                     <strong>{formatArea(item.areaM2)}</strong>
                                 </div>
                             ))}
-                        </div>
+                        </div> : null}
 
-                        <div className="parcel-result-group">
+                        {surroundings ? <div className="parcel-result-group">
                             <h3>周边条件</h3>
                             <dl>
-                                <div><dt>500m 道路</dt><dd>{result.surroundings.roadFeatureCount} 个</dd></div>
-                                {Object.entries(result.surroundings.roadClassSummary).map(([roadClass, count]) => (
+                                <div><dt>500m 道路</dt><dd>{surroundings.roadFeatureCount} 个</dd></div>
+                                {Object.entries(surroundings.roadClassSummary).map(([roadClass, count]) => (
                                     <div key={roadClass}><dt>{roadClass}</dt><dd>{count} 个要素</dd></div>
                                 ))}
                                 <div>
                                     <dt>附近水系</dt>
-                                    <dd>{result.surroundings.waterConfigured
-                                        ? `${result.surroundings.waterFeatureCount ?? 0} 个`
+                                    <dd>{surroundings.waterConfigured
+                                        ? `${surroundings.waterFeatureCount ?? 0} 个`
                                         : "未配置"}</dd>
                                 </div>
                                 <div>
                                     <dt>水系直接相交</dt>
-                                    <dd>{result.surroundings.waterIntersectsTarget === null
+                                    <dd>{surroundings.waterIntersectsTarget === null
                                         ? "未配置"
-                                        : result.surroundings.waterIntersectsTarget ? "是" : "否"}</dd>
+                                        : surroundings.waterIntersectsTarget ? "是" : "否"}</dd>
                                 </div>
                                 <div>
                                     <dt>所在行政区</dt>
-                                    <dd>{result.surroundings.administrativeConfigured
-                                        ? result.surroundings.administrativeAreaName ?? "未识别"
+                                    <dd>{surroundings.administrativeConfigured
+                                        ? surroundings.administrativeAreaName ?? "未识别"
                                         : "未配置"}</dd>
                                 </div>
                             </dl>
-                        </div>
+                        </div> : null}
 
                         <div className="parcel-result-group">
                             <h3>数据质量</h3>
@@ -308,11 +319,11 @@ export function ParcelAnalysisPanel({
                         <div className="parcel-summary-table" role="table" aria-label="地块分析汇总">
                             <div><span>地块面积</span><strong>{formatArea(result.target.areaM2)}</strong></div>
                             <div><span>现状用途</span><strong>{LAND_USE_LABELS[result.target.landUseType]}</strong></div>
-                            <div><span>主要规划用途</span><strong>{result.planning.dominantUse ?? "未识别"}</strong></div>
-                            <div><span>限制区域重叠</span><strong>{formatArea(result.restrictions.overlapAreaM2)}</strong></div>
-                            <div><span>限制区域占比</span><strong>{formatRatio(result.restrictions.overlapRatio)}</strong></div>
-                            <div><span>500m 道路要素</span><strong>{result.surroundings.roadFeatureCount}</strong></div>
-                            <div><span>附近水系</span><strong>{result.surroundings.waterFeatureCount ?? "未配置"}</strong></div>
+                            <div><span>主要规划用途</span><strong>{planning?.dominantUse ?? "未分析"}</strong></div>
+                            <div><span>限制区域重叠</span><strong>{restrictions ? formatArea(restrictions.overlapAreaM2) : "未分析"}</strong></div>
+                            <div><span>限制区域占比</span><strong>{restrictions ? formatRatio(restrictions.overlapRatio) : "未分析"}</strong></div>
+                            <div><span>500m 道路要素</span><strong>{surroundings?.roadFeatureCount ?? "未分析"}</strong></div>
+                            <div><span>附近水系</span><strong>{surroundings ? surroundings.waterFeatureCount ?? "未配置" : "未分析"}</strong></div>
                             <div><span>数据质量</span><strong>{result.quality.status === "pass" ? "正常" : "需检查"}</strong></div>
                         </div>
                         <p className="parcel-disclaimer">

@@ -7,6 +7,7 @@ import {
     AgentPlanSchema,
 } from "./schemas";
 import { AGENT_PLAN_TOOL } from "./tools";
+import { normalizeAgentPlan } from "./parcelPlanNormalizer";
 
 export interface CreateAgentPlanInput {
     message: string;
@@ -141,6 +142,31 @@ function getPlanPreconditionError(
             case "fit_map_bounds":
             case "navigate_statistics":
                 break;
+
+            case "parcel_quality_check":
+            case "parcel_finalize_analysis":
+                if (!context.selectedFeature) {
+                    return "请先在地图中选择一个目标地块。";
+                }
+                break;
+
+            case "parcel_planning_analysis":
+                if (!context.parcelAnalysis.planningLayer.available) {
+                    return "当前未绑定可用的规划图层。";
+                }
+                break;
+
+            case "parcel_restriction_analysis":
+                if (!context.parcelAnalysis.restrictionLayer.available) {
+                    return "当前未绑定可用的限制要素图层。";
+                }
+                break;
+
+            case "parcel_surroundings_analysis":
+                if (!context.parcelAnalysis.roadLayer.available) {
+                    return "当前未绑定可用的道路图层，无法执行周边分析。";
+                }
+                break;
         }
     }
 
@@ -224,8 +250,9 @@ export async function createAgentPlan({
         throw new Error("模型返回了不合法的 GIS 操作计划。");
     }
 
+    const normalizedPlan = normalizeAgentPlan(result.data, context);
     const preconditionError = getPlanPreconditionError(
-        result.data.commands,
+        normalizedPlan.commands,
         context,
     );
 
@@ -233,13 +260,13 @@ export async function createAgentPlan({
         return createUnavailablePlan(preconditionError);
     }
 
-    const containsMutation = result.data.commands.some(
+    const containsMutation = normalizedPlan.commands.some(
         isMutationCommand,
     );
 
     return {
-        ...result.data,
+        ...normalizedPlan,
         requiresConfirmation:
-            containsMutation || result.data.requiresConfirmation,
+            containsMutation || normalizedPlan.requiresConfirmation,
     };
 }

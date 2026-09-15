@@ -2055,6 +2055,7 @@ function updateParcelAnalysisLayers(
     setData(
         PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
         artifacts
+            && artifacts.buffer500m
             ? { type: "FeatureCollection", features: [artifacts.buffer500m] }
             : empty,
     );

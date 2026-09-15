@@ -38,7 +38,18 @@ export interface AgentContext {
     selectedFeature: {
         id: string;
         landUseType?: LandUseType;
+        areaM2: number;
     } | null;
+    workspaceRevision: number;
+    parcelAnalysis: {
+        planningLayer: AgentParcelLayerSummary;
+        restrictionLayer: AgentParcelLayerSummary;
+        roadLayer: AgentParcelLayerSummary;
+        waterLayer: AgentParcelLayerSummary;
+        administrativeLayer: AgentParcelLayerSummary;
+        standardSurroundingDistanceM: 500;
+        hasResult: boolean;
+    };
     hasBuffer: boolean;
     bufferDistanceM: number | null;
     hasAoi: boolean;
@@ -66,6 +77,14 @@ export interface AgentContext {
         classCount: GraduatedClassCount | null;
         colorRamp: ColorRampName | null;
     };
+}
+
+export interface AgentParcelLayerSummary {
+    id: string | null;
+    name: string | null;
+    geometryKind: VectorGeometryKind | null;
+    featureCount: number;
+    available: boolean;
 }
 
 export type AgentGeoprocessingInputSource =
@@ -146,12 +165,21 @@ export type AgentCommand =
         type: "set_analysis_layer_visibility";
         layerId: string;
         visible: boolean;
-    };
+    }
+    | { type: "parcel_quality_check" }
+    | { type: "parcel_planning_analysis" }
+    | { type: "parcel_restriction_analysis" }
+    | {
+        type: "parcel_surroundings_analysis";
+        distanceM: 500;
+    }
+    | { type: "parcel_finalize_analysis" };
 
 export interface AgentPlan {
     summary: string;
     requiresConfirmation: boolean;
     commands: AgentCommand[];
+    domain?: "general-gis" | "parcel-analysis";
 }
 
 export type AgentExecutionStatus = "success" | "error";
@@ -162,6 +190,21 @@ export interface AgentExecutionEvent {
     message: string;
     timestamp: number;
     stepIndex: number;
+    title: string;
+    startedAt: number;
+    finishedAt: number;
+    durationMs: number;
+    facts?: string[];
+}
+
+export interface AgentPlanWorkspaceSnapshot {
+    targetFeatureId: string | null;
+    planningLayerId: string | null;
+    restrictionLayerId: string | null;
+    roadLayerId: string | null;
+    waterLayerId: string | null;
+    administrativeLayerId: string | null;
+    workspaceRevision: number;
 }
 
 export interface AgentPlanExecutionResult {

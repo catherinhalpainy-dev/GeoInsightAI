@@ -109,10 +109,14 @@ export interface ParcelAnalysisResult {
         districtCode: string;
     };
     quality: ParcelQualitySummary;
-    planning: ParcelPlanningAnalysis;
-    restrictions: ParcelRestrictionAnalysis;
-    surroundings: ParcelSurroundingsAnalysis;
+    planning: ParcelPlanningAnalysis | null;
+    restrictions: ParcelRestrictionAnalysis | null;
+    surroundings: ParcelSurroundingsAnalysis | null;
     sources: ParcelAnalysisLayerBindings;
+    execution?: {
+        source: "manual" | "agent";
+        agentPlanId?: string;
+    };
 }
 
 export interface ParcelPlanningArtifactProperties {
@@ -143,7 +147,7 @@ export interface ParcelAnalysisArtifacts {
     targetFeature: LandUseFeature;
     planningIntersections: ParcelPolygonArtifactCollection;
     restrictionIntersections: ParcelPolygonArtifactCollection;
-    buffer500m: BufferFeature;
+    buffer500m: BufferFeature | null;
     roadsWithinBuffer: ParcelLineArtifactCollection;
     waterWithinBuffer: FeatureCollection<
         LineString | MultiLineString | Polygon | MultiPolygon,
@@ -182,6 +186,13 @@ export interface ParcelSurroundingsExecutionResult {
 export interface ParcelAnalysisRunOutput {
     result: ParcelAnalysisResult;
     artifacts: ParcelAnalysisArtifacts;
+}
+
+export interface ParcelAnalysisPartialResults {
+    quality: ParcelQualitySummary;
+    planning?: ParcelPlanningExecutionResult;
+    restrictions?: ParcelRestrictionExecutionResult;
+    surroundings?: ParcelSurroundingsExecutionResult;
 }
 
 export interface ParcelAnalysisRunState {

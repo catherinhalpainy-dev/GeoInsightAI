@@ -5,6 +5,7 @@ import type { WorkspaceVectorLayer } from "../types/mapLayer";
 import type {
     ParcelAnalysisLayerBindings,
     ParcelAnalysisRunState,
+    ParcelAnalysisRunOutput,
     ParcelAnalysisStepId,
     ParcelAnalysisStepState,
 } from "../types/parcelAnalysis";
@@ -30,6 +31,25 @@ const STEP_IDS: ParcelAnalysisStepId[] = [
 
 function createIdleSteps(): ParcelAnalysisStepState[] {
     return STEP_IDS.map((id) => ({ id, status: "idle" }));
+}
+
+function createResultSteps(output: ParcelAnalysisRunOutput): ParcelAnalysisStepState[] {
+    return createIdleSteps().map((step) => {
+        if (step.id === "quality") {
+            return {
+                ...step,
+                status: output.result.quality.status === "pass"
+                    ? "completed" as const
+                    : output.result.quality.status === "warning"
+                        ? "warning" as const
+                        : "failed" as const,
+            };
+        }
+        if (step.id === "planning") return { ...step, status: output.result.planning ? "completed" as const : "idle" as const };
+        if (step.id === "restriction") return { ...step, status: output.result.restrictions ? "completed" as const : "idle" as const };
+        if (step.id === "surroundings") return { ...step, status: output.result.surroundings ? "completed" as const : "idle" as const };
+        return { ...step, status: "completed" as const };
+    });
 }
 
 const INITIAL_STATE: ParcelAnalysisRunState = {
@@ -94,6 +114,36 @@ export function useParcelAnalysis(
         .find(({ id }) => id === bindings.administrativeLayerId)?.collection;
 
     const clear = useCallback(() => setRunState(INITIAL_STATE), []);
+
+    const commit = useCallback((
+        output: ParcelAnalysisRunOutput,
+        source: "manual" | "agent" = "agent",
+    ) => {
+        setRunState({
+            status: "completed",
+            steps: createResultSteps(output),
+            result: {
+                ...output.result,
+                execution: { source },
+            },
+            artifacts: output.artifacts,
+            error: null,
+        });
+    }, []);
+
+    const restore = useCallback((output: ParcelAnalysisRunOutput | null) => {
+        if (!output) {
+            setRunState(INITIAL_STATE);
+            return;
+        }
+        setRunState({
+            status: "completed",
+            steps: createResultSteps(output),
+            result: output.result,
+            artifacts: output.artifacts,
+            error: null,
+        });
+    }, []);
 
     useEffect(() => {
         setRunState((current) => current.status === "idle" ? current : INITIAL_STATE);
@@ -198,7 +248,10 @@ export function useParcelAnalysis(
             setRunState({
                 status: "completed",
                 steps,
-                result: output.result,
+                result: {
+                    ...output.result,
+                    execution: { source: "manual" },
+                },
                 artifacts: output.artifacts,
                 error: null,
             });
@@ -225,5 +278,7 @@ export function useParcelAnalysis(
         setBinding,
         run,
         clear,
+        commit,
+        restore,
     };
 }
