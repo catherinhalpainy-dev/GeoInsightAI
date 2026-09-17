@@ -502,8 +502,8 @@ export function DataImportPage() {
 
       <header ref={importSectionRef} className="import-workbench-header">
         <div>
-          <span className="import-section-eyebrow">DATA IMPORT</span>
-          <h2>导入空间数据</h2>
+          <span className="import-section-eyebrow">OR START WITH YOUR DATA</span>
+          <h2>或者，导入自己的空间数据</h2>
 
           <p>
             导入城市用地

@@ -104,6 +104,77 @@ const temporalComparisonSchema = z.object({
     categories: z.array(temporalCompareCategorySchema).max(30),
 }).strict();
 
+const parcelAnalysisSchema = z.object({
+    analysisId: z.string().min(1).max(160),
+    generatedAt: finiteNumber.nonnegative(),
+    target: z.object({
+        featureId: z.string().min(1).max(160),
+        currentUse: z.string().min(1).max(160),
+        areaM2: finiteNumber.nonnegative(),
+        builtYear: finiteNumber.nullable(),
+        districtCode: z.string().max(160),
+        administrativeAreaName: z.string().max(160).nullable(),
+    }).strict(),
+    quality: z.object({
+        status: z.enum(["pass", "warning", "error"]),
+        errorCount: z.number().int().nonnegative(),
+        warningCount: z.number().int().nonnegative(),
+        issues: z.array(z.object({
+            code: z.string().min(1).max(120),
+            severity: z.enum(["error", "warning", "info"]),
+            message: z.string().min(1).max(500),
+        }).strict()).max(100),
+    }).strict(),
+    planning: z.object({
+        available: z.boolean(),
+        dominantUse: z.string().max(160).nullable(),
+        coverageAreaM2: finiteNumber.nonnegative().nullable(),
+        coverageRatio: finiteNumber.nonnegative().nullable(),
+        uncoveredAreaM2: finiteNumber.nonnegative().nullable(),
+        hasOverlappingPlanningZones: z.boolean(),
+        items: z.array(z.object({
+            use: z.string().min(1).max(160),
+            areaM2: finiteNumber.nonnegative(),
+            ratio: finiteNumber.nonnegative(),
+        }).strict()).max(100),
+    }).strict(),
+    restrictions: z.object({
+        available: z.boolean(),
+        hasConflict: z.boolean(),
+        overlapAreaM2: finiteNumber.nonnegative().nullable(),
+        overlapRatio: finiteNumber.nonnegative().nullable(),
+        conflictFeatureCount: z.number().int().nonnegative().nullable(),
+        items: z.array(z.object({
+            type: z.string().min(1).max(160),
+            areaM2: finiteNumber.nonnegative(),
+            ratio: finiteNumber.nonnegative(),
+        }).strict()).max(100),
+    }).strict(),
+    surroundings: z.object({
+        available: z.boolean(),
+        bufferDistanceM: finiteNumber.nonnegative().nullable(),
+        roadFeatureCount: z.number().int().nonnegative().nullable(),
+        roadClassSummary: z.record(z.string(), z.number().int().nonnegative()),
+        waterConfigured: z.boolean(),
+        waterFeatureCount: z.number().int().nonnegative().nullable(),
+        waterIntersectsTarget: z.boolean().nullable(),
+        administrativeConfigured: z.boolean(),
+        administrativeAreaName: z.string().max(160).nullable(),
+    }).strict(),
+    sources: z.object({
+        primaryLayerName: z.string().min(1).max(160),
+        planningLayerName: z.string().max(160).nullable(),
+        restrictionLayerName: z.string().max(160).nullable(),
+        roadLayerName: z.string().max(160).nullable(),
+        waterLayerName: z.string().max(160).nullable(),
+        administrativeLayerName: z.string().max(160).nullable(),
+    }).strict(),
+    execution: z.object({
+        source: z.enum(["manual", "agent"]),
+        agentPlanId: z.string().max(160).optional(),
+    }).strict(),
+}).strict();
+
 export const AIReportContextSchema = z.object({
     projectName: z.string().min(1).max(160),
     datasetName: z.string().min(1).max(160),
@@ -117,6 +188,7 @@ export const AIReportContextSchema = z.object({
     temporal: temporalSchema.optional(),
     spatialStatistics: spatialStatisticsSchema.optional(),
     temporalComparison: temporalComparisonSchema.optional(),
+    parcelAnalysis: parcelAnalysisSchema.optional(),
 }).strict();
 
 export const ReportInsightResponseSchema = z.object({

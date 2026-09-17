@@ -11,11 +11,12 @@
 - `source/roads.geojson`：道路。
 - `source/water.geojson`：水系。
 - `source/administrative-boundary.geojson`：行政区边界。
+- `source/public-facilities.geojson`：学校、医疗、交通和公共服务设施点。
 
 目标地块 ID：`parcel-target-001`。
 
 目标地块与规划用途、限制建设区域具有真实空间叠加关系，周边 500 米内包含多条道路，并位于滨江中区行政边界内。
 
-本示例数据为产品演示用途的合成空间数据，不代表真实地理现状、规划审批结论或行政边界。
+本示例数据为产品演示用途的合成空间数据。其地块采用不规则街区边界，道路和水系采用连续折线，设施点沿道路与街区分布，用于表达更合理的空间关系；但仍不代表真实地理现状、规划审批结论或行政边界。
 
 如需重新生成数据，在仓库根目录执行 `npm run demo:generate`。

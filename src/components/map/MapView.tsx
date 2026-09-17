@@ -57,6 +57,7 @@ import type {
     SearchHighlightFeature,
 } from "../../types/search";
 import type {
+    MapCaptureMode,
     MapCaptureResult,
 } from "../../types/report";
 import type { TemporalConfig } from "../../types/temporal";
@@ -91,6 +92,7 @@ import {
 } from "../../services/gis/calculateGeoJsonBounds";
 import { buildWmsTileUrl } from "../../services/gis/wms";
 import { BASEMAP_STYLES } from "../../constants/basemaps";
+import { PARCEL_ANALYSIS_STYLE } from "../../constants/parcelAnalysisStyle";
 
 const SELECTED_FILL_LAYER_ID =
     "land-use-selected-fill";
@@ -337,6 +339,8 @@ interface MapViewProps {
     searchLocation?: Position | null;
 
     captureRequestId?: number | null;
+
+    captureMode?: MapCaptureMode;
 
     onMapCapture?: (result: MapCaptureResult) => void;
 
@@ -911,7 +915,7 @@ function ensureLandUseLayers(
 
             paint: {
                 "fill-color":
-                    "#facc15",
+                    PARCEL_ANALYSIS_STYLE.target.color,
 
                 "fill-opacity":
                     0.24,
@@ -943,7 +947,7 @@ function ensureLandUseLayers(
 
             paint: {
                 "line-color":
-                    "#facc15",
+                    PARCEL_ANALYSIS_STYLE.target.color,
 
                 "line-width":
                     4,
@@ -1967,7 +1971,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_PLANNING_FILL_LAYER_ID,
             type: "fill",
             source: PARCEL_ANALYSIS_PLANNING_SOURCE_ID,
-            paint: { "fill-color": "#477faa", "fill-opacity": 0.16 },
+            paint: { "fill-color": PARCEL_ANALYSIS_STYLE.planning.fillColor, "fill-opacity": 0.16 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID)) {
@@ -1975,7 +1979,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_PLANNING_LINE_LAYER_ID,
             type: "line",
             source: PARCEL_ANALYSIS_PLANNING_SOURCE_ID,
-            paint: { "line-color": "#356b95", "line-width": 1.5, "line-opacity": 0.9 },
+            paint: { "line-color": PARCEL_ANALYSIS_STYLE.planning.lineColor, "line-width": 1.5, "line-opacity": 0.9 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID)) {
@@ -1983,7 +1987,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_BUFFER_FILL_LAYER_ID,
             type: "fill",
             source: PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
-            paint: { "fill-color": "#159c90", "fill-opacity": 0.045 },
+            paint: { "fill-color": PARCEL_ANALYSIS_STYLE.buffer.fillColor, "fill-opacity": 0.045 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_BUFFER_LINE_LAYER_ID)) {
@@ -1992,7 +1996,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             type: "line",
             source: PARCEL_ANALYSIS_BUFFER_SOURCE_ID,
             paint: {
-                "line-color": "#19877e",
+                "line-color": PARCEL_ANALYSIS_STYLE.buffer.lineColor,
                 "line-width": 1.5,
                 "line-opacity": 0.85,
                 "line-dasharray": [2, 2],
@@ -2004,7 +2008,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_RESTRICTION_FILL_LAYER_ID,
             type: "fill",
             source: PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID,
-            paint: { "fill-color": "#c96c45", "fill-opacity": 0.28 },
+            paint: { "fill-color": PARCEL_ANALYSIS_STYLE.restriction.fillColor, "fill-opacity": 0.28 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID)) {
@@ -2012,7 +2016,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_RESTRICTION_LINE_LAYER_ID,
             type: "line",
             source: PARCEL_ANALYSIS_RESTRICTION_SOURCE_ID,
-            paint: { "line-color": "#a44d34", "line-width": 2, "line-opacity": 0.95 },
+            paint: { "line-color": PARCEL_ANALYSIS_STYLE.restriction.lineColor, "line-width": 2, "line-opacity": 0.95 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_ROADS_LAYER_ID)) {
@@ -2020,7 +2024,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_ROADS_LAYER_ID,
             type: "line",
             source: PARCEL_ANALYSIS_ROADS_SOURCE_ID,
-            paint: { "line-color": "#7d5f43", "line-width": 3, "line-opacity": 0.9 },
+            paint: { "line-color": PARCEL_ANALYSIS_STYLE.roads.lineColor, "line-width": 3, "line-opacity": 0.9 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_WATER_FILL_LAYER_ID)) {
@@ -2029,7 +2033,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             type: "fill",
             source: PARCEL_ANALYSIS_WATER_SOURCE_ID,
             filter: ["==", ["geometry-type"], "Polygon"],
-            paint: { "fill-color": "#4c84a6", "fill-opacity": 0.18 },
+            paint: { "fill-color": PARCEL_ANALYSIS_STYLE.water.fillColor, "fill-opacity": 0.18 },
         }, beforeLayerId);
     }
     if (!map.getLayer(PARCEL_ANALYSIS_WATER_LINE_LAYER_ID)) {
@@ -2037,7 +2041,7 @@ function ensureParcelAnalysisLayers(map: maplibregl.Map) {
             id: PARCEL_ANALYSIS_WATER_LINE_LAYER_ID,
             type: "line",
             source: PARCEL_ANALYSIS_WATER_SOURCE_ID,
-            paint: { "line-color": "#3f789b", "line-width": 2.5, "line-opacity": 0.88 },
+            paint: { "line-color": PARCEL_ANALYSIS_STYLE.water.lineColor, "line-width": 2.5, "line-opacity": 0.88 },
         }, beforeLayerId);
     }
 }
@@ -3220,6 +3224,7 @@ export function MapView({
     searchResultFeature = null,
     searchLocation = null,
     captureRequestId = null,
+    captureMode = "current",
     geometryEditMode = "idle",
     geometryDraftCoordinates = [],
     geometryActiveVertexIndex = null,
@@ -3246,6 +3251,7 @@ export function MapView({
         useRef<maplibregl.Map | null>(
             null,
         );
+    const captureInProgressRef = useRef(false);
 
     const initialBasemapRef =
         useRef(basemap);
@@ -3740,6 +3746,9 @@ export function MapView({
             };
 
         const handleMoveEnd = () => {
+            if (captureInProgressRef.current) {
+                return;
+            }
             const center = map.getCenter();
 
             latestOnViewStateChangeRef.current?.({
@@ -4651,9 +4660,12 @@ export function MapView({
             return;
         }
 
+        captureInProgressRef.current = true;
+
         const map = mapRef.current;
 
         if (!map) {
+            captureInProgressRef.current = false;
             latestOnMapCaptureRef.current?.({
                 requestId: captureRequestId,
                 dataUrl: null,
@@ -4664,6 +4676,41 @@ export function MapView({
 
         let settled = false;
         let timeoutId: number | null = null;
+        const originalCamera = {
+            center: [map.getCenter().lng, map.getCenter().lat] as [number, number],
+            zoom: map.getZoom(),
+            bearing: map.getBearing(),
+            pitch: map.getPitch(),
+        };
+        let cameraAdjusted = false;
+        const hiddenLayerVisibility = new Map<string, "visible" | "none">();
+        const transientLayerIds = [
+            SEARCH_RESULT_FILL_LAYER_ID,
+            SEARCH_RESULT_LINE_LAYER_ID,
+            SEARCH_RESULT_CIRCLE_LAYER_ID,
+            SEARCH_LOCATION_RING_LAYER_ID,
+            SEARCH_LOCATION_POINT_LAYER_ID,
+            HOVER_OUTLINE_LAYER_ID,
+            GEOMETRY_EDIT_FILL_LAYER_ID,
+            GEOMETRY_EDIT_LINE_LAYER_ID,
+            GEOMETRY_EDIT_VERTEX_LAYER_ID,
+            GEOMETRY_EDIT_ACTIVE_VERTEX_LAYER_ID,
+            GEOMETRY_EDIT_SNAP_TARGET_LAYER_ID,
+        ];
+
+        const restoreMapState = () => {
+            for (const [layerId, visibility] of hiddenLayerVisibility) {
+                if (map.getLayer(layerId)) {
+                    map.setLayoutProperty(layerId, "visibility", visibility);
+                }
+            }
+            hiddenLayerVisibility.clear();
+
+            if (cameraAdjusted) {
+                map.jumpTo(originalCamera);
+                cameraAdjusted = false;
+            }
+        };
 
         const finish = (dataUrl: string | null, error: string | null) => {
             if (settled) {
@@ -4675,6 +4722,9 @@ export function MapView({
             if (timeoutId !== null) {
                 window.clearTimeout(timeoutId);
             }
+
+            restoreMapState();
+            captureInProgressRef.current = false;
 
             latestOnMapCaptureRef.current?.({
                 requestId: captureRequestId,
@@ -4707,8 +4757,47 @@ export function MapView({
             }
         };
 
-        map.once("render", captureAfterRender);
-        map.triggerRepaint();
+        if (captureMode === "parcel-analysis") {
+            for (const layerId of transientLayerIds) {
+                if (!map.getLayer(layerId)) continue;
+                const visibility = map.getLayoutProperty(layerId, "visibility") === "none"
+                    ? "none"
+                    : "visible";
+                hiddenLayerVisibility.set(layerId, visibility);
+                map.setLayoutProperty(layerId, "visibility", "none");
+            }
+
+            const artifacts = latestParcelAnalysisArtifactsRef.current;
+            const extentCollection = artifacts
+                ? {
+                    type: "FeatureCollection" as const,
+                    features: artifacts.buffer500m
+                        ? [artifacts.buffer500m]
+                        : [artifacts.targetFeature],
+                }
+                : null;
+            const bounds = extentCollection
+                ? calculateGeoJsonBounds(extentCollection)
+                : null;
+
+            if (!artifacts || !bounds) {
+                finish(null, "当前地块分析范围不可用，无法捕获报告地图。");
+                return;
+            }
+
+            cameraAdjusted = true;
+            map.once("idle", captureAfterRender);
+            map.fitBounds(
+                [
+                    [bounds.minLongitude, bounds.minLatitude],
+                    [bounds.maxLongitude, bounds.maxLatitude],
+                ],
+                { padding: 56, maxZoom: 16, duration: 0 },
+            );
+        } else {
+            map.once("render", captureAfterRender);
+            map.triggerRepaint();
+        }
         timeoutId = window.setTimeout(
             () => finish(null, "地图快照生成超时，请重试。"),
             4_000,
@@ -4716,12 +4805,15 @@ export function MapView({
 
         return () => {
             map.off("render", captureAfterRender);
+            map.off("idle", captureAfterRender);
 
             if (timeoutId !== null) {
                 window.clearTimeout(timeoutId);
             }
+            restoreMapState();
+            captureInProgressRef.current = false;
         };
-    }, [captureRequestId]);
+    }, [captureMode, captureRequestId]);
 
     useEffect(() => {
         latestGeometryEditModeRef.current = geometryEditMode;

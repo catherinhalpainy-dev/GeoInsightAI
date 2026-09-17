@@ -1,0 +1,110 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-001",
+        "name": "滨江实验学校",
+        "category": "教育"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3086,
+          30.529
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-002",
+        "name": "社区卫生服务中心",
+        "category": "医疗"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3115,
+          30.5296
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-003",
+        "name": "滨江公交首末站",
+        "category": "交通"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3141,
+          30.5311
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-004",
+        "name": "邻里服务中心",
+        "category": "公共服务"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3067,
+          30.5322
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-005",
+        "name": "科创公园",
+        "category": "公园"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3158,
+          30.5344
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-006",
+        "name": "文化活动中心",
+        "category": "文化"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.31,
+          30.535
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-007",
+        "name": "滨江体育场",
+        "category": "体育"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3166,
+          30.5277
+        ]
+      }
+    }
+  ]
+}

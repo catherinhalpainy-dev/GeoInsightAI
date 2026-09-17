@@ -1,7 +1,9 @@
 import type {
+    ParcelAnalysisReportSnapshot,
     ReportInsightResponse,
     ReportSnapshot,
 } from "../../types/report";
+import { formatArea } from "../../utils/formatArea";
 
 function formatAreaKm2(areaM2: number) {
     return (areaM2 / 1_000_000).toLocaleString("zh-CN", {
@@ -10,9 +12,70 @@ function formatAreaKm2(areaM2: number) {
     });
 }
 
+function generateParcelInsights(
+    parcel: ParcelAnalysisReportSnapshot,
+): ReportInsightResponse {
+    const insights: ReportInsightResponse["insights"] = [
+        {
+            category: "overview",
+            title: "目标地块概况",
+            content: `目标地块 ${parcel.target.featureId} 的现状用途为${parcel.target.currentUse}，几何面积为 ${formatArea(parcel.target.areaM2, { includeSquareMeters: true })}。`,
+        },
+    ];
+
+    if (parcel.planning.available) {
+        insights.push({
+            category: "distribution",
+            title: "规划用途覆盖",
+            content: `当前规划用途数据覆盖目标地块的 ${((parcel.planning.coverageRatio ?? 0) * 100).toFixed(1)}%，主要规划用途为${parcel.planning.dominantUse ?? "未识别"}，未覆盖面积为 ${formatArea(parcel.planning.uncoveredAreaM2 ?? 0)}。${parcel.planning.hasOverlappingPlanningZones ? "规划分区存在空间重叠，分类面积可能重复累计。" : ""}`,
+        });
+    }
+
+    if (parcel.restrictions.available) {
+        insights.push({
+            category: "spatial",
+            title: "限制区域空间关系",
+            content: parcel.restrictions.hasConflict
+                ? `检测到目标地块与当前限制建设区域数据存在空间重叠，去重重叠面积为 ${formatArea(parcel.restrictions.overlapAreaM2 ?? 0)}，占地块面积 ${((parcel.restrictions.overlapRatio ?? 0) * 100).toFixed(1)}%。建议进一步核验相关业务要求。`
+                : "未检测到目标地块与当前加载的限制建设区域数据发生空间重叠；该结果不构成行政审批或法律合规结论。",
+        });
+    }
+
+    if (parcel.surroundings.available) {
+        insights.push({
+            category: "spatial",
+            title: "周边条件",
+            content: `${parcel.surroundings.bufferDistanceM ?? 500} 米范围内命中 ${parcel.surroundings.roadFeatureCount ?? 0} 个道路要素。${parcel.surroundings.waterConfigured ? `命中 ${parcel.surroundings.waterFeatureCount ?? 0} 个水系要素。` : "本次分析未配置水系数据源。"}`,
+        });
+    }
+
+    if (parcel.quality.status !== "pass") {
+        insights.push({
+            category: "quality",
+            title: "目标地块数据质量",
+            content: `目标地块质量检查记录 ${parcel.quality.errorCount} 个错误和 ${parcel.quality.warningCount} 个警告，解读空间指标时应同步核验这些问题。`,
+        });
+    }
+
+    insights.push({
+        category: "recommendation",
+        title: "进一步核验建议",
+        content: "建议结合最新业务图层、原始规划资料和主管部门要求，对空间重叠与未覆盖区域进行进一步核验。本报告仅提供空间数据辅助审查事实。",
+    });
+
+    return {
+        executiveSummary: `本次分析以地块 ${parcel.target.featureId} 为目标，基于当前加载的空间数据完成质量检查${parcel.planning.available ? "、规划用途覆盖分析" : ""}${parcel.restrictions.available ? "、限制区域冲突分析" : ""}${parcel.surroundings.available ? `和 ${parcel.surroundings.bufferDistanceM ?? 500} 米周边条件查询` : ""}。${parcel.restrictions.available && parcel.restrictions.hasConflict ? `检测到限制区域去重重叠面积 ${formatArea(parcel.restrictions.overlapAreaM2 ?? 0)}，占地块面积 ${((parcel.restrictions.overlapRatio ?? 0) * 100).toFixed(1)}%，建议进一步核验相关业务要求。` : ""}所有空间指标均来自确定性 GIS 引擎计算，不构成行政审批或法律合规结论。`,
+        insights: insights.slice(0, 7),
+    };
+}
+
 export function generateDeterministicInsights(
     snapshot: ReportSnapshot,
 ): ReportInsightResponse {
+    if (snapshot.parcelAnalysis) {
+        return generateParcelInsights(snapshot.parcelAnalysis);
+    }
+
     const dominantCategory = [...snapshot.categories].sort(
         (first, second) => second.count - first.count,
     )[0];
@@ -116,6 +179,28 @@ export function createReportMethodology(
     snapshot: ReportSnapshot,
     aiGenerated: boolean,
 ) {
+    if (snapshot.parcelAnalysis) {
+        const parcel = snapshot.parcelAnalysis;
+        const methods = [
+            "目标地块数据质量使用 GeoInsight AI 现有结构、坐标、环闭合、自相交和业务属性校验规则进行检查。",
+            "规划用途覆盖通过 Polygon Intersection 与 Turf.js 面积计算获得；若规划分区彼此重叠，分类面积可能重复累计并在报告中明确提示。",
+            "限制区域指标通过 Polygon Intersection、重叠几何去重合并和面积占比计算获得，仅表示当前加载数据之间的空间关系。",
+            `${parcel.surroundings.bufferDistanceM ?? 500} 米周边条件使用 Turf.js Buffer 与 Intersects 空间查询计算，道路数量表示命中的道路要素数。`,
+            "地图由 MapLibre GL 当前地块分析图层生成，报告快照不保存规划交集、限制交集、缓冲区或道路匹配几何。",
+        ];
+        const sourceNames = Object.values(parcel.sources)
+            .filter((name): name is string => Boolean(name));
+        if (sourceNames.length > 0) {
+            methods.push(`分析数据来源：${sourceNames.join("、")}。`);
+        }
+        methods.push(
+            aiGenerated
+                ? "GLM 仅用于解释已计算的结构化 GIS 结果，不参与几何计算，不判断审批、合法性或可开发性。"
+                : "报告文字结论由确定性规则生成，未调用生成式 AI。",
+        );
+        return methods;
+    }
+
     const methods = [
         "空间渲染采用 MapLibre GL，地图图像来自报告快照生成时的当前视图。",
         "面积、分类统计与图表数据复用 GeoInsight AI 统计计算服务。",

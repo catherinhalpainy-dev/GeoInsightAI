@@ -96,6 +96,7 @@ import { useParcelAnalysis } from "../hooks/useParcelAnalysis";
 import type {
     ParcelAnalysisLayerBindings,
     ParcelAnalysisPartialResults,
+    ParcelAnalysisResult,
     ParcelAnalysisRunOutput,
 } from "../types/parcelAnalysis";
 import {
@@ -166,10 +167,15 @@ import {
 import {
     generateReportInsights,
 } from "../services/report/reportInsightsClient";
+import {
+    createParcelAnalysisReportSnapshot,
+} from "../services/report/createParcelAnalysisReportSnapshot";
 import type {
+    MapCaptureMode,
     MapCaptureResult,
     ReportAiStatus,
     ReportSnapshotStatus,
+    ReportTemplateType,
 } from "../types/report";
 import {
     DEFAULT_TEMPORAL_CONFIG,
@@ -651,6 +657,10 @@ export function WorkspacePage() {
         useState<string | null>(null);
     const [mapCaptureRequestId, setMapCaptureRequestId] =
         useState<number | null>(null);
+    const [mapCaptureMode, setMapCaptureMode] =
+        useState<MapCaptureMode>("current");
+    const [reportTemplate, setReportTemplate] =
+        useState<ReportTemplateType>("general-analysis");
     const [reportSnapshotStatus, setReportSnapshotStatus] =
         useState<ReportSnapshotStatus>("idle");
     const [reportAiStatus, setReportAiStatus] =
@@ -1749,6 +1759,10 @@ export function WorkspacePage() {
             return;
         }
 
+        if (panel === "report-builder" && !reportDraft) {
+            setReportTemplate("general-analysis");
+        }
+
         setActivePanel(
             // 新值依赖于旧值
             (previousPanel) => {
@@ -2686,7 +2700,7 @@ export function WorkspacePage() {
         setTemporalCompareCaptureRequestId(null);
     }
 
-    function requestReportMapCapture() {
+    function requestReportMapCapture(mode: MapCaptureMode = "current") {
         return new Promise<MapCaptureResult>((resolve) => {
             mapCaptureResolverRef.current?.({
                 requestId: mapCaptureSequenceRef.current,
@@ -2695,6 +2709,7 @@ export function WorkspacePage() {
             });
             mapCaptureSequenceRef.current += 1;
             mapCaptureResolverRef.current = resolve;
+            setMapCaptureMode(mode);
             setMapCaptureRequestId(mapCaptureSequenceRef.current);
         });
     }
@@ -2707,6 +2722,7 @@ export function WorkspacePage() {
         mapCaptureResolverRef.current?.(result);
         mapCaptureResolverRef.current = null;
         setMapCaptureRequestId(null);
+        setMapCaptureMode("current");
     }
 
     async function handleGenerateReportSnapshot(
@@ -2730,8 +2746,28 @@ export function WorkspacePage() {
         try {
             let comparisonSnapshot = temporalCompareSnapshot;
             let mapCapture: MapCaptureResult;
+            let parcelResultForSnapshot: ParcelAnalysisResult | null = null;
 
-            if (temporalCompareConfig.enabled) {
+            if (config.template === "parcel-analysis") {
+                const result = parcelAnalysis.runState.result;
+                const artifacts = parcelAnalysis.runState.artifacts;
+                const selectedId = selectedFeature?.properties.id ?? null;
+
+                if (parcelAnalysis.runState.status !== "completed" || !result || !artifacts) {
+                    throw new Error("请先运行地块分析。");
+                }
+                if (selectedId !== result.target.featureId) {
+                    throw new Error("当前目标地块已发生变化，请重新运行地块分析。");
+                }
+                if (
+                    result.id !== artifacts.analysisId ||
+                    artifacts.targetFeature.properties.id !== result.target.featureId
+                ) {
+                    throw new Error("地块分析结果与地图图层不属于同一次运行，请重新运行分析。");
+                }
+                parcelResultForSnapshot = structuredClone(result);
+                mapCapture = await requestReportMapCapture("parcel-analysis");
+            } else if (temporalCompareConfig.enabled) {
                 const comparisonCapture = await requestTemporalCompareCapture();
                 comparisonSnapshot = createTemporalCompareSnapshot(
                     comparisonCapture,
@@ -2750,7 +2786,18 @@ export function WorkspacePage() {
             } else {
                 mapCapture = await requestReportMapCapture();
             }
-            const snapshot = createReportSnapshot({
+            if (parcelResultForSnapshot) {
+                const latestResult = parcelAnalysis.runState.result;
+                const latestArtifacts = parcelAnalysis.runState.artifacts;
+                if (
+                    latestResult?.id !== parcelResultForSnapshot.id ||
+                    latestArtifacts?.analysisId !== parcelResultForSnapshot.id ||
+                    selectedFeature?.properties.id !== parcelResultForSnapshot.target.featureId
+                ) {
+                    throw new Error("地图捕获期间地块分析状态已变化，请重新生成报告。");
+                }
+            }
+            const baseSnapshot = createReportSnapshot({
                 projectName: projectMeta?.name ?? "未命名工程",
                 workspaceRevision,
                 dataset,
@@ -2778,15 +2825,41 @@ export function WorkspacePage() {
                     error: mapCapture.error,
                 },
             });
+            let snapshot = baseSnapshot;
+            if (config.template === "parcel-analysis") {
+                if (!parcelResultForSnapshot) {
+                    throw new Error("地块分析结果不可用，请重新运行分析。");
+                }
+                snapshot = createParcelAnalysisReportSnapshot({
+                    baseSnapshot,
+                    result: parcelResultForSnapshot,
+                    primaryLayerName: dataset.name,
+                    overlayLayers,
+                });
+            }
+            const parcelSnapshot = snapshot.parcelAnalysis;
+            const sections = config.sections.map((section) => ({
+                ...section,
+                enabled: section.enabled && (
+                    section.type === "parcel-planning"
+                        ? parcelSnapshot?.planning.available === true
+                        : section.type === "parcel-restrictions"
+                            ? parcelSnapshot?.restrictions.available === true
+                            : section.type === "parcel-surroundings"
+                                ? parcelSnapshot?.surroundings.available === true
+                                : true
+                ),
+            }));
             const fallback = generateDeterministicInsights(snapshot);
 
             setReportDraft({
                 id: reportDraft?.id ?? crypto.randomUUID(),
+                template: config.template,
                 title: config.title,
                 subtitle: config.subtitle,
                 author: config.author,
                 snapshot,
-                sections: config.sections.map((section) => ({ ...section })),
+                sections,
                 executiveSummary: fallback.executiveSummary,
                 insights: fallback.insights.map((insight) => ({
                     ...insight,
@@ -2795,6 +2868,7 @@ export function WorkspacePage() {
                 aiGenerated: false,
             });
             setReportAiStatus("idle");
+            setReportTemplate(config.template);
             setReportSnapshotStatus("ready");
             setReportBuilderMessage(
                 mapCapture.error
@@ -2809,6 +2883,34 @@ export function WorkspacePage() {
                     : "无法生成分析快照。",
             );
         }
+    }
+
+    function handleOpenParcelReportBuilder() {
+        const result = parcelAnalysis.runState.result;
+        const artifacts = parcelAnalysis.runState.artifacts;
+        if (
+            parcelAnalysis.runState.status !== "completed" ||
+            !result ||
+            !artifacts
+        ) {
+            setReportBuilderMessage("请先运行地块分析。");
+            return;
+        }
+        if (selectedFeature?.properties.id !== result.target.featureId) {
+            setReportBuilderMessage("当前目标地块已发生变化，请重新运行地块分析。");
+            return;
+        }
+        if (result.id !== artifacts.analysisId) {
+            setReportBuilderMessage("地块分析结果与地图图层不一致，请重新运行分析。");
+            return;
+        }
+
+        setReportDraft(null);
+        setReportTemplate("parcel-analysis");
+        setReportSnapshotStatus("idle");
+        setReportAiStatus("idle");
+        setReportBuilderMessage("地块分析结果已就绪，请生成报告快照。");
+        setActivePanel("report-builder");
     }
 
     async function handleGenerateReportAiInsights() {
@@ -3508,6 +3610,7 @@ export function WorkspacePage() {
                             searchResultFeature={searchResultFeature}
                             searchLocation={searchLocation}
                             captureRequestId={mapCaptureRequestId}
+                            captureMode={mapCaptureMode}
                             onMapCapture={handleMapCapture}
                         />
                     </div>
@@ -5222,6 +5325,8 @@ export function WorkspacePage() {
 
                         captureRequestId={mapCaptureRequestId}
 
+                        captureMode={mapCaptureMode}
+
                         onMapCapture={handleMapCapture}
 
                         geometryEditMode={geometryEditor.mode}
@@ -5582,6 +5687,8 @@ export function WorkspacePage() {
             {activePanel === "report-builder" && (
                 <ReportBuilderPanel
                     draft={reportDraft}
+                    template={reportDraft?.template ?? reportTemplate}
+                    projectName={projectMeta?.name ?? "未命名工程"}
                     currentWorkspaceRevision={workspaceRevision}
                     hasDataQualityReport={dataQualityReport !== null}
                     hasTemporalComparison={
@@ -5681,6 +5788,7 @@ export function WorkspacePage() {
                     onRun={() => { void parcelAnalysis.run(); }}
                     onClear={parcelAnalysis.clear}
                     onOpenAgent={() => setActivePanel("agent")}
+                    onGenerateReport={handleOpenParcelReportBuilder}
                     onClose={() => setActivePanel(null)}
                 />
             )}
@@ -5786,6 +5894,7 @@ export function WorkspacePage() {
                     canUndo={lastAgentSnapshot !== null}
                     onUndo={handleUndoAgentAction}
                     onOpenParcelAnalysis={() => setActivePanel("parcel-analysis")}
+                    onGenerateParcelReport={handleOpenParcelReportBuilder}
                     onSaveAsWorkflow={handleSaveAgentPlanAsWorkflow}
                 />
             )}

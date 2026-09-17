@@ -1,6 +1,7 @@
 import {
     CheckCircle2,
     Circle,
+    FileText,
     LoaderCircle,
     Play,
     RotateCcw,
@@ -19,6 +20,7 @@ import type {
     ParcelAnalysisStepId,
     ParcelAnalysisStepState,
 } from "../../types/parcelAnalysis";
+import { formatArea } from "../../utils/formatArea";
 import "../../styles/parcelAnalysis.css";
 
 interface ParcelAnalysisPanelProps {
@@ -34,6 +36,7 @@ interface ParcelAnalysisPanelProps {
     onRun: () => void;
     onClear: () => void;
     onOpenAgent?: () => void;
+    onGenerateReport: () => void;
     onClose: () => void;
 }
 
@@ -44,11 +47,6 @@ const STEP_LABELS: Record<ParcelAnalysisStepId, string> = {
     surroundings: "周边条件查询",
     summary: "汇总业务结果",
 };
-
-function formatArea(areaM2: number) {
-    if (areaM2 >= 10_000) return `${(areaM2 / 10_000).toFixed(2)} ha`;
-    return `${Math.round(areaM2).toLocaleString("zh-CN")} m²`;
-}
 
 function formatRatio(value: number) {
     return `${(value * 100).toFixed(1)}%`;
@@ -103,6 +101,7 @@ export function ParcelAnalysisPanel({
     onRun,
     onClear,
     onOpenAgent,
+    onGenerateReport,
     onClose,
 }: ParcelAnalysisPanelProps) {
     const polygonLayers = overlayLayers.filter(({ geometryKind }) =>
@@ -329,6 +328,15 @@ export function ParcelAnalysisPanel({
                         <p className="parcel-disclaimer">
                             本结果是空间数据辅助审查事实，不构成规划许可、法律合规或开发审批结论。
                         </p>
+                        <button
+                            type="button"
+                            className="parcel-primary-action parcel-report-action"
+                            disabled={runState.status !== "completed"}
+                            title={runState.status === "completed" ? "使用本次分析结果生成报告" : "请先运行地块分析"}
+                            onClick={onGenerateReport}
+                        >
+                            <FileText size={15} /> 生成分析报告
+                        </button>
                     </section>
                 )}
             </div>

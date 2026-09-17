@@ -27,6 +27,7 @@ interface AgentPanelProps {
     canUndo: boolean;
     onUndo: () => void;
     onOpenParcelAnalysis: () => void;
+    onGenerateParcelReport: () => void;
     onSaveAsWorkflow: (plan: AgentPlan) => { success: boolean; message: string };
 }
 
@@ -62,6 +63,7 @@ export function AgentPanel({
     canUndo,
     onUndo,
     onOpenParcelAnalysis,
+    onGenerateParcelReport,
     onSaveAsWorkflow,
 }: AgentPanelProps) {
     const [message, setMessage] = useState("");
@@ -201,7 +203,7 @@ export function AgentPanel({
                     })}</ol>
                     {status === "waiting" && <footer className="agent-approval-actions"><button type="button" className="agent-reject-button" onClick={() => void handleDecision(false)}>取消</button><button type="button" className="agent-approve-button" onClick={() => void handleDecision(true)}>{parcelPlan ? "执行分析" : "批准执行"}</button></footer>}
                     {status === "executing" && <p className="agent-status">正在按顺序执行本地分析步骤…</p>}
-                    {(status === "completed" || status === "failed") && <div className={`agent-result-card ${status === "failed" ? "failed" : ""}`}><div className="agent-result-main"><span className="agent-result-icon">{status === "completed" ? "✓" : "!"}</span><div><strong>{status === "completed" ? "分析计划执行完成" : `执行在步骤 ${(stoppedAtStep ?? 0) + 1} 停止`}</strong><p>已记录 {latestEvents.length} 条可核验执行结果。</p>{parcelPlan && latestEvents.flatMap((event) => event.facts ?? []).slice(-5).map((fact) => <small key={fact}>{fact}</small>)}</div></div><div className="agent-result-actions"><button type="button" className="agent-undo-button" disabled={!canUndo} onClick={onUndo}>撤销整个计划</button>{parcelPlan && status === "completed" && <button type="button" className="agent-open-result-button" onClick={onOpenParcelAnalysis}>查看地块分析</button>}</div></div>}
+                    {(status === "completed" || status === "failed") && <div className={`agent-result-card ${status === "failed" ? "failed" : ""}`}><div className="agent-result-main"><span className="agent-result-icon">{status === "completed" ? "✓" : "!"}</span><div><strong>{status === "completed" ? "分析计划执行完成" : `执行在步骤 ${(stoppedAtStep ?? 0) + 1} 停止`}</strong><p>已记录 {latestEvents.length} 条可核验执行结果。</p>{parcelPlan && latestEvents.flatMap((event) => event.facts ?? []).slice(-5).map((fact) => <small key={fact}>{fact}</small>)}</div></div><div className="agent-result-actions"><button type="button" className="agent-undo-button" disabled={!canUndo} onClick={onUndo}>撤销整个计划</button>{parcelPlan && status === "completed" && <><button type="button" className="agent-open-result-button" onClick={onOpenParcelAnalysis}>查看地块分析</button><button type="button" className="agent-open-result-button" onClick={onGenerateParcelReport}>生成分析报告</button></>}</div></div>}
                     {!parcelPlan && plan.commands.length > 0 && (status === "completed" || status === "failed") && <div className="agent-workflow-action"><button type="button" onClick={() => { const result = onSaveAsWorkflow(plan); setWorkflowMessage(result.message); }}>保存为工作流</button>{workflowMessage && <p>{workflowMessage}</p>}</div>}
                     {status === "rejected" && <p className="agent-rejected">已取消，本次计划未执行。</p>}
                 </section>}

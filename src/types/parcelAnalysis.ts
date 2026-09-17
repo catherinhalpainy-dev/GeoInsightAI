@@ -144,6 +144,7 @@ export type ParcelLineArtifactCollection = FeatureCollection<
 >;
 
 export interface ParcelAnalysisArtifacts {
+    analysisId: string;
     targetFeature: LandUseFeature;
     planningIntersections: ParcelPolygonArtifactCollection;
     restrictionIntersections: ParcelPolygonArtifactCollection;

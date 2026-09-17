@@ -14,10 +14,12 @@ import type {
     ReportSectionConfig,
     ReportSectionType,
     ReportSnapshotStatus,
+    ReportTemplateType,
 } from "../../types/report";
 import "../../styles/reportBuilder.css";
 
 export interface ReportBuilderConfig {
+    template: ReportTemplateType;
     title: string;
     subtitle: string;
     author?: string;
@@ -26,6 +28,8 @@ export interface ReportBuilderConfig {
 
 interface ReportBuilderPanelProps {
     draft: ReportDraft | null;
+    template: ReportTemplateType;
+    projectName: string;
     currentWorkspaceRevision: number;
     hasDataQualityReport: boolean;
     hasTemporalComparison: boolean;
@@ -39,7 +43,7 @@ interface ReportBuilderPanelProps {
     onClose: () => void;
 }
 
-const SECTION_DEFINITIONS: readonly {
+const GENERAL_SECTION_DEFINITIONS: readonly {
     type: ReportSectionType;
     title: string;
 }[] = [
@@ -56,11 +60,30 @@ const SECTION_DEFINITIONS: readonly {
     { type: "methodology", title: "方法说明" },
 ];
 
+const PARCEL_SECTION_DEFINITIONS: readonly {
+    type: ReportSectionType;
+    title: string;
+}[] = [
+    { type: "executive-summary", title: "执行摘要" },
+    { type: "parcel-overview", title: "地块基本信息" },
+    { type: "parcel-map", title: "分析地图" },
+    { type: "parcel-planning", title: "规划用途" },
+    { type: "parcel-restrictions", title: "限制区域" },
+    { type: "parcel-surroundings", title: "周边条件" },
+    { type: "parcel-quality", title: "数据质量" },
+    { type: "parcel-summary", title: "指标汇总" },
+    { type: "methodology", title: "方法说明" },
+];
+
 function createDefaultSections(
+    template: ReportTemplateType,
     hasDataQualityReport: boolean,
     hasTemporalComparison: boolean,
 ) {
-    return SECTION_DEFINITIONS.map((section, order) => ({
+    const definitions = template === "parcel-analysis"
+        ? PARCEL_SECTION_DEFINITIONS
+        : GENERAL_SECTION_DEFINITIONS;
+    return definitions.map((section, order) => ({
         id: crypto.randomUUID(),
         ...section,
         enabled:
@@ -72,6 +95,8 @@ function createDefaultSections(
 
 export function ReportBuilderPanel({
     draft,
+    template,
+    projectName,
     currentWorkspaceRevision,
     hasDataQualityReport,
     hasTemporalComparison,
@@ -84,15 +109,39 @@ export function ReportBuilderPanel({
     onPreview,
     onClose,
 }: ReportBuilderPanelProps) {
-    const [title, setTitle] = useState("城市空间分析报告");
-    const [subtitle, setSubtitle] = useState("GeoInsight AI Analysis");
+    const [title, setTitle] = useState(() => template === "parcel-analysis"
+        ? projectName === "未命名工程"
+            ? "地块空间分析报告"
+            : `${projectName}地块空间分析报告`
+        : "城市空间分析报告");
+    const [subtitle, setSubtitle] = useState(() => template === "parcel-analysis"
+        ? "地块空间分析与辅助审查"
+        : "GeoInsight AI Analysis");
     const [author, setAuthor] = useState("");
     const [sections, setSections] = useState<ReportSectionConfig[]>(
         () => createDefaultSections(
+            template,
             hasDataQualityReport,
             hasTemporalComparison,
         ),
     );
+
+    useEffect(() => {
+        if (draft) return;
+        setTitle(template === "parcel-analysis"
+            ? projectName === "未命名工程"
+                ? "地块空间分析报告"
+                : `${projectName}地块空间分析报告`
+            : "城市空间分析报告");
+        setSubtitle(template === "parcel-analysis"
+            ? "地块空间分析与辅助审查"
+            : "GeoInsight AI Analysis");
+        setSections(createDefaultSections(
+            template,
+            hasDataQualityReport,
+            hasTemporalComparison,
+        ));
+    }, [draft, hasDataQualityReport, hasTemporalComparison, projectName, template]);
 
     useEffect(() => {
         if (!draft) {
@@ -147,7 +196,7 @@ export function ReportBuilderPanel({
             <header className="report-builder-header">
                 <div>
                     <span>REPORT BUILDER</span>
-                    <h2>分析报告</h2>
+                    <h2>{template === "parcel-analysis" ? "地块分析报告" : "分析报告"}</h2>
                 </div>
                 <button type="button" aria-label="关闭报告中心" onClick={onClose}>×</button>
             </header>
@@ -242,8 +291,8 @@ export function ReportBuilderPanel({
                                 <span>快照时间</span>
                             </div>
                             <div>
-                                <strong>{draft.snapshot.kpi.featureCount.toLocaleString("zh-CN")}</strong>
-                                <span>要素</span>
+                                <strong>{draft.snapshot.parcelAnalysis?.target.featureId ?? draft.snapshot.kpi.featureCount.toLocaleString("zh-CN")}</strong>
+                                <span>{draft.snapshot.parcelAnalysis ? "目标地块" : "要素"}</span>
                             </div>
                             <div>
                                 <strong>{draft.snapshot.spatialAnalysis.analysisResultLayers.length}</strong>
@@ -270,6 +319,7 @@ export function ReportBuilderPanel({
                         className="report-builder-primary"
                         disabled={snapshotBusy || !title.trim()}
                         onClick={() => onGenerateSnapshot({
+                            template,
                             title: title.trim(),
                             subtitle: subtitle.trim(),
                             author: author.trim() || undefined,

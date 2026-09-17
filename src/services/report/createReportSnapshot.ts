@@ -20,6 +20,7 @@ import type { LayerStyle } from "../../types/layerStyle";
 import type { ProjectMapState } from "../../types/project";
 import type { AttributeQuery } from "../../types/query";
 import type {
+    AIReportContext,
     ReportMapSnapshot,
     ReportSnapshot,
 } from "../../types/report";
@@ -243,7 +244,7 @@ export function createReportSnapshot(
     };
 }
 
-export function createAIReportContext(snapshot: ReportSnapshot) {
+export function createAIReportContext(snapshot: ReportSnapshot): AIReportContext {
     return {
         projectName: snapshot.projectName,
         datasetName: snapshot.datasetName,
@@ -279,6 +280,9 @@ export function createAIReportContext(snapshot: ReportSnapshot) {
                     (item) => ({ ...item }),
                 ),
             }
+            : undefined,
+        parcelAnalysis: snapshot.parcelAnalysis
+            ? structuredClone(snapshot.parcelAnalysis)
             : undefined,
     };
 }

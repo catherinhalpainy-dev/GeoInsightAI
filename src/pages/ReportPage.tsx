@@ -2,6 +2,7 @@ import { ArrowLeft, FilePenLine, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { ReportLandUseChart } from "../components/report/ReportLandUseChart";
+import { ParcelReportSection } from "../components/report/ParcelReportSection";
 import { useReportContext } from "../report/ReportProvider";
 import { createReportMethodology } from "../services/report/generateDeterministicInsights";
 import { formatTemporalValue } from "../services/temporal/formatTemporalValue";
@@ -38,10 +39,12 @@ function renderSection(
                 <section className="report-section" key={section.id}>
                     <h2>{heading}</h2>
                     <p className="report-executive-summary">{draft.executiveSummary}</p>
-                    <div className="report-filter-summary">
-                        <strong>分析条件</strong>
-                        <ul>{snapshot.filterSummary.map((item) => <li key={item}>{item}</li>)}</ul>
-                    </div>
+                    {draft.template === "general-analysis" && (
+                        <div className="report-filter-summary">
+                            <strong>分析条件</strong>
+                            <ul>{snapshot.filterSummary.map((item) => <li key={item}>{item}</li>)}</ul>
+                        </div>
+                    )}
                     {draft.insights.length > 0 && (
                         <div className="report-insights">
                             {draft.insights.map((insight) => (
@@ -252,6 +255,22 @@ function renderSection(
                     ) : <p>快照生成时没有已物化的地理处理结果图层。</p>}
                 </section>
             );
+        case "parcel-overview":
+        case "parcel-map":
+        case "parcel-planning":
+        case "parcel-restrictions":
+        case "parcel-surroundings":
+        case "parcel-quality":
+        case "parcel-summary":
+        case "parcel-evidence":
+            return (
+                <ParcelReportSection
+                    key={section.id}
+                    section={section}
+                    heading={heading}
+                    draft={draft}
+                />
+            );
         case "methodology":
             return (
                 <section className="report-section" key={section.id}>
@@ -300,13 +319,18 @@ export function ReportPage() {
                 <section className="report-title-page">
                     <span className="report-brand">GeoInsight AI</span>
                     <div>
-                        <p>INTELLIGENT SPATIAL ANALYSIS REPORT</p>
+                        <p>{reportDraft.template === "parcel-analysis" ? "PARCEL SPATIAL ANALYSIS REPORT" : "INTELLIGENT SPATIAL ANALYSIS REPORT"}</p>
                         <h1>{reportDraft.title}</h1>
                         <h2>{reportDraft.subtitle}</h2>
                     </div>
                     <dl>
                         <div><dt>项目</dt><dd>{snapshot.projectName}</dd></div>
-                        <div><dt>数据集</dt><dd>{snapshot.datasetName}</dd></div>
+                        {snapshot.parcelAnalysis ? (
+                            <>
+                                <div><dt>目标地块</dt><dd>{snapshot.parcelAnalysis.target.featureId}</dd></div>
+                                <div><dt>分析来源</dt><dd>{snapshot.parcelAnalysis.execution.source === "agent" ? "GIS 分析助手" : "手动分析"}</dd></div>
+                            </>
+                        ) : <div><dt>数据集</dt><dd>{snapshot.datasetName}</dd></div>}
                         <div><dt>生成时间</dt><dd>{new Date(snapshot.generatedAt).toLocaleString("zh-CN")}</dd></div>
                         {reportDraft.author && <div><dt>作者</dt><dd>{reportDraft.author}</dd></div>}
                     </dl>
@@ -324,8 +348,20 @@ export function ReportPage() {
                     <span>项目：{snapshot.projectName}</span>
                     <span>数据集：{snapshot.datasetName}</span>
                     <span>快照：{new Date(snapshot.generatedAt).toLocaleString("zh-CN")}</span>
-                    <span>Feature count：{snapshot.kpi.featureCount}</span>
-                    <span>Filter：{snapshot.filterSummary.join("；")}</span>
+                    {snapshot.parcelAnalysis ? (
+                        <>
+                            <span>目标地块：{snapshot.parcelAnalysis.target.featureId}</span>
+                            <span>分析运行：{snapshot.parcelAnalysis.analysisId}</span>
+                            <span>分析时间：{new Date(snapshot.parcelAnalysis.generatedAt).toLocaleString("zh-CN")}</span>
+                            <span>执行方式：{snapshot.parcelAnalysis.execution.source === "agent" ? "GIS 分析助手" : "手动分析"}</span>
+                            <span>分析半径：{snapshot.parcelAnalysis.surroundings.bufferDistanceM ?? "未分析"}{snapshot.parcelAnalysis.surroundings.bufferDistanceM !== null ? " m" : ""}</span>
+                        </>
+                    ) : (
+                        <>
+                            <span>Feature count：{snapshot.kpi.featureCount}</span>
+                            <span>Filter：{snapshot.filterSummary.join("；")}</span>
+                        </>
+                    )}
                     {snapshot.temporal?.enabled && (
                         <span>
                             Temporal：{snapshot.temporal.field} · {snapshot.temporal.current}

@@ -218,6 +218,82 @@
 .report-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 10px; }
 .report-table th { background: #f8fafc; color: #475569; font-weight: 700; }
 
+.report-parcel-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 22px;
+  margin: 0;
+}
+
+.report-parcel-facts > div {
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.report-parcel-facts dt { color: #64748b; font-size: 9px; }
+.report-parcel-facts dd { margin: 4px 0 0; color: #0f172a; font-size: 11px; font-weight: 650; }
+
+.report-parcel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  margin-top: 9px;
+  color: #475569;
+  font-size: 9px;
+}
+
+.report-parcel-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.report-parcel-legend i { width: 12px; height: 7px; border-radius: 2px; }
+
+.report-business-warning,
+.report-legal-note,
+.report-unavailable {
+  padding: 9px 11px;
+  border-left: 3px solid #d97706;
+  background: #fffbeb;
+  color: #854d0e !important;
+  font-size: 10px !important;
+}
+
+.report-legal-note,
+.report-unavailable {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+  color: #475569 !important;
+}
+
+.report-restriction-status {
+  display: inline-flex;
+  margin: 0 0 12px !important;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 9px !important;
+  font-weight: 700;
+}
+
+.report-restriction-status.conflict { background: #fff1f2; color: #9f3a38 !important; }
+.report-restriction-status.clear { background: #ecfdf5; color: #0f766e !important; }
+
+.report-quality-issues {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-quality-issues li {
+  display: flex;
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 10px;
+}
+
+.report-quality-issues strong { min-width: 58px; color: #9f3a38; font-size: 8px; }
+.report-parcel-summary-table td:first-child { width: 42%; color: #64748b; }
+.report-parcel-summary-table td:last-child { color: #0f172a; font-weight: 650; }
+
 .report-analysis-metadata {
   display: flex;
   flex-wrap: wrap;
@@ -241,6 +317,7 @@
   .report-title-page h1 { font-size: 29px; }
   .report-content-pages { padding: 32px 24px; }
   .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-parcel-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-insights { grid-template-columns: 1fr; }
   .report-analysis-metadata { margin-right: 24px; margin-left: 24px; }
 }
@@ -270,6 +347,7 @@
   .report-content-pages { padding: 0; }
   .report-section { break-inside: avoid; page-break-inside: avoid; }
   .report-map-section,
+  .report-parcel-overview,
   .report-chart-section { break-inside: avoid; page-break-inside: avoid; }
   .report-chart { height: 72mm; }
   .report-analysis-metadata { margin: 12mm 0 0; break-inside: avoid; }

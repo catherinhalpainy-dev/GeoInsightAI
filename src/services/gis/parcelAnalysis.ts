@@ -531,9 +531,10 @@ export function assembleParcelAnalysisResult(
     partial: ParcelAnalysisPartialResults,
 ): ParcelAnalysisRunOutput {
     const targetAreaM2 = calculatePolygonFeatureAreaM2(targetAsPolygon(targetFeature));
+    const analysisId = crypto.randomUUID();
     return {
         result: {
-            id: crypto.randomUUID(),
+            id: analysisId,
             generatedAt: Date.now(),
             target: {
                 featureId: targetFeature.properties.id,
@@ -549,6 +550,7 @@ export function assembleParcelAnalysisResult(
             sources: { ...bindings },
         },
         artifacts: {
+            analysisId,
             targetFeature,
             planningIntersections: partial.planning?.intersections ?? {
                 type: "FeatureCollection",

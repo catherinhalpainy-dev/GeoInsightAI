@@ -1,5 +1,9 @@
 import type { BasemapType } from "./workspace";
 import type {
+    DataQualityIssueCode,
+    DataQualitySeverity,
+} from "./dataQuality";
+import type {
     ClassificationMethod,
     ColorRampName,
     GraduatedField,
@@ -26,7 +30,19 @@ export type ReportSectionType =
     | "temporal-comparison"
     | "data-quality"
     | "analysis-layers"
+    | "parcel-overview"
+    | "parcel-map"
+    | "parcel-planning"
+    | "parcel-restrictions"
+    | "parcel-surroundings"
+    | "parcel-quality"
+    | "parcel-summary"
+    | "parcel-evidence"
     | "methodology";
+
+export type ReportTemplateType =
+    | "general-analysis"
+    | "parcel-analysis";
 
 export interface ReportSectionConfig {
     id: string;
@@ -121,6 +137,77 @@ export interface ReportSpatialStatisticsSnapshot {
     meanCenter: [number, number] | null;
 }
 
+export interface ParcelAnalysisReportSnapshot {
+    analysisId: string;
+    generatedAt: number;
+    target: {
+        featureId: string;
+        currentUse: string;
+        areaM2: number;
+        builtYear: number | null;
+        districtCode: string;
+        administrativeAreaName: string | null;
+    };
+    quality: {
+        status: "pass" | "warning" | "error";
+        errorCount: number;
+        warningCount: number;
+        issues: Array<{
+            code: DataQualityIssueCode;
+            severity: DataQualitySeverity;
+            message: string;
+        }>;
+    };
+    planning: {
+        available: boolean;
+        dominantUse: string | null;
+        coverageAreaM2: number | null;
+        coverageRatio: number | null;
+        uncoveredAreaM2: number | null;
+        hasOverlappingPlanningZones: boolean;
+        items: Array<{
+            use: string;
+            areaM2: number;
+            ratio: number;
+        }>;
+    };
+    restrictions: {
+        available: boolean;
+        hasConflict: boolean;
+        overlapAreaM2: number | null;
+        overlapRatio: number | null;
+        conflictFeatureCount: number | null;
+        items: Array<{
+            type: string;
+            areaM2: number;
+            ratio: number;
+        }>;
+    };
+    surroundings: {
+        available: boolean;
+        bufferDistanceM: number | null;
+        roadFeatureCount: number | null;
+        roadClassSummary: Record<string, number>;
+        waterConfigured: boolean;
+        waterFeatureCount: number | null;
+        waterIntersectsTarget: boolean | null;
+        administrativeConfigured: boolean;
+        administrativeAreaName: string | null;
+    };
+    sources: {
+        primaryLayerName: string;
+        planningLayerName: string | null;
+        restrictionLayerName: string | null;
+        roadLayerName: string | null;
+        waterLayerName: string | null;
+        administrativeLayerName: string | null;
+    };
+    execution: {
+        source: "manual" | "agent";
+        agentPlanId?: string;
+    };
+}
+
 export interface ReportSnapshot {
     id: string;
     generatedAt: number;
@@ -137,6 +224,7 @@ export interface ReportSnapshot {
     temporal?: ReportTemporalSnapshot;
     spatialStatistics?: ReportSpatialStatisticsSnapshot;
     temporalComparison?: TemporalCompareSnapshot;
+    parcelAnalysis?: ParcelAnalysisReportSnapshot;
     map: ReportMapSnapshot;
 }
 
@@ -156,6 +244,7 @@ export interface ReportInsight {
 
 export interface ReportDraft {
     id: string;
+    template: ReportTemplateType;
     title: string;
     subtitle: string;
     author?: string;
@@ -190,6 +279,7 @@ export interface AIReportContext {
     temporal?: ReportTemporalSnapshot;
     spatialStatistics?: ReportSpatialStatisticsSnapshot;
     temporalComparison?: TemporalCompareSummary;
+    parcelAnalysis?: ParcelAnalysisReportSnapshot;
 }
 
 export interface MapCaptureResult {
@@ -197,6 +287,8 @@ export interface MapCaptureResult {
     dataUrl: string | null;
     error: string | null;
 }
+
+export type MapCaptureMode = "current" | "parcel-analysis";
 
 export type ReportSnapshotStatus =
     | "idle"
