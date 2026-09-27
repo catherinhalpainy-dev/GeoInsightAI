@@ -14,6 +14,18 @@ export interface CreateAgentPlanInput {
     context: AgentContext;
 }
 
+export interface CreateAgentPlanOptions {
+    onModelDelta?: (text: string) => void;
+    signal?: AbortSignal;
+}
+
+export class AgentPlanValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "AgentPlanValidationError";
+    }
+}
+
 function isMutationCommand(
     command: AgentCommand,
 ): boolean {
@@ -186,8 +198,8 @@ function createUnavailablePlan(
 export async function createAgentPlan({
     message,
     context,
-}: CreateAgentPlanInput): Promise<AgentPlan> {
-    const completion = await zhipuClient.chat.completions.create({
+}: CreateAgentPlanInput, options: CreateAgentPlanOptions = {}): Promise<AgentPlan> {
+    const stream = await zhipuClient.chat.completions.create({
         model: ZAI_MODEL,
         messages: [
             {
@@ -207,23 +219,50 @@ export async function createAgentPlan({
         ],
         tools: [AGENT_PLAN_TOOL],
         tool_choice: "auto",
+        stream: true,
+    }, {
+        signal: options.signal,
     });
-    const assistantMessage = completion.choices[0]?.message;
 
-    if (!assistantMessage) {
-        throw new Error("智谱模型没有返回有效信息。");
+    const contentFragments: string[] = [];
+    const toolCalls = new Map<number, {
+        id: string;
+        name: string;
+        arguments: string;
+    }>();
+
+    for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) {
+            continue;
+        }
+
+        if (typeof delta.content === "string" && delta.content.length > 0) {
+            contentFragments.push(delta.content);
+            options.onModelDelta?.(delta.content);
+        }
+
+        for (const toolCallDelta of delta.tool_calls ?? []) {
+            const current = toolCalls.get(toolCallDelta.index) ?? {
+                id: "",
+                name: "",
+                arguments: "",
+            };
+            current.id += toolCallDelta.id ?? "";
+            current.name += toolCallDelta.function?.name ?? "";
+            current.arguments += toolCallDelta.function?.arguments ?? "";
+            toolCalls.set(toolCallDelta.index, current);
+        }
     }
 
-    const toolCall = assistantMessage.tool_calls?.find(
-        (call) =>
-            call.type === "function" &&
-            call.function.name === "submit_gis_plan",
+    const toolCall = [...toolCalls.values()].find(
+        (call) => call.name === "submit_gis_plan",
     );
 
-    if (!toolCall || toolCall.type !== "function") {
+    if (!toolCall) {
         return {
             summary:
-                assistantMessage.content ??
+                contentFragments.join("").trim() ||
                 "当前请求不需要执行 GIS 操作。",
             requiresConfirmation: false,
             commands: [],
@@ -234,10 +273,10 @@ export async function createAgentPlan({
 
     try {
         parsedArguments = JSON.parse(
-            toolCall.function.arguments,
+            toolCall.arguments,
         );
     } catch {
-        throw new Error("模型返回的工具参数不是合法 JSON。");
+        throw new AgentPlanValidationError("模型返回的工具参数不是合法 JSON。");
     }
 
     const result = AgentPlanSchema.safeParse(parsedArguments);
@@ -247,7 +286,7 @@ export async function createAgentPlan({
             "Agent plan validation failed:",
             result.error.flatten(),
         );
-        throw new Error("模型返回了不合法的 GIS 操作计划。");
+        throw new AgentPlanValidationError("模型返回了不合法的 GIS 操作计划。");
     }
 
     const normalizedPlan = normalizeAgentPlan(result.data, context);

@@ -85,6 +85,8 @@ GeoInsight AI 是一个面向城市空间数据分析场景的 Web GIS 应用。
 - Human-in-the-loop approval
 - `interrupt()` / `resume`
 - Checkpoint + thread id
+- 原生 EventSource / Server-Sent Events
+- 事件缓冲、`Last-Event-ID` 重放与 heartbeat
 - Agent Command → React State
 - 一步 Undo
 
@@ -138,9 +140,11 @@ flowchart LR
 
     subgraph Backend[Node Agent Server]
         API[Express API]
+        Runs[AgentRunManager]
         Planner[LLM Planner]
         Guard[Zod Guardrail]
         Graph[LangGraph]
+        Buffer[SSE Event Buffer]
     end
 
     GLM[Zhipu GLM]
@@ -155,12 +159,15 @@ flowchart LR
 
     User --> AgentUI
     AgentUI --> API
-    API --> Planner
+    API --> Runs
+    Runs --> Planner
     Planner --> GLM
     GLM --> Planner
 
     Planner --> Guard
     Guard --> Graph
+    Graph --> Buffer
+    Buffer -->|EventSource| AgentUI
 
     Graph -->|interrupt| AgentUI
     AgentUI -->|approve / reject| Graph
@@ -210,6 +217,56 @@ MapLibre / Statistics
 ```
 
 前端确认后通过已有状态系统执行，而不是让 LLM 直接操作地图。
+
+### Real SSE transport
+
+Agent transport uses a run resource instead of holding the create request open:
+
+```text
+POST /api/agent/runs
+        ↓ 202 { runId, threadId }
+AgentRunManager → LangGraph / GLM → bounded event buffer
+        ↓
+GET /api/agent/runs/:runId/events
+        ↓ text/event-stream
+EventSource → AgentPanel
+
+POST /api/agent/runs/:runId/approval
+        ↓ Command({ resume }) on the same thread_id
+same run SSE connection
+```
+
+`POST` creates business state; the separate `GET` is compatible with the browser's native `EventSource`, automatic reconnect, and `Last-Event-ID`. A run is independent from any one HTTP connection, so disconnecting a subscriber does not cancel the LangGraph run. The single-instance demo stores runs in memory, retains at most 200 events per run, expires terminal runs after 30 minutes and idle runs after 60 minutes. Horizontal scaling would require an external event/state store.
+
+SSE events are written immediately with `res.write()` in this wire format:
+
+```text
+id: 4
+event: plan_ready
+data: {"id":4,"runId":"…","timestamp":…,"type":"plan_ready","payload":{…}}
+
+```
+
+While waiting for approval, the server writes `: heartbeat <timestamp>` every 15 seconds. Reconnects replay only buffered events whose monotonic id is greater than `Last-Event-ID`. This is real network streaming: there is no response splitting, polling, artificial delay, or typewriter timer. Model `content` deltas are forwarded only when they arrive from `stream: true`; streamed tool arguments stay server-side, are accumulated by tool-call index, and are parsed and Zod-validated only after the provider stream completes.
+
+To inspect the transport during development, save a valid `{ "message", "context" }` request as `agent-run.json`, then run:
+
+```bash
+curl -i -X POST http://localhost:8787/api/agent/runs \
+  -H "Content-Type: application/json" \
+  --data-binary @agent-run.json
+
+curl -N http://localhost:8787/api/agent/runs/<runId>/events
+
+curl -i -X POST http://localhost:8787/api/agent/runs/<runId>/approval \
+  -H "Content-Type: application/json" \
+  -d '{"approved":true}'
+
+curl -N http://localhost:8787/api/agent/runs/<runId>/events \
+  -H "Last-Event-ID: 4"
+```
+
+In Chrome DevTools, the events request should remain `Pending` with content type `text/event-stream` until a terminal event, and its response should grow incrementally. GIS calculations and their progress still come from the deterministic frontend Workspace executor; SSE transports only the backend planning and approval lifecycle.
 
 ---
 

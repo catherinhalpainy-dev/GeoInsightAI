@@ -235,8 +235,6 @@ export const AgentPlanRequestSchema = z.object({
     message: z.string().trim().min(1),
     context: AgentContextSchema,
 }).strict();
-export const AgentResumeRequestSchema = z.object({
-    threadId: z.string().min(1),
+export const AgentApprovalRequestSchema = z.object({
     approved: z.boolean(),
 }).strict();
-export type AgentResumeRequest = z.infer<typeof AgentResumeRequestSchema>;

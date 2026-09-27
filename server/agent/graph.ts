@@ -10,12 +10,9 @@ import {
     INTERRUPT,//读取暂停时携带的数据
 } from "@langchain/langgraph";
 
-// 创建一个几乎不会重复的ID
-import { randomUUID } from "crypto";
-
 import { z } from "zod";
 import { AgentContext, AgentContextSchema, AgentPlanSchema } from "./schemas";
-import { createAgentPlan } from "./planner";
+import { createAgentPlan, type CreateAgentPlanOptions } from "./planner";
 
 //  GRAPH state
 // 工作流运行期间，需要保存的数据
@@ -50,7 +47,10 @@ type AgentWorkflowStateType =
    Plan Node ：调用AI生成AgentPlan
    ============================== */
 // Node 工作流中一个处理步骤
-async function planNode(state: AgentWorkflowStateType,) {
+async function planNode(
+    state: AgentWorkflowStateType,
+    plannerOptions: CreateAgentPlanOptions,
+) {
     const plan =
         await createAgentPlan({
             message:
@@ -58,7 +58,7 @@ async function planNode(state: AgentWorkflowStateType,) {
 
             context:
                 state.context,
-        });
+        }, plannerOptions);
 
     return {
         plan,
@@ -144,12 +144,13 @@ const checkpointer =
 /* ==============================
    Graph
    ============================== */
-export const agentGraph =
+function createAgentGraph(plannerOptions: CreateAgentPlanOptions = {}) {
+    return (
     // 创建一个LangGraph工作流
     new StateGraph(AgentWorkflowState,)
         .addNode(
             "create_plan",
-            planNode,
+            (state) => planNode(state, plannerOptions),
         )
         .addNode(
             "review",
@@ -194,14 +195,16 @@ export const agentGraph =
         // 把Graph编译成可执行工作流
         .compile({
             checkpointer,
-        });
+        })
+    );
+}
 
 
 /* ==============================
    Result Formatter
    ============================== */
 // 从langGraph的执行结果中提取interrupt时携带的数据
-function getInterruptPayload(
+function getInterrupt(
     result: unknown,
 ) {
     if (
@@ -210,11 +213,7 @@ function getInterruptPayload(
         return null;
     }
 
-    return (
-        result[INTERRUPT
-        ][0]?.value ??
-        null
-    )
+    return result[INTERRUPT][0] ?? null;
 }
 
 
@@ -225,8 +224,10 @@ function getInterruptPayload(
 export async function startAgentWorkflow(
     message: string,
     context: AgentContext,
+    options: CreateAgentPlanOptions & { threadId: string },
 ) {
-    const threadId = randomUUID();
+    const { threadId, ...plannerOptions } = options;
+    const agentGraph = createAgentGraph(plannerOptions);
 
     const config = {
         configurable: {
@@ -253,11 +254,13 @@ export async function startAgentWorkflow(
             config,
         );
 
+    const graphInterrupt = getInterrupt(result);
     return {
         threadId,
         status: result.status,
         plan: result.plan,
-        interrupt: getInterruptPayload(result,),
+        interrupt: graphInterrupt?.value ?? null,
+        interruptId: graphInterrupt?.id ?? null,
     };
 }
 
@@ -268,7 +271,9 @@ export async function startAgentWorkflow(
 export async function resumeAgentWorkflow(
   threadId: string,
   approved: boolean,
+  interruptId: string | null,
 ) {
+  const agentGraph = createAgentGraph();
   const config = {
     configurable: {
       thread_id:
@@ -277,17 +282,28 @@ export async function resumeAgentWorkflow(
   };
 
 
+  if (!approved && !interruptId) {
+    throw new Error("Agent 工作流缺少待恢复的 interrupt id。");
+  }
+
+  // LangGraph 1.4 treats scalar `resume: false` as an empty command.
+  // Addressing the interrupt explicitly preserves a real boolean rejection.
+  const resumeValue = approved
+    ? true
+    : { [interruptId as string]: false };
+
   const result =
     await agentGraph.invoke(
       new Command({
         resume:
-          approved,
+          resumeValue,
       }),
 
       config,
     );
 
 
+  const graphInterrupt = getInterrupt(result);
   return {
     threadId,
 
@@ -297,9 +313,7 @@ export async function resumeAgentWorkflow(
     plan:
       result.plan,
 
-    interrupt:
-      getInterruptPayload(
-        result,
-      ),
+    interrupt: graphInterrupt?.value ?? null,
+    interruptId: graphInterrupt?.id ?? null,
   };
 }

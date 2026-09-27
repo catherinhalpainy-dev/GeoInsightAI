@@ -5896,6 +5896,7 @@ export function WorkspacePage() {
                     onOpenParcelAnalysis={() => setActivePanel("parcel-analysis")}
                     onGenerateParcelReport={handleOpenParcelReportBuilder}
                     onSaveAsWorkflow={handleSaveAgentPlanAsWorkflow}
+                    onResetExecutionEvents={() => setAgentExecutionEvents([])}
                 />
             )}
             </Suspense>

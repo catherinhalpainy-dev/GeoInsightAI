@@ -1,6 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { resumeAgent, startAgent } from "../../agent/agentClient";
+import {
+    approveAgentRun,
+    createAgentRun,
+    rejectAgentRun,
+    subscribeAgentRun,
+    type AgentRunSubscription,
+} from "../../services/agent/agentStream";
 import { LAND_USE_LABELS } from "../../constants/landUse";
 import {
     createAgentPlanWorkspaceSnapshot,
@@ -17,6 +23,7 @@ import type {
     AgentPlanExecutionResult,
     AgentPlanWorkspaceSnapshot,
 } from "../../types/agent";
+import type { AgentStreamEvent } from "../../types/agentStream";
 import "../../styles/agent.css";
 
 interface AgentPanelProps {
@@ -29,9 +36,19 @@ interface AgentPanelProps {
     onOpenParcelAnalysis: () => void;
     onGenerateParcelReport: () => void;
     onSaveAsWorkflow: (plan: AgentPlan) => { success: boolean; message: string };
+    onResetExecutionEvents: () => void;
 }
 
-type AgentUiStatus = "idle" | "planning" | "waiting" | "executing" | "completed" | "failed" | "rejected" | "error";
+type AgentUiStatus = "idle" | "planning" | "waiting_approval" | "executing" | "completed" | "failed" | "rejected" | "error";
+
+interface ServerTimelineEvent {
+    id: number;
+    source: "server";
+    status: "success" | "error";
+    title: string;
+    message: string;
+    timestamp: number;
+}
 
 const SUGGESTIONS = [
     "全面分析当前地块",
@@ -65,23 +82,52 @@ export function AgentPanel({
     onOpenParcelAnalysis,
     onGenerateParcelReport,
     onSaveAsWorkflow,
+    onResetExecutionEvents,
 }: AgentPanelProps) {
     const [message, setMessage] = useState("");
     const [lastSubmittedMessage, setLastSubmittedMessage] = useState("");
     const [status, setStatus] = useState<AgentUiStatus>("idle");
-    const [threadId, setThreadId] = useState<string | null>(null);
+    const [activeRunId, setActiveRunId] = useState<string | null>(null);
     const [plan, setPlan] = useState<AgentPlan | null>(null);
     const [planSnapshot, setPlanSnapshot] = useState<AgentPlanWorkspaceSnapshot | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [latestEvents, setLatestEvents] = useState<AgentExecutionEvent[]>([]);
     const [stoppedAtStep, setStoppedAtStep] = useState<number | null>(null);
     const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
-    const isBusy = status === "planning" || status === "executing";
+    const [streamingText, setStreamingText] = useState("");
+    const [connectionState, setConnectionState] = useState<"connected" | "reconnecting">("connected");
+    const [serverTimeline, setServerTimeline] = useState<ServerTimelineEvent[]>([]);
+    const subscriptionRef = useRef<AgentRunSubscription | null>(null);
+    const handledTerminalEventIdsRef = useRef(new Set<number>());
+    const isBusy = status === "planning" || status === "waiting_approval" || status === "executing";
     const parcelPlan = plan
         ? plan.domain === "parcel-analysis" || isParcelAgentPlan(plan.commands)
         : false;
     const sources = availableSources(context);
     const sourceNames = sources.map((source) => source.name as string);
+    const timelineEntries = [
+        ...serverTimeline.map((event) => ({
+            ...event,
+            facts: undefined as string[] | undefined,
+            finishedAt: event.timestamp,
+            durationMs: undefined as number | undefined,
+        })),
+        ...executionEvents.map((event, index) => ({
+            id: index,
+            source: "workspace" as const,
+            status: event.status,
+            title: event.title,
+            message: event.message,
+            timestamp: event.timestamp,
+            facts: event.facts,
+            finishedAt: event.finishedAt,
+            durationMs: event.durationMs,
+        })),
+    ].sort((left, right) => left.timestamp - right.timestamp);
+
+    useEffect(() => {
+        return () => subscriptionRef.current?.close();
+    }, []);
 
     async function executeApprovedPlan(approvedPlan: AgentPlan) {
         setStatus("executing");
@@ -113,25 +159,27 @@ export function AgentPanel({
         setStatus("planning");
         setPlan(null);
         setWorkflowMessage(null);
-        setThreadId(null);
+        setStreamingText("");
+        setServerTimeline([]);
+        setConnectionState("connected");
+        setActiveRunId(null);
+        setPlanSnapshot(snapshot);
+        onResetExecutionEvents();
+        handledTerminalEventIdsRef.current.clear();
+        subscriptionRef.current?.close();
+        subscriptionRef.current = null;
 
         try {
-            const result = await startAgent(trimmedMessage, context);
-            setThreadId(result.threadId);
-            setPlan(result.plan);
-            setPlanSnapshot(snapshot);
-            if (result.plan.commands.length === 0) {
-                setErrorMessage(result.plan.summary);
-                setStatus("error");
-                return;
-            }
-            if (result.status === "approved") {
-                await executeApprovedPlan(result.plan);
-            } else if (result.status === "waiting_approval") {
-                setStatus("waiting");
-            } else {
-                setStatus(result.status === "rejected" ? "rejected" : "idle");
-            }
+            const run = await createAgentRun(trimmedMessage, context);
+            setActiveRunId(run.runId);
+            subscriptionRef.current = subscribeAgentRun(run.runId, {
+                onEvent: handleStreamEvent,
+                onConnectionChange: setConnectionState,
+                onProtocolError: (message) => {
+                    setErrorMessage(message);
+                    setStatus("error");
+                },
+            });
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "Agent 请求失败。");
             setStatus("error");
@@ -144,7 +192,7 @@ export function AgentPanel({
     }
 
     async function handleDecision(approved: boolean) {
-        if (!threadId || !plan || isBusy) return;
+        if (!activeRunId || !plan || status !== "waiting_approval") return;
         if (approved && parcelPlan && planSnapshot && !isAgentPlanWorkspaceSnapshotCurrent(planSnapshot, context)) {
             setErrorMessage("目标地块或分析图层已发生变化，请重新生成分析计划。");
             setStatus("error");
@@ -152,15 +200,95 @@ export function AgentPanel({
         }
 
         setErrorMessage(null);
-        setStatus("executing");
         try {
-            const result = await resumeAgent(threadId, approved);
-            if (result.status === "approved") await executeApprovedPlan(result.plan);
-            else if (result.status === "rejected") setStatus("rejected");
-            else setStatus("idle");
+            if (approved) {
+                await approveAgentRun(activeRunId);
+            } else {
+                await rejectAgentRun(activeRunId);
+            }
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "Agent 工作流恢复失败。");
             setStatus("error");
+        }
+    }
+
+    function addServerTimelineEvent(
+        event: AgentStreamEvent,
+        title: string,
+        message: string,
+        eventStatus: "success" | "error" = "success",
+    ) {
+        setServerTimeline((previous) => previous.some((item) => item.id === event.id)
+            ? previous
+            : [...previous, {
+                id: event.id,
+                source: "server",
+                status: eventStatus,
+                title,
+                message,
+                timestamp: event.timestamp,
+            }]);
+    }
+
+    function handleStreamEvent(event: AgentStreamEvent) {
+        switch (event.type) {
+            case "connected":
+                setConnectionState("connected");
+                break;
+            case "planning_started":
+                setStatus("planning");
+                break;
+            case "model_delta":
+                setStreamingText((previous) => previous + event.payload.text);
+                break;
+            case "plan_ready":
+                setPlan(event.payload.plan);
+                addServerTimelineEvent(
+                    event,
+                    "分析计划生成",
+                    `已生成 ${event.payload.plan.commands.length} 个受约束 GIS 步骤。`,
+                );
+                break;
+            case "waiting_approval":
+                setStatus("waiting_approval");
+                break;
+            case "approval_received":
+                addServerTimelineEvent(
+                    event,
+                    event.payload.approved ? "用户已批准" : "用户已取消",
+                    event.payload.approved
+                        ? "LangGraph 将恢复同一运行线程。"
+                        : "本次计划不会执行 GIS 命令。",
+                );
+                if (event.payload.approved) {
+                    setStatus("executing");
+                }
+                break;
+            case "graph_resumed":
+                setStatus("executing");
+                break;
+            case "graph_completed":
+                if (handledTerminalEventIdsRef.current.has(event.id)) {
+                    break;
+                }
+                handledTerminalEventIdsRef.current.add(event.id);
+                setPlan(event.payload.plan);
+                if (event.payload.plan.commands.length === 0) {
+                    setErrorMessage(event.payload.plan.summary);
+                    setStatus("error");
+                    break;
+                }
+                void executeApprovedPlan(event.payload.plan);
+                break;
+            case "run_rejected":
+                addServerTimelineEvent(event, "计划已取消", "LangGraph 已结束，本地 GIS 执行未启动。");
+                setStatus("rejected");
+                break;
+            case "run_error":
+                addServerTimelineEvent(event, "Agent 运行失败", event.payload.message, "error");
+                setErrorMessage(event.payload.message);
+                setStatus("error");
+                break;
         }
     }
 
@@ -192,6 +320,9 @@ export function AgentPanel({
                     <button type="submit" disabled={isBusy || message.trim() === ""}>{status === "planning" ? "正在生成计划..." : "生成分析计划"}</button>
                 </form>
 
+                {status === "planning" && <section className="agent-streaming-text" aria-live="polite"><strong>正在生成分析计划...</strong>{streamingText && <p>{streamingText}</p>}</section>}
+                {isBusy && connectionState === "reconnecting" && <p className="agent-connection-status">SSE 连接暂时中断，正在重新连接…</p>}
+
                 {errorMessage && <div className="agent-error" role="alert"><strong>无法继续</strong><p>{errorMessage}</p><div className="agent-error-actions">{lastSubmittedMessage && <button type="button" onClick={() => void requestPlan(lastSubmittedMessage)}>重新生成计划</button>}<button type="button" onClick={onOpenParcelAnalysis}>打开手动地块分析</button></div></div>}
 
                 {plan && <section className="agent-plan">
@@ -201,14 +332,14 @@ export function AgentPanel({
                         const presentation = getAgentCommandPresentation(command, context);
                         return <li key={`${command.type}-${index}`}><span className="agent-command-index">{index + 1}</span><div><strong>{presentation.title}</strong><p>{presentation.description}</p>{presentation.metadata.length > 0 && <small>{presentation.metadata.join(" · ")}</small>}</div></li>;
                     })}</ol>
-                    {status === "waiting" && <footer className="agent-approval-actions"><button type="button" className="agent-reject-button" onClick={() => void handleDecision(false)}>取消</button><button type="button" className="agent-approve-button" onClick={() => void handleDecision(true)}>{parcelPlan ? "执行分析" : "批准执行"}</button></footer>}
+                    {status === "waiting_approval" && <footer className="agent-approval-actions"><button type="button" className="agent-reject-button" onClick={() => void handleDecision(false)}>取消</button><button type="button" className="agent-approve-button" onClick={() => void handleDecision(true)}>{parcelPlan ? "执行分析" : "批准执行"}</button></footer>}
                     {status === "executing" && <p className="agent-status">正在按顺序执行本地分析步骤…</p>}
                     {(status === "completed" || status === "failed") && <div className={`agent-result-card ${status === "failed" ? "failed" : ""}`}><div className="agent-result-main"><span className="agent-result-icon">{status === "completed" ? "✓" : "!"}</span><div><strong>{status === "completed" ? "分析计划执行完成" : `执行在步骤 ${(stoppedAtStep ?? 0) + 1} 停止`}</strong><p>已记录 {latestEvents.length} 条可核验执行结果。</p>{parcelPlan && latestEvents.flatMap((event) => event.facts ?? []).slice(-5).map((fact) => <small key={fact}>{fact}</small>)}</div></div><div className="agent-result-actions"><button type="button" className="agent-undo-button" disabled={!canUndo} onClick={onUndo}>撤销整个计划</button>{parcelPlan && status === "completed" && <><button type="button" className="agent-open-result-button" onClick={onOpenParcelAnalysis}>查看地块分析</button><button type="button" className="agent-open-result-button" onClick={onGenerateParcelReport}>生成分析报告</button></>}</div></div>}
                     {!parcelPlan && plan.commands.length > 0 && (status === "completed" || status === "failed") && <div className="agent-workflow-action"><button type="button" onClick={() => { const result = onSaveAsWorkflow(plan); setWorkflowMessage(result.message); }}>保存为工作流</button>{workflowMessage && <p>{workflowMessage}</p>}</div>}
                     {status === "rejected" && <p className="agent-rejected">已取消，本次计划未执行。</p>}
                 </section>}
 
-                {executionEvents.length > 0 && <section className="agent-execution-log"><header><span>EXECUTION LOG</span><strong>执行记录</strong></header><ol>{executionEvents.map((event, index) => <li key={`${event.timestamp}-${event.commandType}-${index}`} className={event.status}><span className="agent-log-icon">{event.status === "success" ? "✓" : "×"}</span><div><strong>{event.title}</strong><p>{event.message}</p>{event.facts?.map((fact) => <small key={fact}>{fact}</small>)}<time>{new Date(event.finishedAt).toLocaleTimeString("zh-CN")} · {event.durationMs} ms</time></div></li>)}</ol></section>}
+                {timelineEntries.length > 0 && <section className="agent-execution-log"><header><span>EXECUTION TIMELINE</span><strong>执行记录</strong></header><ol>{timelineEntries.map((event) => <li key={`${event.source}-${event.id}-${event.timestamp}`} className={event.status}><span className="agent-log-icon">{event.status === "success" ? "✓" : "×"}</span><div><strong>{event.title}</strong><p>{event.message}</p>{event.facts?.map((fact) => <small key={fact}>{fact}</small>)}<time>{event.source === "server" ? "SERVER" : "WORKSPACE"} · {new Date(event.finishedAt).toLocaleTimeString("zh-CN")}{event.durationMs === undefined ? "" : ` · ${event.durationMs} ms`}</time></div></li>)}</ol></section>}
             </div>
         </aside>
     );

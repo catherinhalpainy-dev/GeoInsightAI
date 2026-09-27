@@ -212,25 +212,3 @@ export interface AgentPlanExecutionResult {
     completed: boolean;
     stoppedAtStep: number | null;
 }
-
-export type AgentWorkflowStatus =
-    | "planning"
-    | "waiting_approval"
-    | "approved"
-    | "rejected";
-
-export interface AgentStartResponse {
-    ok: true;
-    threadId: string;
-    status: AgentWorkflowStatus;
-    plan: AgentPlan;
-    interrupt: unknown | null;
-}
-
-export interface AgentResumeResponse {
-    ok: true;
-    threadId: string;
-    status: AgentWorkflowStatus;
-    plan: AgentPlan;
-    interrupt: unknown | null;
-}

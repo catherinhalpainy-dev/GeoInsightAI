@@ -10,14 +10,12 @@ import { ZAI_MODEL, zhipuClient } from "./llm/zhipuClient";
 
 
 import {
+    AgentApprovalRequestSchema,
     AgentPlanRequestSchema,
-    AgentResumeRequestSchema,
 } from "./agent/schemas";
-
-import {
-    createAgentPlan,
-} from "./agent/planner";
-import { resumeAgentWorkflow, startAgentWorkflow } from "./agent/graph";
+import { agentRunManager } from "./agent/runManager";
+import { startAgentRun, submitAgentApproval } from "./agent/runService";
+import { writeSseEvent } from "./agent/sse";
 import {
     ReportInsightRequestSchema,
 } from "../src/services/report/reportInsightSchema";
@@ -140,232 +138,115 @@ app.post(
     },
 );
 
-// 接收前端请求\校验参数\调用createAgentPlan\把结果返回给前端
-// POST 提交一段数据给服务器处理
 app.post(
-    "/api/agent/plan",
-    // 异步等待
-    async (
-        request,
-        response,
-    ) => {
-        const parsedRequest =
-            // .safeParse 检查是否合乎规范
-            AgentPlanRequestSchema
-                .safeParse(
-                    request.body,
-                );
-
-
-        if (
-            !parsedRequest.success
-        ) {
-            response
-                .status(400)
-                .json({
-                    ok: false,
-
-                    error:
-                        "Agent 请求参数不合法",
-
-                    details:
-                        parsedRequest.error
-                            .flatten(),
-                });
-
+    "/api/agent/runs",
+    (request, response) => {
+        const parsedRequest = AgentPlanRequestSchema.safeParse(request.body);
+        if (!parsedRequest.success) {
+            response.status(400).json({
+                error: "Agent 请求参数不合法",
+                details: parsedRequest.error.flatten(),
+            });
             return;
         }
 
+        const runtime = agentRunManager.createRun();
+        response.status(202).json({
+            runId: runtime.runId,
+            threadId: runtime.threadId,
+        });
+        void startAgentRun(
+            runtime,
+            parsedRequest.data.message,
+            parsedRequest.data.context,
+        );
+    },
+);
 
-        try {
-            const plan =
-                await createAgentPlan(
-                    parsedRequest.data,
-                );
-
-
-            response.json({
-                ok: true,
-                plan,
+app.get(
+    "/api/agent/runs/:runId/events",
+    (request, response) => {
+        const runtime = agentRunManager.getRun(request.params.runId);
+        if (!runtime) {
+            response.status(404).json({
+                error: "Agent 运行不存在或已过期。",
             });
-        } catch (
-        error: unknown
-        ) {
-            console.error(
-                "Agent planning error:",
-                error,
-            );
-
-
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "生成 Agent 计划时发生未知错误";
-
-
-            response
-                .status(500)
-                .json({
-                    ok: false,
-
-                    error:
-                        errorMessage,
-                });
+            return;
         }
+
+        response.status(200);
+        response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+        response.setHeader("Connection", "keep-alive");
+        response.setHeader("X-Accel-Buffering", "no");
+        response.flushHeaders();
+
+        const headerValue = request.get("Last-Event-ID");
+        const parsedLastEventId = Number.parseInt(headerValue ?? "0", 10);
+        const lastEventId = Number.isSafeInteger(parsedLastEventId) && parsedLastEventId >= 0
+            ? parsedLastEventId
+            : 0;
+        const subscription = agentRunManager.subscribe(
+            runtime,
+            lastEventId,
+            {
+                send: (event) => writeSseEvent(response, event),
+                close: () => {
+                    if (!response.writableEnded) {
+                        response.end();
+                    }
+                },
+            },
+        );
+
+        if (!subscription.active) {
+            return;
+        }
+
+        const heartbeatId = setInterval(() => {
+            response.write(`: heartbeat ${Date.now()}\n\n`);
+        }, 15_000);
+        let cleanedUp = false;
+        request.on("close", () => {
+            if (cleanedUp) {
+                return;
+            }
+            cleanedUp = true;
+            clearInterval(heartbeatId);
+            subscription.unsubscribe();
+        });
     },
 );
 
 app.post(
-    "/api/agent/start",
-    async (request, response) => {
-        const parsedRequest =
-            AgentPlanRequestSchema
-                .safeParse(
-                    request.body,
-                );
-
-
-        if (
-            !parsedRequest.success
-        ) {
-            response
-                .status(400)
-                .json({
-                    ok: false,
-
-                    error:
-                        "Agent 请求参数不合法",
-
-                    details:
-                        parsedRequest
-                            .error
-                            .flatten(),
-                });
-
-            return;
-        }
-        try {
-            const result =
-                await startAgentWorkflow(
-                    parsedRequest
-                        .data
-                        .message,
-
-                    parsedRequest
-                        .data
-                        .context,
-                );
-
-
-            response.json({
-                ok: true,
-
-                ...result,
+    "/api/agent/runs/:runId/approval",
+    (request, response) => {
+        const parsedRequest = AgentApprovalRequestSchema.safeParse(request.body);
+        if (!parsedRequest.success) {
+            response.status(400).json({
+                error: "Agent 审批请求参数不合法",
+                details: parsedRequest.error.flatten(),
             });
-        } catch (
-        error: unknown
-        ) {
-            console.error(
-                "Agent workflow start error:",
-                error,
-            );
-
-
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "启动 Agent 工作流时发生未知错误";
-
-
-            response
-                .status(500)
-                .json({
-                    ok: false,
-
-                    error:
-                        errorMessage,
-                });
-        }
-    }
-);
-
-app.post(
-    "/api/agent/resume",
-
-    async (
-        request,
-        response,
-    ) => {
-        const parsedRequest =
-            AgentResumeRequestSchema
-                .safeParse(
-                    request.body,
-                );
-
-
-        if (
-            !parsedRequest.success
-        ) {
-            response
-                .status(400)
-                .json({
-                    ok: false,
-
-                    error:
-                        "Agent 恢复请求参数不合法",
-
-                    details:
-                        parsedRequest
-                            .error
-                            .flatten(),
-                });
-
             return;
         }
 
-
-        try {
-            const result =
-                await resumeAgentWorkflow(
-                    parsedRequest
-                        .data
-                        .threadId,
-
-                    parsedRequest
-                        .data
-                        .approved,
-                );
-
-
-            response.json({
-                ok: true,
-
-                ...result,
-            });
-        } catch (
-        error: unknown
-        ) {
-            console.error(
-                "Agent workflow resume error:",
-                error,
-            );
-
-
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "恢复 Agent 工作流时发生未知错误";
-
-
-            response
-                .status(500)
-                .json({
-                    ok: false,
-
-                    error:
-                        errorMessage,
-                });
+        const runtime = agentRunManager.getRun(request.params.runId);
+        if (!runtime) {
+            response.status(404).json({ error: "Agent 运行不存在或已过期。" });
+            return;
         }
+
+        if (!submitAgentApproval(runtime, parsedRequest.data.approved)) {
+            response.status(409).json({
+                error: "当前 Agent 运行不处于待审批状态。",
+            });
+            return;
+        }
+
+        response.status(202).json({
+            runId: runtime.runId,
+            accepted: true,
+        });
     },
 );
 
