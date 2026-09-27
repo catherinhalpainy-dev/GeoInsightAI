@@ -11,8 +11,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3086,
-          30.529
+          114.3066683,
+          30.5328665
         ]
       }
     },
@@ -20,14 +20,14 @@
       "type": "Feature",
       "properties": {
         "id": "poi-002",
-        "name": "社区卫生服务中心",
+        "name": "文景社区卫生服务中心",
         "category": "医疗"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3115,
-          30.5296
+          114.3128006,
+          30.5347663
         ]
       }
     },
@@ -41,8 +41,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3141,
-          30.5311
+          114.3158668,
+          30.5312834
         ]
       }
     },
@@ -50,14 +50,14 @@
       "type": "Feature",
       "properties": {
         "id": "poi-004",
-        "name": "邻里服务中心",
+        "name": "松涛邻里中心",
         "category": "公共服务"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3067,
-          30.5322
+          114.3068769,
+          30.5361685
         ]
       }
     },
@@ -65,14 +65,14 @@
       "type": "Feature",
       "properties": {
         "id": "poi-005",
-        "name": "科创公园",
+        "name": "青禾公园",
         "category": "公园"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3158,
-          30.5344
+          114.3194961,
+          30.5358066
         ]
       }
     },
@@ -80,14 +80,14 @@
       "type": "Feature",
       "properties": {
         "id": "poi-006",
-        "name": "文化活动中心",
+        "name": "滨江文化活动中心",
         "category": "文化"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.31,
-          30.535
+          114.3105792,
+          30.5358066
         ]
       }
     },
@@ -95,14 +95,44 @@
       "type": "Feature",
       "properties": {
         "id": "poi-007",
-        "name": "滨江体育场",
+        "name": "文景体育场",
         "category": "体育"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          114.3166,
-          30.5277
+          114.3179317,
+          30.5317809
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-008",
+        "name": "清河驿站",
+        "category": "公共服务"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3046867,
+          30.5280719
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "poi-009",
+        "name": "东港消防站",
+        "category": "应急"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          114.3208519,
+          30.5280719
         ]
       }
     }
